@@ -125,7 +125,6 @@ export class MediaPoster extends HTMLElement {
                     color: var(--md-sys-color-on-surface);
                     align-items: center;
                     justify-content: center;
-                    padding: 0 16px;
                     text-align: center;
                     font-size: 14px;
                     font-weight: 600;
