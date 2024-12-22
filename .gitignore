@@ -1,0 +1,7 @@
+.vercel
+
+.cache/
+*.log
+
+.env
+.env.local
