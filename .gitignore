@@ -1,7 +1,23 @@
-.vercel
+# Dependencies
+node_modules/
 
-.cache/
-*.log
-
+# Environment variables
 .env
 .env.local
+
+# Build output
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
