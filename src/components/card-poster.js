@@ -40,7 +40,7 @@ export class MoviePoster extends HTMLElement {
         if (this._movie && 
             this._movie.media_type === 'movie' && 
             event.detail.movieId === this._movie.id) {
-            this._updateBadges(); // Используем только обновление бейджей
+            this._updateContent();
         }
     }
 
@@ -49,7 +49,7 @@ export class MoviePoster extends HTMLElement {
         if (this._movie && 
             this._movie.media_type === 'tv' && 
             parseInt(event.detail.tvId) === this._movie.id) {
-            this._updateBadges(); // Используем только обновление бейджей
+            this._updateContent();
         }
     }
 
@@ -58,7 +58,7 @@ export class MoviePoster extends HTMLElement {
         if (this._movie && 
             this._movie.media_type === 'tv' && 
             parseInt(event.detail.tvId) === this._movie.id) {
-            this._updateBadges(); // Используем только обновление бейджей
+            this._updateContent();
         }
     }
 
@@ -267,65 +267,6 @@ export class MoviePoster extends HTMLElement {
                         this._mediaPoster.setAttribute('user-rating', review.rating);
                     }
                 }
-            }
-        }
-    }
-
-    _updateBadges() {
-        if (!this._movie || !this._mediaPoster) return;
-
-        if (this._movie.media_type === 'tv') {
-            // Обновляем прогресс для сериалов
-            const totalEpisodes = this._movie.seasons
-                ?.filter(season => season.season_number > 0)
-                .reduce((total, season) => total + (season.episode_count || 0), 0) || 0;
-            
-            let watchedEpisodes = 0;
-            if (this._movie.seasons) {
-                this._movie.seasons.forEach(season => {
-                    if (season.season_number > 0) {
-                        for (let i = 1; i <= season.episode_count; i++) {
-                            if (userMoviesService.isEpisodeWatched(
-                                this._movie.id,
-                                season.season_number,
-                                i
-                            )) {
-                                watchedEpisodes++;
-                            }
-                        }
-                    }
-                });
-            }
-            
-            if (totalEpisodes > 0) {
-                this._mediaPoster.setAttribute('watched-episodes', watchedEpisodes);
-                this._mediaPoster.setAttribute('total-episodes', totalEpisodes);
-            }
-            
-            // Обновляем рейтинг
-            const seasonReviews = this._movie.seasons
-                ?.filter(season => season.season_number > 0)
-                .map(season => userMoviesService.getSeasonReview(this._movie.id, season.season_number))
-                .filter(Boolean) || [];
-            
-            if (seasonReviews.length > 0) {
-                const lastReview = seasonReviews[seasonReviews.length - 1];
-                this._mediaPoster.setAttribute('user-rating', lastReview.rating);
-            } else {
-                this._mediaPoster.removeAttribute('user-rating');
-            }
-        } else {
-            // Обновляем рейтинг для фильмов
-            const movieState = userMoviesService.getMovieState(this._movie.id);
-            if (movieState === 'watched') {
-                const review = userMoviesService.getReview('movie', this._movie.id);
-                if (review?.rating) {
-                    this._mediaPoster.setAttribute('user-rating', review.rating);
-                } else {
-                    this._mediaPoster.removeAttribute('user-rating');
-                }
-            } else {
-                this._mediaPoster.removeAttribute('user-rating');
             }
         }
     }
