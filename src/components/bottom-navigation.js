@@ -56,7 +56,8 @@ export class TabBar extends HTMLElement {
                     align-items: center;
                     padding: 0 16px;
                     padding-top: 12px; 
-                    padding-bottom: calc(12px + env(safe-area-inset-bottom)); 
+                    padding-bottom: 12px;
+                    /*padding-bottom: calc(12px + env(safe-area-inset-bottom)); */
                     gap: 8px;               
                     transform: translateZ(0);
                 }
