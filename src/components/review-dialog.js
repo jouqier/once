@@ -626,8 +626,8 @@ export class ReviewDialog extends HTMLElement {
                         };
                         
                         // Добавляем текст отзыва в поле подписи к истории
-                        if (review.comment && review.comment.trim()) {
-                            shareParams.text = review.comment;
+                        if (review.text && review.text.trim()) {
+                            shareParams.text = review.text;
                         }
                         
                         console.log('📤 Sharing to story with params:', shareParams);
