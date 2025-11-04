@@ -28,12 +28,24 @@ export class ProfileScreen extends HTMLElement {
             watched: 'movies',
             tvshows: 'tv'
         };
+        
+        // Сохраняем bound функции для правильной очистки слушателей
+        this._boundHandlers = {
+            reviewSubmitted: this._handleReviewSubmitted.bind(this),
+            seasonReviewSubmitted: this._handleSeasonReviewSubmitted.bind(this),
+            episodeStatusChanged: this._handleEpisodeStatusChanged.bind(this)
+        };
     }
 
     async connectedCallback() {
         if (this._initialized) return;
         
         this._initialized = true;
+        
+        // Добавляем слушатели при подключении
+        document.addEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+        document.addEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
+        document.addEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
         
         // Запрашиваем обновленные данные пользователя
         document.dispatchEvent(new CustomEvent('tg-user-data-updated'));
@@ -42,6 +54,72 @@ export class ProfileScreen extends HTMLElement {
         await this.loadStats();
         this.render();
         this._setupEventListeners();
+    }
+
+    disconnectedCallback() {
+        // Удаляем слушатели при отключении компонента
+        document.removeEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+        document.removeEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
+        document.removeEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+    }
+
+    async _handleReviewSubmitted(event) {
+        const movieId = event.detail.movieId;
+        const review = event.detail.review;
+        
+        // Обновляем постер, если он есть на странице
+        await this._updatePosterRating(movieId, review?.rating);
+    }
+
+    async _handleSeasonReviewSubmitted(event) {
+        const tvId = event.detail.tvId;
+        
+        // Обновляем постер, если он есть на странице
+        await this._updateShowPoster(tvId);
+    }
+
+    async _handleEpisodeStatusChanged(event) {
+        const tvId = event.detail.tvId;
+        
+        // Обновляем постер, если он есть на странице
+        await this._updateShowPoster(tvId);
+    }
+
+    async _updatePosterRating(movieId, rating) {
+        // Обновляем постеры в текущей вкладке
+        const allCards = this.shadowRoot.querySelectorAll(`[data-id="${movieId}"][data-type="movie"]`);
+        allCards.forEach(card => {
+            const poster = card.querySelector('media-poster');
+            if (poster) {
+                if (rating) {
+                    poster.setAttribute('user-rating', rating);
+                } else {
+                    poster.removeAttribute('user-rating');
+                }
+            }
+        });
+    }
+
+    async _updateShowPoster(tvId) {
+        // Получаем новый прогресс
+        const progress = await userMoviesService.getShowProgress(tvId);
+        
+        // Обновляем постеры в текущей вкладке
+        const allCards = this.shadowRoot.querySelectorAll(`[data-id="${tvId}"][data-type="tv"]`);
+        allCards.forEach(card => {
+            const poster = card.querySelector('media-poster');
+            if (poster) {
+                if (progress) {
+                    poster.setAttribute('watched-episodes', progress.watchedEpisodes || 0);
+                    poster.setAttribute('total-episodes', progress.totalEpisodes || 0);
+                    if (progress.rating) {
+                        poster.setAttribute('user-rating', progress.rating);
+                    } else {
+                        poster.removeAttribute('user-rating');
+                    }
+                }
+            }
+        });
     }
 
     async loadStats() {
@@ -413,9 +491,12 @@ export class ProfileScreen extends HTMLElement {
             return this._renderEmptyState(activeTab);
         }
 
+        // Сортируем список от новых к старым (обращаем порядок)
+        const sortedList = [...currentList].reverse();
+
         // Рендерим все элементы асинхронно
         const renderedItems = await Promise.all(
-            currentList.map(item => this._renderMediaItem(item))
+            sortedList.map(item => this._renderMediaItem(item))
         );
 
         return `

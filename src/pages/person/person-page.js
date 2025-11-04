@@ -15,9 +15,21 @@ export class PersonScreen extends HTMLElement {
         this._person = null;
         this._personId = null;
         this._loading = true;
+        
+        // Сохраняем bound функции для правильной очистки слушателей
+        this._boundHandlers = {
+            reviewSubmitted: this._handleReviewSubmitted.bind(this),
+            seasonReviewSubmitted: this._handleSeasonReviewSubmitted.bind(this),
+            episodeStatusChanged: this._handleEpisodeStatusChanged.bind(this)
+        };
     }
 
     async connectedCallback() {
+        // Добавляем слушатели при подключении
+        document.addEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+        document.addEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
+        document.addEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+        
         this._personId = new URLSearchParams(window.location.search).get('id');
         
         this.render(); // Показываем начальное состояние загрузки
@@ -25,6 +37,78 @@ export class PersonScreen extends HTMLElement {
         this._loading = false;
         this.render(); // Перерисовываем с загруженными данными
         this._setupEventListeners();
+    }
+
+    disconnectedCallback() {
+        // Удаляем слушатели при отключении компонента
+        document.removeEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+        document.removeEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
+        document.removeEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+    }
+
+    async _handleReviewSubmitted(event) {
+        const movieId = event.detail.movieId;
+        const review = event.detail.review;
+        
+        // Обновляем постер, если это фильмы и постер есть на странице
+        if (this._activeTab === 'movies') {
+            await this._updatePosterRating(movieId, review?.rating);
+        }
+    }
+
+    async _handleSeasonReviewSubmitted(event) {
+        const tvId = event.detail.tvId;
+        
+        // Обновляем постер, если это сериалы и постер есть на странице
+        if (this._activeTab === 'tv') {
+            await this._updateShowPoster(tvId);
+        }
+    }
+
+    async _handleEpisodeStatusChanged(event) {
+        const tvId = event.detail.tvId;
+        
+        // Обновляем постер, если это сериалы и постер есть на странице
+        if (this._activeTab === 'tv') {
+            await this._updateShowPoster(tvId);
+        }
+    }
+
+    async _updatePosterRating(movieId, rating) {
+        // Обновляем постеры
+        const allCards = this.shadowRoot.querySelectorAll(`[data-id="${movieId}"][data-type="movie"]`);
+        allCards.forEach(card => {
+            const poster = card.querySelector('media-poster');
+            if (poster) {
+                if (rating) {
+                    poster.setAttribute('user-rating', rating);
+                } else {
+                    poster.removeAttribute('user-rating');
+                }
+            }
+        });
+    }
+
+    async _updateShowPoster(tvId) {
+        // Получаем новый прогресс
+        const progress = await userMoviesService.getShowProgress(tvId);
+        
+        // Обновляем постеры
+        const allCards = this.shadowRoot.querySelectorAll(`[data-id="${tvId}"][data-type="tv"]`);
+        allCards.forEach(card => {
+            const poster = card.querySelector('media-poster');
+            if (poster) {
+                if (progress) {
+                    poster.setAttribute('watched-episodes', progress.watchedEpisodes || 0);
+                    poster.setAttribute('total-episodes', progress.totalEpisodes || 0);
+                    if (progress.rating) {
+                        poster.setAttribute('user-rating', progress.rating);
+                    } else {
+                        poster.removeAttribute('user-rating');
+                    }
+                }
+            }
+        });
     }
 
     async loadData() {

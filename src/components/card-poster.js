@@ -12,6 +12,54 @@ export class MoviePoster extends HTMLElement {
         this.attachShadow({ mode: 'open' });
         this._movie = null;
         this._createElements();
+        
+        // Сохраняем bound функции для правильной очистки слушателей
+        this._boundHandlers = {
+            reviewSubmitted: this._handleReviewSubmitted.bind(this),
+            seasonReviewSubmitted: this._handleSeasonReviewSubmitted.bind(this),
+            episodeStatusChanged: this._handleEpisodeStatusChanged.bind(this)
+        };
+    }
+
+    connectedCallback() {
+        // Добавляем слушатели при подключении к DOM
+        document.addEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+        document.addEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
+        document.addEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+    }
+
+    disconnectedCallback() {
+        // Удаляем слушатели при отключении компонента
+        document.removeEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+        document.removeEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
+        document.removeEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+    }
+
+    _handleReviewSubmitted(event) {
+        // Обновляем постер, если это фильм и ID совпадает
+        if (this._movie && 
+            this._movie.media_type === 'movie' && 
+            event.detail.movieId === this._movie.id) {
+            this._updateContent();
+        }
+    }
+
+    _handleSeasonReviewSubmitted(event) {
+        // Обновляем постер, если это сериал и ID совпадает
+        if (this._movie && 
+            this._movie.media_type === 'tv' && 
+            parseInt(event.detail.tvId) === this._movie.id) {
+            this._updateContent();
+        }
+    }
+
+    _handleEpisodeStatusChanged(event) {
+        // Обновляем постер, если это сериал и ID совпадает
+        if (this._movie && 
+            this._movie.media_type === 'tv' && 
+            parseInt(event.detail.tvId) === this._movie.id) {
+            this._updateContent();
+        }
     }
 
     _createElements() {

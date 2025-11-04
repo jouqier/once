@@ -14,10 +14,18 @@ export class MoviesScreen extends HTMLElement {
         this._popularMovies = [];
         this._upcomingTrailers = [];
         this._dataLoaded = false;
+        
+        // Сохраняем bound функции для правильной очистки слушателей
+        this._boundHandlers = {
+            reviewSubmitted: this._handleReviewSubmitted.bind(this)
+        };
     }
 
     async connectedCallback() {
         console.log('MoviesScreen connecting...');
+        // Добавляем слушатели при подключении
+        document.addEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+        
         try {
             if (!this._dataLoaded) {
                 await this.loadData();
@@ -27,6 +35,34 @@ export class MoviesScreen extends HTMLElement {
         } catch (error) {
             console.error('Error in MoviesScreen:', error);
         }
+    }
+
+    disconnectedCallback() {
+        // Удаляем слушатели при отключении компонента
+        document.removeEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+    }
+
+    _handleReviewSubmitted(event) {
+        const movieId = event.detail.movieId;
+        const review = event.detail.review;
+        
+        // Обновляем постеры в списках
+        this._updatePosterRating(movieId, review?.rating);
+    }
+
+    _updatePosterRating(movieId, rating) {
+        // Обновляем постеры во всех секциях
+        const allCards = this.shadowRoot.querySelectorAll(`[data-movie-id="${movieId}"]`);
+        allCards.forEach(card => {
+            const poster = card.querySelector('media-poster');
+            if (poster) {
+                if (rating) {
+                    poster.setAttribute('user-rating', rating);
+                } else {
+                    poster.removeAttribute('user-rating');
+                }
+            }
+        });
     }
 
     async loadData() {
@@ -318,9 +354,6 @@ export class MoviesScreen extends HTMLElement {
         });
     }
 
-    disconnectedCallback() {
-        // Object.values(this._loadedImages).forEach(set => set.clear());
-    }
 }
 
 MoviesScreen._cache = null;

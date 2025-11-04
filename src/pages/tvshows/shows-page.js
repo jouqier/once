@@ -16,12 +16,65 @@ export class TVShowsScreen extends HTMLElement {
         this._popularShows = [];
         this._upcomingTrailers = [];
         
+        // Сохраняем bound функции для правильной очистки слушателей
+        this._boundHandlers = {
+            seasonReviewSubmitted: this._handleSeasonReviewSubmitted.bind(this),
+            episodeStatusChanged: this._handleEpisodeStatusChanged.bind(this)
+        };
+        
         this.shadowRoot.innerHTML = this._getLoadingTemplate();
     }
 
     async connectedCallback() {
+        // Добавляем слушатели при подключении
+        document.addEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
+        document.addEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+        
         this.loadData().then(() => this.render());
         this._preloadShowProgress();
+    }
+
+    disconnectedCallback() {
+        // Удаляем слушатели при отключении компонента
+        document.removeEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
+        document.removeEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+    }
+
+    async _handleSeasonReviewSubmitted(event) {
+        const tvId = event.detail.tvId;
+        // Обновляем прогресс и рейтинг для сериала
+        await this._updateShowPoster(tvId);
+    }
+
+    async _handleEpisodeStatusChanged(event) {
+        const tvId = event.detail.tvId;
+        // Обновляем прогресс для сериала
+        await this._updateShowPoster(tvId);
+    }
+
+    async _updateShowPoster(tvId) {
+        // Инвалидируем кеш прогресса
+        this._progressCache.delete(tvId);
+        
+        // Получаем новый прогресс
+        const progress = await userMoviesService.getShowProgress(tvId);
+        
+        // Обновляем постеры во всех секциях
+        const allCards = this.shadowRoot.querySelectorAll(`[data-show-id="${tvId}"]`);
+        allCards.forEach(card => {
+            const poster = card.querySelector('media-poster');
+            if (poster) {
+                if (progress) {
+                    poster.setAttribute('watched-episodes', progress.watchedEpisodes || 0);
+                    poster.setAttribute('total-episodes', progress.totalEpisodes || 0);
+                    if (progress.rating) {
+                        poster.setAttribute('user-rating', progress.rating);
+                    } else {
+                        poster.removeAttribute('user-rating');
+                    }
+                }
+            }
+        });
     }
 
     async loadData() {
