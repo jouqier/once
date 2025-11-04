@@ -60,37 +60,45 @@ export class StoryGenerator {
 
     // Разделим на отдельные методы
     _drawBackground(posterImage) {
-        // Определяем платформу для оптимизации blur
+        // Определяем платформу для оптимизации
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
                      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         
-        // Для iOS используем меньший blur и более надежный метод
-        const blurAmount = isIOS ? '60px' : '120px';
-        
-        // Сохраняем текущее состояние контекста
-        this.ctx.save();
-        
-        // Применяем blur
-        this.ctx.filter = `blur(${blurAmount})`;
-        
-        // Рисуем размытый постер
-        this.ctx.drawImage(posterImage, 
-            -50, -50, 
-            this.canvas.width + 100, this.canvas.height + 100
-        );
-        
-        // Восстанавливаем состояние (убираем filter)
-        this.ctx.restore();
-        
-        // Создаем градиентное затемнение
-        const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-        gradient.addColorStop(0, 'rgba(0, 0, 0, 0.1)');    // Более темный вверху
-        gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.5)'); // Еще темнее в середине
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 1.0)');    // Самый темный внизу
-        
-        // Применяем градиент
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        if (isIOS) {
+            // Для iOS: без blur, просто рисуем постер и затемняем сильнее
+            this.ctx.drawImage(posterImage, 
+                -50, -50, 
+                this.canvas.width + 100, this.canvas.height + 100
+            );
+            
+            // Более сильное затемнение для iOS
+            const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+            gradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');    // Сильнее вверху
+            gradient.addColorStop(0.3, 'rgba(0, 0, 0, 0.6)'); // Еще темнее
+            gradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.8)'); // Очень темно
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 1.0)');  // Полностью черный внизу
+            
+            this.ctx.fillStyle = gradient;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        } else {
+            // Для Android и других: используем blur
+            this.ctx.save();
+            this.ctx.filter = 'blur(120px)';
+            this.ctx.drawImage(posterImage, 
+                -50, -50, 
+                this.canvas.width + 100, this.canvas.height + 100
+            );
+            this.ctx.restore();
+            
+            // Стандартное затемнение
+            const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
+            gradient.addColorStop(0, 'rgba(0, 0, 0, 0.1)');    // Более темный вверху
+            gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.5)'); // Еще темнее в середине
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 1.0)');    // Самый темный внизу
+            
+            this.ctx.fillStyle = gradient;
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
     }
 
     _drawPoster(posterImage) {
