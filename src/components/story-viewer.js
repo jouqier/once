@@ -1,4 +1,5 @@
 import { haptic } from '../config/telegram.js';
+import { i18n } from '../services/i18n.js';
 import '@material/web/button/filled-tonal-button.js';
 
 export class StoryViewer extends HTMLElement {
@@ -159,7 +160,7 @@ export class StoryViewer extends HTMLElement {
             <div class="story-container">
                 <img class="story-image" 
                     src="${this._stories[this._currentIndex]}" 
-                    alt="Story"
+                    alt="${i18n.t('story')}"
                     onerror="this.onerror=null; console.error('Failed to load image:', this.src);">
                 <div class="navigation">
                     <div class="nav-area" data-direction="prev"></div>
@@ -169,7 +170,7 @@ export class StoryViewer extends HTMLElement {
 
             <div class="action-button">
                 <md-filled-tonal-button>
-                    ${this._currentIndex === this._stories.length - 1 ? "Let's Get Started" : 'Next'}
+                    ${this._currentIndex === this._stories.length - 1 ? i18n.t('letsGetStarted') : i18n.t('next')}
                 </md-filled-tonal-button>
             </div>
         `;

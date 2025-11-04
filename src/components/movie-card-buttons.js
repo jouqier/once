@@ -1,5 +1,6 @@
 import { haptic } from '../config/telegram.js';
 import { userMoviesService } from '../services/user-movies.js';
+import { i18n } from '../services/i18n.js';
 import './action-sheet.js';
 import './review-dialog.js';
 import '@material/web/button/filled-tonal-button.js';
@@ -125,7 +126,7 @@ export class MovieActionButtons extends HTMLElement {
             
             <md-filled-tonal-button class="want-button">
                 <div class="button-content">
-                    Want
+                    ${i18n.t('want')}
                     <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                         <path d="M8 10L4 6h8l-4 4z"/>
                     </svg>
@@ -133,7 +134,7 @@ export class MovieActionButtons extends HTMLElement {
             </md-filled-tonal-button>
             <md-filled-tonal-button class="watched-button">
                 <div class="button-content">
-                    Watched
+                    ${i18n.t('watched')}
                     <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                         <path d="M8 10L4 6h8l-4 4z"/>
                     </svg>
@@ -234,9 +235,9 @@ export class MovieActionButtons extends HTMLElement {
     _updateButtonContent() {
         console.log('_updateButtonContent called');
         this._wantButtonContent.textContent = 
-            this._state === MovieActionButtons.States.WANT ? '✓ Want' : 'Want';
+            this._state === MovieActionButtons.States.WANT ? `✓ ${i18n.t('want')}` : i18n.t('want');
         this._watchedButtonContent.textContent = 
-            this._state === MovieActionButtons.States.WATCHED ? '✓ Watched' : 'Watched';
+            this._state === MovieActionButtons.States.WATCHED ? `✓ ${i18n.t('watched')}` : i18n.t('watched');
         console.log('Button content updated:', {
             want: this._wantButtonContent.textContent,
             watched: this._watchedButtonContent.textContent
@@ -278,11 +279,11 @@ export class MovieActionButtons extends HTMLElement {
         const menu = document.createElement('context-menu');
         menu.options = [
             { 
-                label: 'Move to Watched',
+                label: i18n.t('moveToWatched'),
                 action: MovieActionButtons.Actions.MOVE_TO_WATCHED
             },
             {
-                label: 'Remove from Want',
+                label: i18n.t('removeFromWant'),
                 action: MovieActionButtons.Actions.REMOVE_FROM_WANT
             }
         ];
@@ -295,15 +296,15 @@ export class MovieActionButtons extends HTMLElement {
         const menu = document.createElement('context-menu');
         menu.options = [
             {
-                label: 'Move to Want',
+                label: i18n.t('moveToWant'),
                 action: MovieActionButtons.Actions.MOVE_TO_WANT
             },
             {
-                label: 'Remove from Watched',
+                label: i18n.t('removeFromWatched'),
                 action: MovieActionButtons.Actions.REMOVE_FROM_WATCHED
             },
             {
-                label: 'Edit Review',
+                label: i18n.t('editReview'),
                 action: MovieActionButtons.Actions.EDIT_REVIEW
             }
         ];

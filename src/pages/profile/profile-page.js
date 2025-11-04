@@ -1,6 +1,7 @@
 import { API_CONFIG } from '../../config/api.js';
 import { TG, haptic } from '../../config/telegram.js';
 import { userMoviesService } from '../../services/user-movies.js';
+import { i18n } from '../../services/i18n.js';
 import './profile-avatar.js';
 import './profile-stats.js';
 import './profile-page.js';
@@ -414,19 +415,19 @@ export class ProfileScreen extends HTMLElement {
                             <md-filled-tonal-button 
                                 class="tab ${this._activeTab === 'want' ? 'active' : ''}"
                                 data-tab="want">
-                                Want
+                                ${i18n.t('want')}
                                 <span class="tab-count">${this._stats.want}</span>
                             </md-filled-tonal-button>
                             <md-filled-tonal-button 
                                 class="tab ${this._activeTab === 'watched' ? 'active' : ''}"
                                 data-tab="watched">
-                                Watched
+                                ${i18n.t('watched')}
                                 <span class="tab-count">${this._stats.watched}</span>
                             </md-filled-tonal-button>
                             <md-filled-tonal-button 
                                 class="tab ${this._activeTab === 'tvshows' ? 'active' : ''}"
                                 data-tab="tvshows">
-                                TV Shows
+                                ${i18n.t('tvShows')}
                                 <span class="tab-count">${this._stats.tvShows}</span>
                             </md-filled-tonal-button>
                             <div style="padding-right: 12px; flex-shrink: 0;"> </div>
@@ -539,21 +540,21 @@ export class ProfileScreen extends HTMLElement {
 
     _renderEmptyState(activeTab) {
         const messages = {
-            want: 'Want list is empty',
-            watched: 'Watched list is empty',
-            tvshows: 'TV Shows list is empty'
+            want: i18n.t('wantListEmpty'),
+            watched: i18n.t('watchedListEmpty'),
+            tvshows: i18n.t('tvShowsListEmpty')
         };
 
         const descriptions = {
-            want: 'Start adding movies to your Want list',
-            watched: 'Start adding movies to your Watched list',
-            tvshows: 'Start adding TV shows to your list'
+            want: i18n.t('startAddingToWant'),
+            watched: i18n.t('startAddingToWatched'),
+            tvshows: i18n.t('startAddingTVShows')
         };
 
         const actions = {
-            want: 'Browse Movies',
-            watched: 'Browse Movies',
-            tvshows: 'Browse TV Shows'
+            want: i18n.t('browseMovies'),
+            watched: i18n.t('browseMovies'),
+            tvshows: i18n.t('browseTVShows')
         };
 
         return `

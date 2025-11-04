@@ -1,6 +1,7 @@
 import { TG, haptic } from '../config/telegram.js';
 import { userMoviesService } from '../services/user-movies.js';
 import { scrollLock } from '../utils/scroll.js';
+import { i18n } from '../services/i18n.js';
 import '@material/web/switch/switch.js';
 import { navigationManager } from '../config/navigation.js';
 import { StoryGenerator } from '../services/story-generator.js';
@@ -376,7 +377,7 @@ export class ReviewDialog extends HTMLElement {
                             ${this._movie.media_type === 'tv_season' 
                                 ? `
                                     <div class="movie-title">${this._movie.name}</div>
-                                    <div class="movie-subtitle">Season ${this.getAttribute('season-number')}, ${new Date(this._movie.air_date).getFullYear()}</div>
+                                    <div class="movie-subtitle">${i18n.t('season')} ${this.getAttribute('season-number')}, ${new Date(this._movie.air_date).getFullYear()}</div>
                                 ` 
                                 : `
                                     <div class="movie-title">${this._movie.title}</div>
@@ -389,7 +390,7 @@ export class ReviewDialog extends HTMLElement {
                     <div class="divider"></div>
 
                     <textarea 
-                        placeholder="Write your review..."
+                        placeholder="${i18n.t('writeReview')}"
                         maxlength="500"
                     >${this._review}</textarea>
 
@@ -412,19 +413,19 @@ export class ReviewDialog extends HTMLElement {
 
                     <div class="share-container">
                         <div class="share-option">
-                            <span>Share a review</span>
+                            <span>${i18n.t('shareReview')}</span>
                             <md-switch ${this._shareEnabled ? 'selected' : ''}></md-switch>
                         </div>
-                        <md-filled-tonal-button>Submit</md-filled-tonal-button>
+                        <md-filled-tonal-button>${i18n.t('submit')}</md-filled-tonal-button>
                     </div>
                 </div>
             </div>
 
             <div class="loading-overlay">
-                <div class="loading-content">
-                    <div class="loading-spinner"></div>
-                    <div class="loading-text">Generating story...</div>
-                </div>
+                    <div class="loading-content">
+                        <div class="loading-spinner"></div>
+                        <div class="loading-text">${i18n.t('generatingStory')}</div>
+                    </div>
             </div>
         `;
     }
@@ -603,7 +604,7 @@ export class ReviewDialog extends HTMLElement {
                     this._showLoading();
                     
                     const loadingText = this.shadowRoot.querySelector('.loading-text');
-                    loadingText.textContent = 'Generating story...';
+                    loadingText.textContent = i18n.t('generatingStory');
 
                     const storyImage = await this._storyGenerator.generateReviewStory(
                         this._movie,
@@ -617,7 +618,7 @@ export class ReviewDialog extends HTMLElement {
                         throw new Error('Invalid image URL');
                     }
 
-                    loadingText.textContent = 'Sharing story...';
+                    loadingText.textContent = i18n.t('sharingStory');
 
                     if (TG?.shareToStory) {
                         const shareParams = {
@@ -636,7 +637,7 @@ export class ReviewDialog extends HTMLElement {
                     }
                 } catch (error) {
                     console.error('💥 Error sharing story:', error);
-                    this._showError('Failed to share story');
+                    this._showError(i18n.t('failedToShareStory'));
                 }
             }
 
@@ -645,7 +646,7 @@ export class ReviewDialog extends HTMLElement {
 
         } catch (error) {
             console.error('Error:', error);
-            this._showError('Something went wrong');
+            this._showError(i18n.t('somethingWentWrong'));
         } finally {
             this._hideLoading();
         }

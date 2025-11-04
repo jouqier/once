@@ -1,4 +1,5 @@
 import TMDBService from '../services/tmdb.js';
+import { i18n } from '../services/i18n.js';
 import '@material/web/button/filled-tonal-button.js';
 import { TG, haptic } from '../config/telegram.js';
 import { userDataStore } from '../services/user-data-store.js';
@@ -143,8 +144,8 @@ export class SearchScreen extends HTMLElement {
             subheader.style.display = 'none';
             recentList.innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-state-title">Just start typing…</div>
-                    <div class="empty-state-description">Search among millions of Movies and TV Shows</div>
+                    <div class="empty-state-title">${i18n.t('justStartTyping')}</div>
+                    <div class="empty-state-description">${i18n.t('searchAmongMillions')}</div>
                 </div>
             `;
             return;
@@ -185,8 +186,8 @@ export class SearchScreen extends HTMLElement {
             recentSection.style.display = 'none';
             resultsContainer.innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-state-title">Nothing was found</div>
-                    <div class="empty-state-description">Maybe hasn't been filmed yet</div>
+                    <div class="empty-state-title">${i18n.t('nothingFound')}</div>
+                    <div class="empty-state-description">${i18n.t('maybeNotFilmedYet')}</div>
                 </div>
             `;
             return;
@@ -201,10 +202,10 @@ export class SearchScreen extends HTMLElement {
             tabsContainer.style.display = 'flex';
             tabsContainer.innerHTML = `
                 <md-filled-tonal-button class="tab ${this._activeTab === 'movies' ? 'active' : ''}" data-type="movies">
-                    Movies ${movies.length}
+                    ${i18n.t('movies')} ${movies.length}
                 </md-filled-tonal-button>
                 <md-filled-tonal-button class="tab ${this._activeTab === 'tv' ? 'active' : ''}" data-type="tv">
-                    TV Shows ${tvShows.length}
+                    ${i18n.t('tvShows')} ${tvShows.length}
                 </md-filled-tonal-button>
             `;
             
@@ -473,7 +474,7 @@ export class SearchScreen extends HTMLElement {
                     <svg class="search-icon" viewBox="0 0 24 24" fill="none">
                         <path d="M21 21L16.6569 16.6569M16.65 16.65L16.6569 16.6569M16.6569 16.6569C18.1046 15.2091 19 13.2091 19 11C19 6.58172 15.4183 3 11 3C6.58172 3 3 6.58172 3 11C3 15.4183 6.58172 19 11 19C13.2091 19 15.2091 18.1046 16.6569 16.6569Z" stroke="#8B90A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
-                    <input type="text" placeholder="Movies or TV Shows...">
+                    <input type="text" placeholder="${i18n.t('moviesOrTVShows')}">
                     <svg class="clear-button" viewBox="0 0 24 24" fill="none">
                         <path d="M18 6L6 18M6 6L18 18" stroke="#8B90A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
@@ -481,13 +482,13 @@ export class SearchScreen extends HTMLElement {
                 </div>
 
                 <div class="tabs">
-                    <div class="tab active">Movies</div>
-                    <div class="tab">TV Shows</div>
+                    <div class="tab active">${i18n.t('movies')}</div>
+                    <div class="tab">${i18n.t('tvShows')}</div>
                 </div>
             </div>
 
             <div class="recent-section">
-                <div class="subheader">Recent</div>
+                <div class="subheader">${i18n.t('recent')}</div>
                 <div class="recent-list">
                     <!-- Recent items will be inserted here -->
                 </div>

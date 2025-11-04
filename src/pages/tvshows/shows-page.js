@@ -1,6 +1,7 @@
 import TMDBService from '../../services/tmdb.js';
 import { haptic } from '../../config/telegram.js';
 import { userMoviesService } from '../../services/user-movies.js';
+import { i18n } from '../../services/i18n.js';
 import '../../components/media-poster.js';
 import '../../components/movie-trailers.js';
 import { API_CONFIG } from '../../config/api.js';
@@ -110,7 +111,7 @@ export class TVShowsScreen extends HTMLElement {
                 popular: this._popularShows
             }));
         } catch (error) {
-            console.error('Error loading TV shows:', error);
+            console.error(i18n.t('errorLoadingTVShows'), error);
         }
     }
 
@@ -198,7 +199,7 @@ export class TVShowsScreen extends HTMLElement {
     }
 
     async render() {
-        this.shadowRoot.innerHTML = `<div>Loading...</div>`;
+        this.shadowRoot.innerHTML = `<div>${i18n.t('loading')}</div>`;
         
         try {
             const trendingContent = await this._renderTrendingShows(this._trendingShows);
@@ -355,8 +356,8 @@ export class TVShowsScreen extends HTMLElement {
                 <movie-trailers></movie-trailers>
 
                 <div class="section">
-                    <div class="section-article">TV SHOWS</div>
-                    <div class="section-title primary">Trending Now</div>
+                    <div class="section-article">${i18n.t('tvShowsLabel')}</div>
+                    <div class="section-title primary">${i18n.t('trendingNow')}</div>
                     <div class="shows-scroll-container">
                         <div class="shows-scroll-wrapper">
                             <div class="shows-scroll">
@@ -367,8 +368,8 @@ export class TVShowsScreen extends HTMLElement {
                 </div>
 
                 <div class="section">
-                    <div class="section-article">TV SHOWS</div>
-                    <div class="section-title">Most Popular</div>
+                    <div class="section-article">${i18n.t('tvShowsLabel')}</div>
+                    <div class="section-title">${i18n.t('mostPopular')}</div>
                     <div class="shows-scroll-container">
                         <div class="shows-scroll-wrapper">
                             <div class="shows-scroll">
@@ -379,8 +380,8 @@ export class TVShowsScreen extends HTMLElement {
                 </div>
 
                 <div class="section">
-                    <div class="section-article">TV SHOWS</div>
-                    <div class="section-title">Top Rated</div>
+                    <div class="section-article">${i18n.t('tvShowsLabel')}</div>
+                    <div class="section-title">${i18n.t('topRated')}</div>
                     <div class="shows-scroll-container">
                         <div class="shows-scroll-wrapper">
                             <div class="shows-scroll">
@@ -398,8 +399,8 @@ export class TVShowsScreen extends HTMLElement {
             const trailersComponent = this.shadowRoot.querySelector('movie-trailers');
             trailersComponent.trailers = this._upcomingTrailers;
         } catch (error) {
-            console.error('Error rendering shows:', error);
-            this.shadowRoot.innerHTML = `<div>Error loading content</div>`;
+            console.error(i18n.t('errorLoadingTVShows'), error);
+            this.shadowRoot.innerHTML = `<div>${i18n.t('errorLoadingContent')}</div>`;
         }
     }
 

@@ -1,6 +1,7 @@
 import TMDBService from '../../services/tmdb.js';
 import { haptic } from '../../config/telegram.js';
 import { userMoviesService } from '../../services/user-movies.js';
+import { i18n } from '../../services/i18n.js';
 import '../../components/media-poster.js';
 import '../../components/movie-trailers.js';
 import { API_CONFIG } from '../../config/api.js';
@@ -33,7 +34,7 @@ export class MoviesScreen extends HTMLElement {
             }
             this.render();
         } catch (error) {
-            console.error('Error in MoviesScreen:', error);
+            console.error(i18n.t('errorInMoviesScreen'), error);
         }
     }
 
@@ -268,8 +269,8 @@ export class MoviesScreen extends HTMLElement {
             <movie-trailers></movie-trailers>
 
             <div class="section" data-section="trending">
-                <div class="section-article">MOVIES</div>
-                <div class="section-title primary">Trending Now</div>
+                <div class="section-article">${i18n.t('moviesLabel')}</div>
+                <div class="section-title primary">${i18n.t('trendingNow')}</div>
                 <div class="movies-scroll-container">
                     <div class="movies-scroll-wrapper">
                         <div class="movies-scroll">
@@ -280,8 +281,8 @@ export class MoviesScreen extends HTMLElement {
             </div>
 
             <div class="section" data-section="upcoming">
-                <div class="section-article">MOVIES</div>
-                <div class="section-title">Upcoming</div>
+                <div class="section-article">${i18n.t('moviesLabel')}</div>
+                <div class="section-title">${i18n.t('upcoming')}</div>
                 <div class="movies-scroll-container">
                     <div class="movies-scroll-wrapper">
                         <div class="movies-scroll">
@@ -292,8 +293,8 @@ export class MoviesScreen extends HTMLElement {
             </div>
 
             <div class="section" data-section="popular">
-                <div class="section-article">MOVIES</div>
-                <div class="section-title">Most Popular</div>
+                <div class="section-article">${i18n.t('moviesLabel')}</div>
+                <div class="section-title">${i18n.t('mostPopular')}</div>
                 <div class="movies-scroll-container">
                     <div class="movies-scroll-wrapper">
                         <div class="movies-scroll">

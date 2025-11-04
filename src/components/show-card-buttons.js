@@ -1,5 +1,6 @@
 import { haptic } from '../config/telegram.js';
 import { userMoviesService } from '../services/user-movies.js';
+import { i18n } from '../services/i18n.js';
 import './action-sheet.js';
 import './review-dialog.js';
 import '@material/web/button/filled-tonal-button.js';
@@ -171,10 +172,10 @@ export class TVShowActionButtons extends HTMLElement {
             </style>
             
             <md-filled-tonal-button class="want-button">
-                <div class="button-content">Want</div>
+                <div class="button-content">${i18n.t('want')}</div>
             </md-filled-tonal-button>
             <md-filled-tonal-button class="watched-button">
-                <div class="button-content">Watched</div>
+                <div class="button-content">${i18n.t('watched')}</div>
             </md-filled-tonal-button>
         `;
 
@@ -281,9 +282,9 @@ export class TVShowActionButtons extends HTMLElement {
 
     _updateButtonContent() {
         this._wantButtonContent.textContent = this._state === TVShowActionButtons.States.WANT ? 
-            '✓ Want' : 'Want';
+            `✓ ${i18n.t('want')}` : i18n.t('want');
         this._watchedButtonContent.textContent = this._state === TVShowActionButtons.States.WATCHED ? 
-            '✓ Watched' : 'Watched';
+            `✓ ${i18n.t('watched')}` : i18n.t('watched');
     }
 
     _updateButtonVisibility() {
@@ -339,15 +340,15 @@ export class TVShowActionButtons extends HTMLElement {
         const menu = document.createElement('context-menu');
         menu.options = [
             { 
-                label: 'Remove from Want',
+                label: i18n.t('removeFromWant'),
                 action: TVShowActionButtons.Actions.REMOVE_FROM_WANT
             },
             {
-                label: "I'm watching this",
+                label: i18n.t('imWatchingThis'),
                 action: TVShowActionButtons.Actions.WATCHING
             },
             {
-                label: 'Mark all as watched',
+                label: i18n.t('markAllAsWatched'),
                 action: TVShowActionButtons.Actions.MARK_ALL_WATCHED
             }
         ];
@@ -387,19 +388,19 @@ export class TVShowActionButtons extends HTMLElement {
     _getContextMenuOptions(allSeasonsWatched) {
         if (this._state === TVShowActionButtons.States.WATCHED) {
             return allSeasonsWatched ? [
-                { label: 'Remove from Watched', action: TVShowActionButtons.Actions.REMOVE_FROM_WATCHED },
-                { label: 'Mark all as unwatched', action: TVShowActionButtons.Actions.MARK_ALL_UNWATCHED },
-                { label: 'Move to Want', action: TVShowActionButtons.Actions.MOVE_TO_WANT }
+                { label: i18n.t('removeFromWatched'), action: TVShowActionButtons.Actions.REMOVE_FROM_WATCHED },
+                { label: i18n.t('markAllAsUnwatched'), action: TVShowActionButtons.Actions.MARK_ALL_UNWATCHED },
+                { label: i18n.t('moveToWant'), action: TVShowActionButtons.Actions.MOVE_TO_WANT }
             ] : [
-                { label: 'Remove from Watched', action: TVShowActionButtons.Actions.REMOVE_FROM_WATCHED },
-                { label: 'Mark all as watched', action: TVShowActionButtons.Actions.MARK_ALL_WATCHED },
-                { label: 'Move to Want', action: TVShowActionButtons.Actions.MOVE_TO_WANT }
+                { label: i18n.t('removeFromWatched'), action: TVShowActionButtons.Actions.REMOVE_FROM_WATCHED },
+                { label: i18n.t('markAllAsWatched'), action: TVShowActionButtons.Actions.MARK_ALL_WATCHED },
+                { label: i18n.t('moveToWant'), action: TVShowActionButtons.Actions.MOVE_TO_WANT }
             ];
         }
         
         return [
-            { label: 'Mark all as watched', action: TVShowActionButtons.Actions.MARK_ALL_WATCHED },
-            { label: "I'm watching this", action: TVShowActionButtons.Actions.WATCHING }
+            { label: i18n.t('markAllAsWatched'), action: TVShowActionButtons.Actions.MARK_ALL_WATCHED },
+            { label: i18n.t('imWatchingThis'), action: TVShowActionButtons.Actions.WATCHING }
         ];
     }
 

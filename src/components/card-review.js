@@ -1,6 +1,7 @@
 import { userMoviesService } from '../services/user-movies.js';
 import { haptic } from '../config/telegram.js';
 import { TG } from '../config/telegram.js';
+import { i18n } from '../services/i18n.js';
 
 export class MovieReview extends HTMLElement {
     constructor() {
@@ -133,7 +134,7 @@ export class MovieReview extends HTMLElement {
         const userPhoto = this._user?.photo || '';
         const userName = [this._user?.firstName, this._user?.lastName]
             .filter(Boolean)
-            .join(' ') || 'User';
+            .join(' ') || i18n.t('user');
 
         if (this._movie.media_type === 'tv' && this._reviews?.length > 0) {
             this.shadowRoot.innerHTML = `
@@ -294,7 +295,7 @@ export class MovieReview extends HTMLElement {
                 </style>
                 
                 <div class="title-info">
-                    <div class="title">Reviews</div>
+                    <div class="title">${i18n.t('reviews')}</div>
                 </div>
 
                 ${this._reviews.map(review => `
@@ -307,7 +308,7 @@ export class MovieReview extends HTMLElement {
                                 }
                             </div>
                             <div class="user-info">
-                                <div class="username">${userName} • Season ${review.seasonNumber}</div>
+                                <div class="username">${userName} • ${i18n.t('season')} ${review.seasonNumber}</div>
                                 <div class="rating-stars">${this._getRatingStars(review.rating)}</div>
                             </div>
                             <button class="edit-button" data-season="${review.seasonNumber}">✏️</button>
@@ -484,7 +485,7 @@ export class MovieReview extends HTMLElement {
                 </style>
                 
                 <div class="title-info">
-                    <div class="title">Reviews</div>
+                    <div class="title">${i18n.t('reviews')}</div>
                 </div>
 
                 ${this._review.text ? `
