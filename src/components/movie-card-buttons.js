@@ -28,6 +28,15 @@ export class MovieActionButtons extends HTMLElement {
         REMOVED_FROM_WATCHED: 'removed-from-watched'
     };
 
+    static STYLES = {
+        WANT_ACTIVE_COLOR: 'transparent',
+        WANT_INACTIVE_COLOR: 'rgba(255, 255, 255, 0.32)',
+        WATCHED_ACTIVE_COLOR: 'var(--md-sys-color-primary-container)',
+        WATCHED_INACTIVE_COLOR: 'rgba(255, 255, 255, 0.32)',
+        ACTIVE_BORDER: '2px solid var(--md-sys-color-on-surface)',
+        NO_BORDER: 'none'
+    };
+
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
@@ -35,11 +44,29 @@ export class MovieActionButtons extends HTMLElement {
         this._movie = null;
         this._activityScreen = document.createElement('activity-screen');
         
-        document.addEventListener('review-submitted', (event) => {
-            console.log('Global review-submitted event caught:', event.detail);
-        });
+        // Сохраняем bound функции для правильной очистки слушателей
+        this._boundHandlers = {
+            reviewSubmitted: this._handleGlobalReviewSubmitted.bind(this)
+        };
+        
+        // Флаг для батчинга обновлений DOM
+        this._pendingUpdate = false;
         
         this._createElements();
+    }
+
+    connectedCallback() {
+        // Добавляем глобальные слушатели при подключении к DOM
+        document.addEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+    }
+
+    disconnectedCallback() {
+        // Удаляем глобальные слушатели при отключении компонента
+        document.removeEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+    }
+
+    _handleGlobalReviewSubmitted(event) {
+        console.log('Global review-submitted event caught:', event.detail);
     }
 
     _createElements() {
@@ -123,15 +150,17 @@ export class MovieActionButtons extends HTMLElement {
     }
 
     _getWantButtonColor() {
+        const styles = MovieActionButtons.STYLES;
         return this._state === MovieActionButtons.States.WANT ? 
-            'transparent' : 
-            'rgba(255, 255, 255, 0.32)';
+            styles.WANT_ACTIVE_COLOR : 
+            styles.WANT_INACTIVE_COLOR;
     }
 
     _getWantButtonBorder() {
+        const styles = MovieActionButtons.STYLES;
         return this._state === MovieActionButtons.States.WANT ? 
-            '2px solid var(--md-sys-color-on-surface)' : 
-            'none';
+            styles.ACTIVE_BORDER : 
+            styles.NO_BORDER;
     }
 
     _getWantButtonDisplay() {
@@ -139,9 +168,10 @@ export class MovieActionButtons extends HTMLElement {
     }
 
     _getWatchedButtonColor() {
+        const styles = MovieActionButtons.STYLES;
         return this._state === MovieActionButtons.States.WATCHED ? 
-            'var(--md-sys-color-primary-container)' : 
-            'rgba(255, 255, 255, 0.32)';
+            styles.WATCHED_ACTIVE_COLOR : 
+            styles.WATCHED_INACTIVE_COLOR;
     }
 
     _getWatchedButtonDisplay() {
@@ -183,7 +213,17 @@ export class MovieActionButtons extends HTMLElement {
     }
 
     _updateButtonStates() {
-        console.log('_updateButtonStates called, current state:', this._state);
+        if (this._pendingUpdate) return;
+        
+        this._pendingUpdate = true;
+        requestAnimationFrame(() => {
+            this._doUpdateButtonStates();
+            this._pendingUpdate = false;
+        });
+    }
+
+    _doUpdateButtonStates() {
+        console.log('_doUpdateButtonStates called, current state:', this._state);
         this._updateButtonContent();
         this._updateButtonVisibility();
         this._updateButtonStyles();
@@ -214,19 +254,17 @@ export class MovieActionButtons extends HTMLElement {
 
     _updateButtonStyles() {
         console.log('_updateButtonStyles called');
-        const wantBorder = this._getWantButtonBorder();
-        const wantColor = this._getWantButtonColor();
-        const watchedColor = this._getWatchedButtonColor();
+        const styles = MovieActionButtons.STYLES;
+        const isWant = this._state === MovieActionButtons.States.WANT;
+        const isWatched = this._state === MovieActionButtons.States.WATCHED;
         
-        this._wantButton.style.border = wantBorder;
-        this._wantButton.style.setProperty('--md-sys-color-secondary-container', wantColor);
-        this._watchedButton.style.setProperty('--md-sys-color-secondary-container', watchedColor);
+        this._wantButton.style.border = isWant ? styles.ACTIVE_BORDER : styles.NO_BORDER;
+        this._wantButton.style.setProperty('--md-sys-color-secondary-container',
+            isWant ? styles.WANT_ACTIVE_COLOR : styles.WANT_INACTIVE_COLOR);
+        this._watchedButton.style.setProperty('--md-sys-color-secondary-container',
+            isWatched ? styles.WATCHED_ACTIVE_COLOR : styles.WATCHED_INACTIVE_COLOR);
         
-        console.log('Button styles updated:', {
-            wantBorder,
-            wantColor,
-            watchedColor
-        });
+        console.log('Button styles updated');
     }
 
     _addToWant() {

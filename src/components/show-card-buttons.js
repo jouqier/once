@@ -36,31 +36,98 @@ export class TVShowActionButtons extends HTMLElement {
         this._hasWatchedEpisodes = false;
         this._activityScreen = document.createElement('activity-screen');
         
-        document.addEventListener('all-seasons-watched', (e) => {
-            if (this._tvShow?.id === e.detail.tvId) {
-                userMoviesService.addToWatched(this._tvShow);
-                this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.WATCHED);
-                this._state = TVShowActionButtons.States.WATCHED;
-                this._updateButtonStates();
-            }
-        });
+        // Сохраняем bound функции для правильной очистки слушателей
+        this._boundHandlers = {
+            allSeasonsWatched: this._handleAllSeasonsWatchedFromConstructor.bind(this),
+            change: this._handleChangeFromConstructor.bind(this),
+            episodeStatusChanged: this._handleEpisodeStatusChangedFromConstructor.bind(this),
+            allSeasonsWatchedDup: this._handleAllSeasonsWatched.bind(this),
+            allSeasonsUnwatched: this._handleAllSeasonsUnwatched.bind(this),
+            episodeWatchedStatusChanged: this._handleEpisodeStatusChanged.bind(this)
+        };
         
-        document.addEventListener('change', (e) => {
-            if (e.target.tagName === 'MD-CHECKBOX' && this._tvShow) {
-                if (this._state === TVShowActionButtons.States.NONE && e.target.checked) {
-                    this._handleWatching();
-                }
-            }
-        });
+        // Кеш для проверки состояния всех сезонов
+        this._allSeasonsWatchedCache = undefined;
         
-        document.addEventListener('episode-status-changed', (e) => {
-            if (this._tvShow?.id === e.detail.tvId && e.detail.hasWatchedEpisodes) {
-                this._handleWatching();
-            }
-        });
+        // Флаг для батчинга обновлений DOM
+        this._pendingUpdate = false;
         
         this._createElements();
-        this._setupEventListeners();
+        this._setupButtonEventListeners();
+    }
+
+    _checkAllSeasonsWatched() {
+        // Проверяем кеш
+        if (this._allSeasonsWatchedCache !== undefined) {
+            return this._allSeasonsWatchedCache;
+        }
+        
+        // Вычисляем состояние (если есть seasons)
+        if (!this._seasons || !this._seasons.length) {
+            return false;
+        }
+        
+        const result = this._seasons.every(season => {
+            if (season.season_number === 0) return true;
+            const totalEpisodes = season.episodes?.length;
+            if (!totalEpisodes) return true;
+            
+            return userMoviesService.isSeasonFullyWatched(
+                this._tvShow.id,
+                season.season_number,
+                totalEpisodes
+            );
+        });
+        
+        this._allSeasonsWatchedCache = result;
+        return result;
+    }
+
+    _invalidateCache() {
+        this._allSeasonsWatchedCache = undefined;
+    }
+
+    connectedCallback() {
+        // Добавляем глобальные слушатели при подключении к DOM
+        document.addEventListener('all-seasons-watched', this._boundHandlers.allSeasonsWatched);
+        document.addEventListener('change', this._boundHandlers.change);
+        document.addEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+        document.addEventListener('all-seasons-watched', this._boundHandlers.allSeasonsWatchedDup);
+        document.addEventListener('all-seasons-unwatched', this._boundHandlers.allSeasonsUnwatched);
+        document.addEventListener('episode-watched-status-changed', this._boundHandlers.episodeWatchedStatusChanged);
+    }
+
+    disconnectedCallback() {
+        // Удаляем глобальные слушатели при отключении компонента
+        document.removeEventListener('all-seasons-watched', this._boundHandlers.allSeasonsWatched);
+        document.removeEventListener('change', this._boundHandlers.change);
+        document.removeEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+        document.removeEventListener('all-seasons-watched', this._boundHandlers.allSeasonsWatchedDup);
+        document.removeEventListener('all-seasons-unwatched', this._boundHandlers.allSeasonsUnwatched);
+        document.removeEventListener('episode-watched-status-changed', this._boundHandlers.episodeWatchedStatusChanged);
+    }
+
+    _handleAllSeasonsWatchedFromConstructor(e) {
+        if (this._tvShow?.id === e.detail.tvId) {
+            userMoviesService.addToWatched(this._tvShow);
+            this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.WATCHED);
+            this._state = TVShowActionButtons.States.WATCHED;
+            this._updateButtonStates();
+        }
+    }
+
+    _handleChangeFromConstructor(e) {
+        if (e.target.tagName === 'MD-CHECKBOX' && this._tvShow) {
+            if (this._state === TVShowActionButtons.States.NONE && e.target.checked) {
+                this._handleWatching();
+            }
+        }
+    }
+
+    _handleEpisodeStatusChangedFromConstructor(e) {
+        if (this._tvShow?.id === e.detail.tvId && e.detail.hasWatchedEpisodes) {
+            this._handleWatching();
+        }
     }
 
     _createElements() {
@@ -143,17 +210,6 @@ export class TVShowActionButtons extends HTMLElement {
         return this._state === TVShowActionButtons.States.WANT ? 'none' : 'flex';
     }
 
-    _setupEventListeners() {
-        this._setupTVShowEventListeners();
-        this._setupButtonEventListeners();
-    }
-
-    _setupTVShowEventListeners() {
-        document.addEventListener('all-seasons-watched', this._handleAllSeasonsWatched.bind(this));
-        document.addEventListener('all-seasons-unwatched', this._handleAllSeasonsUnwatched.bind(this));
-        document.addEventListener('episode-watched-status-changed', this._handleEpisodeStatusChanged.bind(this));
-    }
-
     _setupButtonEventListeners() {
         this._wantButton.addEventListener('click', () => {
             if (!this._tvShow) return;
@@ -177,8 +233,14 @@ export class TVShowActionButtons extends HTMLElement {
         this._tvShow = value;
         if (this._tvShow) {
             this._state = userMoviesService.getMovieState(this._tvShow.id);
+            this._invalidateCache(); // Сбрасываем кеш при смене сериала
             this._updateButtonStates();
         }
+    }
+
+    set seasons(value) {
+        this._seasons = value;
+        this._invalidateCache(); // Сбрасываем кеш при установке сезонов
     }
 
     _handleAllSeasonsWatched(e) {
@@ -202,6 +264,16 @@ export class TVShowActionButtons extends HTMLElement {
     }
 
     _updateButtonStates() {
+        if (this._pendingUpdate) return;
+        
+        this._pendingUpdate = true;
+        requestAnimationFrame(() => {
+            this._doUpdateButtonStates();
+            this._pendingUpdate = false;
+        });
+    }
+
+    _doUpdateButtonStates() {
         this._updateButtonContent();
         this._updateButtonVisibility();
         this._updateButtonStyles();
@@ -379,6 +451,7 @@ export class TVShowActionButtons extends HTMLElement {
         userMoviesService.removeAllSeasonReviews(this._tvShow.id);
         this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.REMOVED_FROM_WATCHED);
         this._state = TVShowActionButtons.States.NONE;
+        this._invalidateCache(); // Сбрасываем кеш
         this._updateButtonStates();
         this._dispatchTVAction('clear-all-seasons');
         
@@ -402,6 +475,7 @@ export class TVShowActionButtons extends HTMLElement {
         userMoviesService.addToWant(this._tvShow);
         this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.WANT);
         this._state = TVShowActionButtons.States.WANT;
+        this._invalidateCache(); // Сбрасываем кеш
         this._updateButtonStates();
         
         document.dispatchEvent(new CustomEvent('season-reviews-removed', {
@@ -420,6 +494,7 @@ export class TVShowActionButtons extends HTMLElement {
         userMoviesService.addToWatched(this._tvShow);
         this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.WATCHED);
         this._state = TVShowActionButtons.States.WATCHED;
+        this._invalidateCache(); // Сбрасываем кеш
         this._updateButtonStates();
     }
 
@@ -428,6 +503,7 @@ export class TVShowActionButtons extends HTMLElement {
         
         this._dispatchTVAction(TVShowActionButtons.Actions.MARK_ALL_UNWATCHED);
         
+        this._invalidateCache(); // Сбрасываем кеш
         this._updateButtonStates();
     }
 
