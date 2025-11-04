@@ -2,8 +2,7 @@ import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
 export default defineConfig({
-    // Базовый путь для GitHub Pages
-    // Замените 'my-mini-app' на имя вашего репозитория
+
     base: process.env.GITHUB_PAGES === 'true' ? '/once/' : '/',
     
     root: 'src',
