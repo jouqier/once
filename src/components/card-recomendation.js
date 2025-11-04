@@ -1,5 +1,6 @@
 import { haptic } from '../config/telegram.js';
 import { API_CONFIG } from '../config/api.js';
+import { i18n } from '../services/i18n.js';
 
 export class MovieRecommendations extends HTMLElement {
     constructor() {
@@ -174,7 +175,7 @@ export class MovieRecommendations extends HTMLElement {
             </style>
 
             <div class="title-info">
-                <div class="title">If you like ${this.getAttribute('current-movie')}</div>
+                <div class="title">${i18n.t('ifYouLike')} ${this.getAttribute('current-movie')}</div>
             </div>
 
             <div class="recommendations-container">

@@ -1,5 +1,6 @@
 import { TG, haptic } from '../config/telegram.js';
 import { API_CONFIG } from '../config/api.js';
+import { i18n } from '../services/i18n.js';
 
 export class MovieCast extends HTMLElement {
     constructor() {
@@ -261,7 +262,7 @@ export class MovieCast extends HTMLElement {
             </style>
             
             <div class="title-info">
-                <div class="title">Cast and Crew</div>
+                <div class="title">${i18n.t('castAndCrew')}</div>
             </div>
 
             <div class="cast-container">

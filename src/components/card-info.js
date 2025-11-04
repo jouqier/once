@@ -1,5 +1,6 @@
 import { haptic } from '../config/telegram.js';
 import TMDBService from '../services/tmdb.js';
+import { i18n } from '../services/i18n.js';
 import '@material/web/button/filled-tonal-button.js';
 import { API_CONFIG } from '../config/api.js';
 
@@ -215,11 +216,11 @@ export class MovieInfo extends HTMLElement {
 
             <div class="overview-container">
                 <p class="overview">${overview}</p>
-                <button class="more-button">…More</button>
+                <button class="more-button">${i18n.t('more')}</button>
             </div>
             
             ${hasGenres ? `
-                <div class="subheader">Genres</div>
+                <div class="subheader">${i18n.t('genres')}</div>
 
                 <div class="genres-container">
                     <div class="genres-list-wrapper">
@@ -246,7 +247,7 @@ export class MovieInfo extends HTMLElement {
 
         overviewContainer.addEventListener('click', () => {
             const isExpanded = overviewElement.classList.toggle('expanded');
-            moreButton.textContent = isExpanded ? 'Less' : '…More';
+            moreButton.textContent = isExpanded ? i18n.t('less') : i18n.t('more');
         });
 
         // Перед установкой рекомендаций
@@ -321,9 +322,9 @@ export class MovieInfo extends HTMLElement {
             ? new Date(lastAirDate).getFullYear() 
             : status === 'Ended' 
                 ? new Date().getFullYear() 
-                : 'Present';
+                : i18n.t('present');
                 
-        const statusText = status === 'Ended' ? 'Ended' : 'In progress';
+        const statusText = status === 'Ended' ? i18n.t('statusEnded') : i18n.t('statusInProgress');
         
         return `
             <div class="meta">
@@ -340,7 +341,8 @@ export class MovieInfo extends HTMLElement {
         const { rating, releaseDate, runtime } = this._info;
         
         const date = new Date(releaseDate);
-        const formattedDate = date.toLocaleDateString('en-EN', { 
+        const locale = i18n.getLocale() === 'ru' ? 'ru-RU' : 'en-US';
+        const formattedDate = date.toLocaleDateString(locale, { 
             year: 'numeric',
             month: 'long',
             day: 'numeric'
@@ -348,7 +350,9 @@ export class MovieInfo extends HTMLElement {
 
         const hours = Math.floor(runtime / 60);
         const minutes = runtime % 60;
-        const formattedRuntime = `${hours} ч ${minutes} мин`;
+        const formattedRuntime = i18n.getLocale() === 'ru' 
+            ? `${hours} ч ${minutes} мин`
+            : `${hours}h ${minutes}m`;
 
         return `
             <div class="meta">

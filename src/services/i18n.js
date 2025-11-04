@@ -15,14 +15,14 @@ export class I18nService {
                 activity: 'Активность',
                 
                 // Profile
-                want: 'Хочу посмотреть',
-                watched: 'Просмотрено',
-                wantListEmpty: 'Список желаний пуст',
-                watchedListEmpty: 'Список просмотренного пуст',
+                want: 'Буду смотреть',
+                watched: 'Посмотрел',
+                wantListEmpty: 'Список "Буду смотреть" пуст',
+                watchedListEmpty: 'Список "Посмотрел" пуст',
                 tvShowsListEmpty: 'Список сериалов пуст',
                 startAddingMovies: 'Начните добавлять фильмы',
-                startAddingToWant: 'Начните добавлять фильмы в список желаний',
-                startAddingToWatched: 'Начните добавлять фильмы в список просмотренного',
+                startAddingToWant: 'Начните добавлять фильмы в желаемое',
+                startAddingToWatched: 'Начните добавлять фильмы в просмотренное',
                 startAddingTVShows: 'Начните добавлять сериалы в список',
                 browseMovies: 'Смотреть фильмы',
                 browseTVShows: 'Смотреть сериалы',
@@ -52,12 +52,12 @@ export class I18nService {
                 user: 'Пользователь',
                 
                 // Actions
-                moveToWatched: 'Переместить в просмотрено',
-                removeFromWant: 'Удалить из желаний',
-                moveToWant: 'Переместить в желания',
-                removeFromWatched: 'Удалить из просмотренного',
+                moveToWatched: 'Переместить в "Посмотрел"',
+                removeFromWant: 'Удалить из "Буду смотреть"',
+                moveToWant: 'Переместить в "Буду смотреть"',
+                removeFromWatched: 'Удалить из "Посмотрел"',
                 editReview: 'Редактировать отзыв',
-                imWatchingThis: 'Смотрю',
+                imWatchingThis: 'Сейчас смотрю',
                 markAllAsWatched: 'Отметить всё как просмотренное',
                 markAllAsUnwatched: 'Отметить всё как непросмотренное',
                 
@@ -79,7 +79,22 @@ export class I18nService {
                 success: 'Успешно',
                 cancel: 'Отмена',
                 confirm: 'Подтвердить',
-                close: 'Закрыть'
+                close: 'Закрыть',
+                
+                // Card labels
+                castAndCrew: 'Актёры и съёмочная группа',
+                ifYouLike: 'Если вам понравился',
+                genres: 'Жанры',
+                more: '…ЕЩЕ',
+                less: 'Свернуть',
+                releaseDate: 'Дата выпуска',
+                duration: 'Продолжительность',
+                statusEnded: 'Завершён',
+                statusInProgress: 'В производстве',
+                present: 'Настоящее время',
+                markAllAsWatched: 'Отметить всё как просмотренное',
+                markAllAsUnwatched: 'Отметить всё как непросмотренное',
+                rateSeason: 'Оценить сезон'
             },
             en: {
                 // Navigation
@@ -154,9 +169,31 @@ export class I18nService {
                 success: 'Success',
                 cancel: 'Cancel',
                 confirm: 'Confirm',
-                close: 'Close'
+                close: 'Close',
+                
+                // Card labels
+                castAndCrew: 'Cast and Crew',
+                ifYouLike: 'If you like',
+                genres: 'Genres',
+                more: '…More',
+                less: 'Less',
+                releaseDate: 'Release Date',
+                duration: 'Duration',
+                statusEnded: 'Ended',
+                statusInProgress: 'In progress',
+                present: 'Present',
+                markAllAsWatched: 'Mark all as Watched',
+                markAllAsUnwatched: 'Mark all as Unwatched',
+                rateSeason: 'Rate season'
             }
         };
+    }
+    
+    /**
+     * Получить код языка для API (ru-RU или en-US)
+     */
+    getApiLanguage() {
+        return this._locale === 'ru' ? 'ru-RU' : 'en-US';
     }
     
     /**

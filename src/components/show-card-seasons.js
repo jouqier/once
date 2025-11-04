@@ -1,6 +1,7 @@
 import { TG } from '../config/telegram.js';
 import { haptic } from '../config/telegram.js';
 import { userMoviesService } from '../services/user-movies.js';
+import { i18n } from '../services/i18n.js';
 import { API_CONFIG } from '../config/api.js';
 
 export class TVSeasons extends HTMLElement {
@@ -167,7 +168,7 @@ export class TVSeasons extends HTMLElement {
             .map((season, index) => `
                 <md-filled-tonal-button class="season-tab" data-season="${season.season_number}" 
                     ${index === 0 ? 'selected' : ''}>
-                    Сезон ${season.season_number}
+                    ${i18n.t('season')} ${season.season_number}
                 </md-filled-tonal-button>
             `).join('');
 
@@ -176,10 +177,10 @@ export class TVSeasons extends HTMLElement {
             <div class="episode-wrapper">
                 <div class="episode-item">
                     <div class="episode-number">${episode.episode_number}</div>
-                    <div class="episode-info">
-                        <div class="episode-title">${episode.name}</div>
-                        <div class="episode-date">${new Date(episode.air_date).toLocaleDateString('ru-RU')}</div>
-                    </div>
+                        <div class="episode-info">
+                            <div class="episode-title">${episode.name}</div>
+                            <div class="episode-date">${new Date(episode.air_date).toLocaleDateString(i18n.getLocale() === 'ru' ? 'ru-RU' : 'en-US')}</div>
+                        </div>
                     <md-checkbox touch-target="wrapper"></md-checkbox>
                 </div>
                 <div class="divider"></div>
@@ -431,7 +432,7 @@ export class TVSeasons extends HTMLElement {
                         <div class="episode-info">
                             <div class="episode-title">${episode.name}</div>
                             <div class="episode-date">
-                                ${new Date(episode.air_date).toLocaleDateString('ru-RU')}
+                                ${new Date(episode.air_date).toLocaleDateString(i18n.getLocale() === 'ru' ? 'ru-RU' : 'en-US')}
                             </div>
                         </div>
                         <md-checkbox 
@@ -449,16 +450,16 @@ export class TVSeasons extends HTMLElement {
             <div class="season-actions">
                 ${!isFullyWatched ? `
                     <md-filled-tonal-button class="mark-watched-button">
-                        Mark all as Watched
+                        ${i18n.t('markAllAsWatched')}
                     </md-filled-tonal-button>
                 ` : `
                     ${!hasReview ? `
                         <md-filled-tonal-button class="rate-season-button">
-                            Rate season
+                            ${i18n.t('rateSeason')}
                         </md-filled-tonal-button>
                     ` : ''}
                     <md-filled-tonal-button class="mark-unwatched-button">
-                        Mark all as Unwatched
+                        ${i18n.t('markAllAsUnwatched')}
                     </md-filled-tonal-button>
                 `}
             </div>
@@ -632,17 +633,17 @@ export class TVSeasons extends HTMLElement {
             actionsContainer.innerHTML = `
                 ${!hasReview ? `
                     <md-filled-tonal-button class="rate-season-button">
-                        Rate season
+                        ${i18n.t('rateSeason')}
                     </md-filled-tonal-button>
                 ` : ''}
                 <md-filled-tonal-button class="mark-unwatched-button">
-                    Mark all as Unwatched
+                    ${i18n.t('markAllAsUnwatched')}
                 </md-filled-tonal-button>
             `;
         } else {
             actionsContainer.innerHTML = `
                 <md-filled-tonal-button class="mark-watched-button">
-                    Mark all as Watched
+                    ${i18n.t('markAllAsWatched')}
                 </md-filled-tonal-button>
             `;
         }
