@@ -624,8 +624,8 @@ export class ReviewDialog extends HTMLElement {
                             media_type: "photo"
                         };
                         
-                        // Добавляем текст отзыва как подпись к истории
-                        if (review.comment) {
+                        // Добавляем текст отзыва в поле подписи к истории
+                        if (review.comment && review.comment.trim()) {
                             shareParams.text = review.comment;
                         }
                         

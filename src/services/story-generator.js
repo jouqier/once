@@ -60,13 +60,28 @@ export class StoryGenerator {
 
     // Разделим на отдельные методы
     _drawBackground(posterImage) {
-        // Рисуем размытый постер
-        this.ctx.filter = 'blur(120px)';
-        this.ctx.drawImage(posterImage, 
-            -50, -50, 
-            this.canvas.width + 100, this.canvas.height + 100
-        );
-        this.ctx.filter = 'none';
+        // Пытаемся применить blur с fallback для старых устройств
+        const supportsFilter = typeof this.ctx.filter !== 'undefined';
+        
+        if (supportsFilter) {
+            // Рисуем размытый постер
+            this.ctx.filter = 'blur(120px)';
+            this.ctx.drawImage(posterImage, 
+                -50, -50, 
+                this.canvas.width + 100, this.canvas.height + 100
+            );
+            this.ctx.filter = 'none';
+        } else {
+            // Fallback: многократная отрисовка с малой прозрачностью для имитации blur
+            this.ctx.globalAlpha = 0.3;
+            for (let i = 0; i < 3; i++) {
+                this.ctx.drawImage(posterImage, 
+                    -50 + (i * 10), -50 + (i * 10), 
+                    this.canvas.width + 100, this.canvas.height + 100
+                );
+            }
+            this.ctx.globalAlpha = 1.0;
+        }
         
         // Создаем градиентное затемнение
         const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);

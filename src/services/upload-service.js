@@ -20,42 +20,28 @@ export class UploadService {
                 throw new Error('Bot token not configured');
             }
 
-            // 1. Отправляем текстовое сообщение с информацией о фильме
+            // Формируем подпись к изображению
+            let caption = '';
             if (metadata.title && metadata.year && metadata.rating) {
-                let caption = `🎬 ${metadata.title}\n📅 ${metadata.year}\n⭐️ ${metadata.rating}/10`;
+                caption = `🎬 ${metadata.title}\n📅 ${metadata.year}\n⭐️ ${metadata.rating}/10`;
                 
                 // Добавляем текст отзыва, если есть
                 if (metadata.comment) {
                     caption += `\n\n💭 ${metadata.comment}`;
                 }
-                
-                console.log('📝 Sending message with caption:', caption);
-                
-                const messageFormData = new FormData();
-                messageFormData.append('chat_id', userId);
-                messageFormData.append('text', caption);
-
-                const messageResponse = await fetch(
-                    `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-                    {
-                        method: 'POST',
-                        body: messageFormData
-                    }
-                );
-
-                if (!messageResponse.ok) {
-                    const messageError = await messageResponse.json();
-                    console.error('❌ Failed to send message:', messageError);
-                } else {
-                    console.log('✅ Message sent successfully');
-                }
             }
 
-            // 2. Отправляем изображение в чат с пользователем
-            console.log('📸 Uploading image...');
+            // Отправляем изображение с подписью в одном сообщении
+            console.log('📸 Uploading image with caption...');
             const formData = new FormData();
             formData.append('chat_id', userId);
             formData.append('photo', blob, 'story.jpg');
+            
+            // Добавляем caption если есть
+            if (caption) {
+                formData.append('caption', caption);
+                console.log('📝 Caption:', caption);
+            }
 
             const uploadResponse = await fetch(
                 `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`,
