@@ -92,8 +92,8 @@ export class I18nService {
                 statusEnded: 'Завершён',
                 statusInProgress: 'В производстве',
                 present: 'Настоящее время',
-                markAllAsWatched: 'Отметить всё как просмотренное',
-                markAllAsUnwatched: 'Отметить всё как непросмотренное',
+                markAllAsWatched: 'Смотрел все',
+                markAllAsUnwatched: 'Не смотрел',
                 rateSeason: 'Оценить сезон'
             },
             en: {
