@@ -51,10 +51,12 @@ async function showMovieDetails(id, type = 'movie') {
             media_type: type
         };
         
-        document.documentElement.style.setProperty(
-            '--movie-backdrop',
-            `url(${API_CONFIG.IMAGE_BASE_URL.replace('/w500', '/original')}${movieData.backdrop_path})`
-        );
+        if (movieData.backdrop_path) {
+            document.documentElement.style.setProperty(
+                '--movie-backdrop',
+                `url(${API_CONFIG.IMAGE_BASE_URL.replace('/w500', '/original')}${movieData.backdrop_path})`
+            );
+        }
         
         const cardElement = document.createElement(type === 'movie' ? 'movie-card-details' : 'tv-show-card-details');
         cardElement.movie = movieData;

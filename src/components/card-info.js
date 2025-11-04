@@ -237,7 +237,7 @@ export class MovieInfo extends HTMLElement {
                 </div>
             ` : ''}
 
-            <div class="backdrop" style="background-image: url('${API_CONFIG.IMAGE_BASE_URL.replace('/w500', '/original')}${this._info.backdrop_path}')"></div>
+            ${this._info.backdrop_path ? `<div class="backdrop" style="background-image: url('${API_CONFIG.IMAGE_BASE_URL.replace('/w500', '/original')}${this._info.backdrop_path}')"></div>` : ''}
         `;
         
         // Добавляем обработчик для раскрытия/схлопывания текста
