@@ -142,10 +142,20 @@ export class StoryGenerator {
             
             console.log('Final year info to display:', yearInfo);
             
-            this._drawTitleAndYear(movieData.title || movieData.name, yearInfo, posterData);
-            this._drawRating(parseInt(review.rating), posterData);
+            const title = movieData.title || movieData.name;
+            const rating = parseInt(review.rating);
+            
+            this._drawTitleAndYear(title, yearInfo, posterData);
+            this._drawRating(rating, posterData);
 
-            return await this._exportToJpeg();
+            // Сохраняем метаданные для передачи в upload service
+            const metadata = {
+                title: title,
+                year: yearInfo,
+                rating: rating
+            };
+
+            return await this._exportToJpeg(metadata);
         } catch (error) {
             console.error('Error generating story:', error);
             throw error;
@@ -251,10 +261,10 @@ export class StoryGenerator {
         );
     }
 
-    async _exportToJpeg() {
+    async _exportToJpeg(metadata = {}) {
         return new Promise(resolve => {
             this.canvas.toBlob(async blob => {
-                const url = await UploadService.uploadImage(blob);
+                const url = await UploadService.uploadImage(blob, metadata);
                 resolve(url);
             }, 'image/jpeg', 0.9);
         });

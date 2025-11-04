@@ -610,7 +610,7 @@ export class ReviewDialog extends HTMLElement {
                         review
                     );
 
-                    if (!storyImage || !storyImage.includes('imgur.com')) {
+                    if (!storyImage || !storyImage.includes('api.telegram.org')) {
                         throw new Error('Invalid image URL');
                     }
 
