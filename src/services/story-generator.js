@@ -60,28 +60,27 @@ export class StoryGenerator {
 
     // Разделим на отдельные методы
     _drawBackground(posterImage) {
-        // Пытаемся применить blur с fallback для старых устройств
-        const supportsFilter = typeof this.ctx.filter !== 'undefined';
+        // Определяем платформу для оптимизации blur
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
         
-        if (supportsFilter) {
-            // Рисуем размытый постер
-            this.ctx.filter = 'blur(120px)';
-            this.ctx.drawImage(posterImage, 
-                -50, -50, 
-                this.canvas.width + 100, this.canvas.height + 100
-            );
-            this.ctx.filter = 'none';
-        } else {
-            // Fallback: многократная отрисовка с малой прозрачностью для имитации blur
-            this.ctx.globalAlpha = 0.3;
-            for (let i = 0; i < 3; i++) {
-                this.ctx.drawImage(posterImage, 
-                    -50 + (i * 10), -50 + (i * 10), 
-                    this.canvas.width + 100, this.canvas.height + 100
-                );
-            }
-            this.ctx.globalAlpha = 1.0;
-        }
+        // Для iOS используем меньший blur и более надежный метод
+        const blurAmount = isIOS ? '60px' : '120px';
+        
+        // Сохраняем текущее состояние контекста
+        this.ctx.save();
+        
+        // Применяем blur
+        this.ctx.filter = `blur(${blurAmount})`;
+        
+        // Рисуем размытый постер
+        this.ctx.drawImage(posterImage, 
+            -50, -50, 
+            this.canvas.width + 100, this.canvas.height + 100
+        );
+        
+        // Восстанавливаем состояние (убираем filter)
+        this.ctx.restore();
         
         // Создаем градиентное затемнение
         const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
