@@ -1,37 +1,58 @@
 export class UploadService {
     static async uploadImage(blob, metadata = {}) {
         try {
+            console.log('🔄 Starting upload process...');
+            
             // Получаем ID пользователя из Telegram WebApp
             const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+            console.log('👤 User ID:', userId);
             
             if (!userId) {
+                console.error('❌ User ID not available');
                 throw new Error('User ID not available');
             }
 
             const BOT_TOKEN = import.meta.env.VITE_BOT_TOKEN;
+            console.log('🤖 Bot token exists:', !!BOT_TOKEN);
             
             if (!BOT_TOKEN) {
+                console.error('❌ Bot token not configured');
                 throw new Error('Bot token not configured');
             }
 
             // 1. Отправляем текстовое сообщение с информацией о фильме
             if (metadata.title && metadata.year && metadata.rating) {
-                const caption = `🎬 ${metadata.title}\n📅 ${metadata.year}\n⭐️ ${metadata.rating}/10`;
+                let caption = `🎬 ${metadata.title}\n📅 ${metadata.year}\n⭐️ ${metadata.rating}/10`;
+                
+                // Добавляем текст отзыва, если есть
+                if (metadata.comment) {
+                    caption += `\n\n💭 ${metadata.comment}`;
+                }
+                
+                console.log('📝 Sending message with caption:', caption);
                 
                 const messageFormData = new FormData();
                 messageFormData.append('chat_id', userId);
                 messageFormData.append('text', caption);
 
-                await fetch(
+                const messageResponse = await fetch(
                     `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
                     {
                         method: 'POST',
                         body: messageFormData
                     }
                 );
+
+                if (!messageResponse.ok) {
+                    const messageError = await messageResponse.json();
+                    console.error('❌ Failed to send message:', messageError);
+                } else {
+                    console.log('✅ Message sent successfully');
+                }
             }
 
             // 2. Отправляем изображение в чат с пользователем
+            console.log('📸 Uploading image...');
             const formData = new FormData();
             formData.append('chat_id', userId);
             formData.append('photo', blob, 'story.jpg');
@@ -46,15 +67,18 @@ export class UploadService {
 
             if (!uploadResponse.ok) {
                 const error = await uploadResponse.json();
+                console.error('❌ Upload failed:', error);
                 throw new Error(error.description || 'Upload failed');
             }
 
             const uploadData = await uploadResponse.json();
+            console.log('✅ Image uploaded successfully');
             
             // 3. Получаем file_id самой большой версии фото
             const photos = uploadData.result.photo;
             const largestPhoto = photos[photos.length - 1];
             const fileId = largestPhoto.file_id;
+            console.log('📎 File ID:', fileId);
 
             // 4. Получаем путь к файлу
             const fileResponse = await fetch(
@@ -62,17 +86,22 @@ export class UploadService {
             );
 
             if (!fileResponse.ok) {
+                console.error('❌ Failed to get file path');
                 throw new Error('Failed to get file path');
             }
 
             const fileData = await fileResponse.json();
             const filePath = fileData.result.file_path;
+            console.log('📂 File path:', filePath);
 
             // 5. Формируем публичный URL файла
-            return `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
+            const fileUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
+            console.log('🔗 File URL:', fileUrl);
+            
+            return fileUrl;
 
         } catch (error) {
-            console.error('Error uploading via Telegram Bot:', error);
+            console.error('💥 Error uploading via Telegram Bot:', error);
             throw error;
         }
     }

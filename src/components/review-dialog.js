@@ -610,20 +610,32 @@ export class ReviewDialog extends HTMLElement {
                         review
                     );
 
+                    console.log('✅ Story image generated:', storyImage);
+
                     if (!storyImage || !storyImage.includes('api.telegram.org')) {
+                        console.error('❌ Invalid image URL:', storyImage);
                         throw new Error('Invalid image URL');
                     }
 
                     loadingText.textContent = 'Sharing story...';
 
                     if (TG?.shareToStory) {
-                        await TG.shareToStory(storyImage, {
-                            media_type: "photo",
-                            background_color: "#FFFFFF"
-                        });
+                        const shareParams = {
+                            media_type: "photo"
+                        };
+                        
+                        // Добавляем текст отзыва как подпись к истории
+                        if (review.comment) {
+                            shareParams.text = review.comment;
+                        }
+                        
+                        console.log('📤 Sharing to story with params:', shareParams);
+                        await TG.shareToStory(storyImage, shareParams);
+                    } else {
+                        console.warn('⚠️ shareToStory не доступен');
                     }
                 } catch (error) {
-                    console.error('Error sharing story:', error);
+                    console.error('💥 Error sharing story:', error);
                     this._showError('Failed to share story');
                 }
             }

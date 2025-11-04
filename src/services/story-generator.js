@@ -152,7 +152,8 @@ export class StoryGenerator {
             const metadata = {
                 title: title,
                 year: yearInfo,
-                rating: rating
+                rating: rating,
+                comment: review.comment || '' // Добавляем текст отзыва
             };
 
             return await this._exportToJpeg(metadata);
