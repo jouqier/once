@@ -37,7 +37,7 @@ input,
 main {
   flex: 1;
   position: relative;
-  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  /*\padding-bottom: calc(64px + env(safe-area-inset-bottom)); */
 }
 
 #movies-container {

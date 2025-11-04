@@ -39,15 +39,15 @@ export class TabBar extends HTMLElement {
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
-                    position: fixed;
+                    position: sticky;
                     bottom: 0;
-                    left: 0;
-                    right: 0;
+                    /* left: 0;
+                    right: 0; */
                     background: var(--md-sys-color-scrim);
                     z-index: 1000;
-                    transform: translateZ(0);
+                    /*transform: translateZ(0);
                     -webkit-transform: translateZ(0);
-                    will-change: transform;
+                    will-change: transform; */
                 }
 
                 .tab-bar {
