@@ -101,11 +101,8 @@ export class GenreScreen extends HTMLElement {
                 if (progress) {
                     poster.setAttribute('watched-episodes', progress.watchedEpisodes || 0);
                     poster.setAttribute('total-episodes', progress.totalEpisodes || 0);
-                    if (progress.rating) {
-                        poster.setAttribute('user-rating', progress.rating);
-                    } else {
-                        poster.removeAttribute('user-rating');
-                    }
+                    // Для сериалов не устанавливаем user-rating
+                    poster.removeAttribute('user-rating');
                 }
             }
         });
@@ -330,8 +327,8 @@ export class GenreScreen extends HTMLElement {
             let progress = null;
 
             if (this._mediaType === 'tv') {
+                // Для сериалов получаем только прогресс, рейтинг не показываем
                 progress = await userMoviesService.getShowProgress(item.id);
-                userRating = progress?.rating;
             } else {
                 const userReview = userMoviesService.getReview('movie', item.id);
                 userRating = userReview?.rating;

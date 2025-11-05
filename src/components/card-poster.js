@@ -48,7 +48,7 @@ export class MoviePoster extends HTMLElement {
         // Обновляем постер, если это сериал и ID совпадает
         if (this._movie && 
             this._movie.media_type === 'tv' && 
-            parseInt(event.detail.tvId) === this._movie.id) {
+            String(event.detail.tvId) === String(this._movie.id)) {
             this._updateContent();
         }
     }
@@ -57,7 +57,7 @@ export class MoviePoster extends HTMLElement {
         // Обновляем постер, если это сериал и ID совпадает
         if (this._movie && 
             this._movie.media_type === 'tv' && 
-            parseInt(event.detail.tvId) === this._movie.id) {
+            String(event.detail.tvId) === String(this._movie.id)) {
             this._updateContent();
         }
     }
@@ -226,39 +226,56 @@ export class MoviePoster extends HTMLElement {
             }
 
             if (this._movie.media_type === 'tv') {
-                const totalEpisodes = this._movie.seasons
-                    .filter(season => season.season_number > 0)
-                    .reduce((total, season) => total + (season.episode_count || 0), 0);
-                
-                let watchedEpisodes = 0;
-                this._movie.seasons.forEach(season => {
-                    if (season.season_number > 0) {
-                        for (let i = 1; i <= season.episode_count; i++) {
-                            if (userMoviesService.isEpisodeWatched(
-                                this._movie.id,
-                                season.season_number,
-                                i
-                            )) {
-                                watchedEpisodes++;
-                            }
+                // Используем getShowProgress для получения актуальных данных о прогрессе
+                // Это более надежный способ, который работает с любой структурой данных
+                try {
+                    const progress = await userMoviesService.getShowProgress(this._movie.id);
+                    if (progress && progress.totalEpisodes > 0) {
+                        this._mediaPoster.setAttribute('watched-episodes', progress.watchedEpisodes || 0);
+                        this._mediaPoster.setAttribute('total-episodes', progress.totalEpisodes);
+                    } else {
+                        // Если нет данных о прогрессе, пытаемся подсчитать вручную
+                        const totalEpisodes = this._movie.seasons
+                            ?.filter(season => season.season_number > 0)
+                            .reduce((total, season) => {
+                                const episodeCount = season.episodes?.length || season.episode_count || 0;
+                                return total + episodeCount;
+                            }, 0) || 0;
+                        
+                        let watchedEpisodes = 0;
+                        if (this._movie.seasons) {
+                            this._movie.seasons.forEach(season => {
+                                if (season.season_number > 0) {
+                                    const episodeCount = season.episodes?.length || season.episode_count || 0;
+                                    for (let i = 1; i <= episodeCount; i++) {
+                                        if (userMoviesService.isEpisodeWatched(
+                                            this._movie.id,
+                                            season.season_number,
+                                            i
+                                        )) {
+                                            watchedEpisodes++;
+                                        }
+                                    }
+                                }
+                            });
+                        }
+                        
+                        if (totalEpisodes > 0) {
+                            this._mediaPoster.setAttribute('watched-episodes', watchedEpisodes);
+                            this._mediaPoster.setAttribute('total-episodes', totalEpisodes);
+                        } else {
+                            this._mediaPoster.removeAttribute('watched-episodes');
+                            this._mediaPoster.removeAttribute('total-episodes');
                         }
                     }
-                });
-                
-                if (totalEpisodes > 0) {
-                    this._mediaPoster.setAttribute('watched-episodes', watchedEpisodes);
-                    this._mediaPoster.setAttribute('total-episodes', totalEpisodes);
+                } catch (error) {
+                    console.error('Error getting show progress:', error);
+                    // В случае ошибки убираем атрибуты
+                    this._mediaPoster.removeAttribute('watched-episodes');
+                    this._mediaPoster.removeAttribute('total-episodes');
                 }
-                
-                const seasonReviews = this._movie.seasons
-                    .filter(season => season.season_number > 0)
-                    .map(season => userMoviesService.getSeasonReview(this._movie.id, season.season_number))
-                    .filter(Boolean);
-                
-                if (seasonReviews.length > 0) {
-                    const lastReview = seasonReviews[seasonReviews.length - 1];
-                    this._mediaPoster.setAttribute('user-rating', lastReview.rating);
-                }
+                // Убираем user-rating для сериалов, чтобы не показывать бейдж рейтинга
+                this._mediaPoster.removeAttribute('user-rating');
             } else {
                 const movieState = userMoviesService.getMovieState(this._movie.id);
                 if (movieState === 'watched') {

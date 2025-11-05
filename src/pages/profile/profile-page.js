@@ -113,11 +113,8 @@ export class ProfileScreen extends HTMLElement {
                 if (progress) {
                     poster.setAttribute('watched-episodes', progress.watchedEpisodes || 0);
                     poster.setAttribute('total-episodes', progress.totalEpisodes || 0);
-                    if (progress.rating) {
-                        poster.setAttribute('user-rating', progress.rating);
-                    } else {
-                        poster.removeAttribute('user-rating');
-                    }
+                    // Для сериалов не устанавливаем user-rating
+                    poster.removeAttribute('user-rating');
                 }
             }
         });
@@ -512,11 +509,10 @@ export class ProfileScreen extends HTMLElement {
         let progress = null;
 
         if (item.media_type === 'tv') {
-            // Для сериалов получаем прогресс и рейтинг
+            // Для сериалов получаем только прогресс, рейтинг не показываем
             progress = await userMoviesService.getShowProgress(item.id);
-            userRating = progress?.rating;
         } else {
-            // Для фильмов получаем только рейтинг
+            // Для фильмов получаем рейтинг
             const userReview = userMoviesService.getReview('movie', item.id);
             userRating = userReview?.rating;
         }

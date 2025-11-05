@@ -502,17 +502,22 @@ export class TVSeasons extends HTMLElement {
                 this._updateDebounce = setTimeout(() => {
                     if (checkbox.checked) {
                         userMoviesService.markEpisodeAsWatched(this._tvId, seasonNumber, episodeNumber);
-                        document.dispatchEvent(new CustomEvent('episode-status-changed', {
-                            bubbles: true,
-                            composed: true,
-                            detail: { 
-                                tvId: this._tvId,
-                                hasWatchedEpisodes: true 
-                            }
-                        }));
                     } else {
                         userMoviesService.markEpisodeAsUnwatched(this._tvId, seasonNumber, episodeNumber);
                     }
+
+                    // Проверяем, есть ли просмотренные эпизоды
+                    const hasWatchedEpisodes = userMoviesService.hasAnyWatchedEpisodes(this._tvId);
+
+                    // Отправляем событие при изменении статуса эпизода (как при отметке, так и при снятии)
+                    document.dispatchEvent(new CustomEvent('episode-status-changed', {
+                        bubbles: true,
+                        composed: true,
+                        detail: { 
+                            tvId: this._tvId,
+                            hasWatchedEpisodes: hasWatchedEpisodes
+                        }
+                    }));
 
                     // Сбрасываем кеш для сезона
                     this._invalidateSeasonCache(seasonNumber);
@@ -595,6 +600,19 @@ export class TVSeasons extends HTMLElement {
                         episodeNumberEl.innerHTML += '<span class="unwatched-dot"></span>';
                     }
                 });
+
+                // Проверяем, есть ли еще просмотренные эпизоды
+                const hasWatchedEpisodes = userMoviesService.hasAnyWatchedEpisodes(this._tvId);
+                
+                // Отправляем событие об изменении статуса эпизодов для обновления бейджа
+                document.dispatchEvent(new CustomEvent('episode-status-changed', {
+                    bubbles: true,
+                    composed: true,
+                    detail: { 
+                        tvId: this._tvId,
+                        hasWatchedEpisodes: hasWatchedEpisodes
+                    }
+                }));
 
                 // Сбрасываем кеш и обновляем состояние кнопок
                 this._invalidateSeasonCache(seasonNumber);
@@ -746,6 +764,17 @@ export class TVSeasons extends HTMLElement {
             composed: true,
             detail: { tvId: this._tvId }
         }));
+        
+        // Отправляем событие об изменении статуса эпизодов для обновления бейджа
+        const hasWatchedEpisodes = userMoviesService.hasAnyWatchedEpisodes(this._tvId);
+        document.dispatchEvent(new CustomEvent('episode-status-changed', {
+            bubbles: true,
+            composed: true,
+            detail: { 
+                tvId: this._tvId,
+                hasWatchedEpisodes: hasWatchedEpisodes
+            }
+        }));
     }
 
     _markAllSeasonsUnwatched() {
@@ -773,6 +802,17 @@ export class TVSeasons extends HTMLElement {
         if (currentSeasonTab) {
             this._handleSeasonChange(currentSeasonTab.dataset.season);
         }
+        
+        // Отправляем событие об изменении статуса эпизодов для обновления бейджа
+        const hasWatchedEpisodes = userMoviesService.hasAnyWatchedEpisodes(this._tvId);
+        document.dispatchEvent(new CustomEvent('episode-status-changed', {
+            bubbles: true,
+            composed: true,
+            detail: { 
+                tvId: this._tvId,
+                hasWatchedEpisodes: hasWatchedEpisodes
+            }
+        }));
     }
 
     _clearAllSeasons() {

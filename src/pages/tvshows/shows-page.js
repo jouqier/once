@@ -68,11 +68,8 @@ export class TVShowsScreen extends HTMLElement {
                 if (progress) {
                     poster.setAttribute('watched-episodes', progress.watchedEpisodes || 0);
                     poster.setAttribute('total-episodes', progress.totalEpisodes || 0);
-                    if (progress.rating) {
-                        poster.setAttribute('user-rating', progress.rating);
-                    } else {
-                        poster.removeAttribute('user-rating');
-                    }
+                    // Для сериалов не устанавливаем user-rating
+                    poster.removeAttribute('user-rating');
                 }
             }
         });
@@ -166,7 +163,6 @@ export class TVShowsScreen extends HTMLElement {
                         alt="${show.name}"
                         ${progress ? `watched-episodes="${progress.watchedEpisodes}"` : ''}
                         ${progress ? `total-episodes="${progress.totalEpisodes}"` : ''}
-                        ${progress?.rating ? `user-rating="${progress.rating}"` : ''}
                         size="large">
                     </media-poster>
                 </div>
@@ -190,7 +186,6 @@ export class TVShowsScreen extends HTMLElement {
                         alt="${show.name}"
                         ${progress ? `watched-episodes="${progress.watchedEpisodes}"` : ''}
                         ${progress ? `total-episodes="${progress.totalEpisodes}"` : ''}
-                        ${progress?.rating ? `user-rating="${progress.rating}"` : ''}
                         size="small">
                     </media-poster>
                 </div>
