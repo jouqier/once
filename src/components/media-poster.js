@@ -92,9 +92,9 @@ export class MediaPoster extends HTMLElement {
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
-                    /* display: block; */
+                    display: block;
                     position: relative;
-                    /* height: 100%; */
+                    height: 100%;
                 }
 
                 .poster-container {
