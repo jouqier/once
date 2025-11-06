@@ -2,149 +2,56 @@ import { haptic } from '../config/telegram.js';
 import { userMoviesService } from '../services/user-movies.js';
 import { i18n } from '../services/i18n.js';
 import './action-sheet.js';
-import './review-dialog.js';
 import '@material/web/button/filled-tonal-button.js';
 
+/**
+ * Компонент кнопок управления сериалом
+ * Состояния: none, want, watching, watched
+ */
 export class TVShowActionButtons extends HTMLElement {
-    static States = {
-        NONE: 'none',
-        WANT: 'want',
-        WATCHED: 'watched'
-    };
-
-    static Actions = {
-        REMOVE_FROM_WANT: 'remove-from-want',
-        REMOVE_FROM_WATCHED: 'remove-from-watched',
-        MARK_ALL_WATCHED: 'mark-all-watched',
-        MARK_ALL_UNWATCHED: 'mark-all-unwatched',
-        MOVE_TO_WANT: 'move-to-want',
-        WATCHING: 'watching'
-    };
-
-    static Activities = {
-        WANT: 'want',
-        WATCHED: 'watched',
-        WATCHING: 'watching',
-        REMOVED_FROM_WANT: 'removed-from-want',
-        REMOVED_FROM_WATCHED: 'removed-from-watched'
-    };
-
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this._state = TVShowActionButtons.States.NONE;
         this._tvShow = null;
-        this._hasWatchedEpisodes = false;
+        this._state = 'none';
         this._activityScreen = document.createElement('activity-screen');
-        
-        // Сохраняем bound функции для правильной очистки слушателей
-        this._boundHandlers = {
-            allSeasonsWatched: this._handleAllSeasonsWatchedFromConstructor.bind(this),
-            change: this._handleChangeFromConstructor.bind(this),
-            episodeStatusChanged: this._handleEpisodeStatusChangedFromConstructor.bind(this),
-            allSeasonsWatchedDup: this._handleAllSeasonsWatched.bind(this),
-            allSeasonsUnwatched: this._handleAllSeasonsUnwatched.bind(this),
-            episodeWatchedStatusChanged: this._handleEpisodeStatusChanged.bind(this)
-        };
-        
-        // Кеш для проверки состояния всех сезонов
-        this._allSeasonsWatchedCache = undefined;
-        
-        // Флаг для батчинга обновлений DOM
-        this._pendingUpdate = false;
-        
-        this._createElements();
-        this._setupButtonEventListeners();
-    }
-
-    _checkAllSeasonsWatched() {
-        // Проверяем кеш
-        if (this._allSeasonsWatchedCache !== undefined) {
-            return this._allSeasonsWatchedCache;
-        }
-        
-        // Вычисляем состояние (если есть seasons)
-        if (!this._seasons || !this._seasons.length) {
-            return false;
-        }
-        
-        const result = this._seasons.every(season => {
-            if (season.season_number === 0) return true;
-            const totalEpisodes = season.episodes?.length;
-            if (!totalEpisodes) return true;
-            
-            return userMoviesService.isSeasonFullyWatched(
-                this._tvShow.id,
-                season.season_number,
-                totalEpisodes
-            );
-        });
-        
-        this._allSeasonsWatchedCache = result;
-        return result;
-    }
-
-    _invalidateCache() {
-        this._allSeasonsWatchedCache = undefined;
+        this._render();
     }
 
     connectedCallback() {
-        // Добавляем глобальные слушатели при подключении к DOM
-        document.addEventListener('all-seasons-watched', this._boundHandlers.allSeasonsWatched);
-        document.addEventListener('change', this._boundHandlers.change);
-        document.addEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
-        document.addEventListener('all-seasons-watched', this._boundHandlers.allSeasonsWatchedDup);
-        document.addEventListener('all-seasons-unwatched', this._boundHandlers.allSeasonsUnwatched);
-        document.addEventListener('episode-watched-status-changed', this._boundHandlers.episodeWatchedStatusChanged);
+        this._setupEventListeners();
+        // Слушаем изменения эпизодов для автоматических переходов
+        document.addEventListener('episode-checkbox-changed', this._handleEpisodeChange.bind(this));
+        // Слушаем события от кнопок сезонов
+        document.addEventListener('season-marked-watched', this._handleSeasonMarkedWatched.bind(this));
+        document.addEventListener('season-marked-unwatched', this._handleSeasonMarkedUnwatched.bind(this));
     }
 
     disconnectedCallback() {
-        // Удаляем глобальные слушатели при отключении компонента
-        document.removeEventListener('all-seasons-watched', this._boundHandlers.allSeasonsWatched);
-        document.removeEventListener('change', this._boundHandlers.change);
-        document.removeEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
-        document.removeEventListener('all-seasons-watched', this._boundHandlers.allSeasonsWatchedDup);
-        document.removeEventListener('all-seasons-unwatched', this._boundHandlers.allSeasonsUnwatched);
-        document.removeEventListener('episode-watched-status-changed', this._boundHandlers.episodeWatchedStatusChanged);
+        document.removeEventListener('episode-checkbox-changed', this._handleEpisodeChange.bind(this));
+        document.removeEventListener('season-marked-watched', this._handleSeasonMarkedWatched.bind(this));
+        document.removeEventListener('season-marked-unwatched', this._handleSeasonMarkedUnwatched.bind(this));
     }
 
-    _handleAllSeasonsWatchedFromConstructor(e) {
-        if (this._tvShow?.id === e.detail.tvId) {
-            userMoviesService.addToWatched(this._tvShow);
-            this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.WATCHED);
-            this._state = TVShowActionButtons.States.WATCHED;
-            this._updateButtonStates();
+    set tvShow(value) {
+        this._tvShow = value;
+        if (this._tvShow) {
+            this._state = userMoviesService.getMovieState(this._tvShow.id);
+            this._updateUI();
         }
     }
 
-    _handleChangeFromConstructor(e) {
-        if (e.target.tagName === 'MD-CHECKBOX' && this._tvShow) {
-            if (this._state === TVShowActionButtons.States.NONE && e.target.checked) {
-                this._handleWatching();
-            }
-        }
-    }
-
-    _handleEpisodeStatusChangedFromConstructor(e) {
-        if (this._tvShow?.id === e.detail.tvId && e.detail.hasWatchedEpisodes) {
-            this._handleWatching();
-        }
-    }
-
-    _createElements() {
+    _render() {
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
                     display: flex;
                     padding: 16px;
-                    align-items: center;
                     gap: 8px;
-                    align-self: stretch;
-                    z-index: 1;
                 }
                 
                 md-filled-tonal-button {
-                    flex: 1 0 0;
+                    flex: 1;
                     --md-filled-tonal-button-container-shape: 1000px;
                     --md-filled-tonal-button-label-text-font: 600 14px sans-serif;
                     height: 48px;
@@ -152,372 +59,330 @@ export class TVShowActionButtons extends HTMLElement {
                 }
 
                 .want-button {
-                    --md-sys-color-secondary-container: ${this._getWantButtonColor()};
+                    --md-sys-color-secondary-container: rgba(255, 255, 255, 0.32);
                     --md-sys-color-on-secondary-container: #FFF;
-                    border: ${this._getWantButtonBorder()};
-                    display: ${this._getWantButtonDisplay()};
+                }
+
+                .want-button.active {
+                    --md-sys-color-secondary-container: transparent;
+                    border: 2px solid var(--md-sys-color-on-surface);
+                }
+
+                .watching-button {
+                    --md-sys-color-secondary-container: var(--md-sys-color-primary-container);
+                    --md-sys-color-on-secondary-container: #FFF;
                 }
 
                 .watched-button {
-                    --md-sys-color-secondary-container: ${this._getWatchedButtonColor()};
+                    --md-sys-color-secondary-container: rgba(255, 255, 255, 0.32);
                     --md-sys-color-on-secondary-container: #FFF;
-                    display: ${this._getWatchedButtonDisplay()};
                 }
 
-                .button-content {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
+                .watched-button.active {
+                    --md-sys-color-secondary-container: var(--md-sys-color-primary-container);
+                }
+
+                .hidden {
+                    display: none;
                 }
             </style>
             
             <md-filled-tonal-button class="want-button">
-                <div class="button-content">${i18n.t('want')}</div>
+                ${i18n.t('want')}
+            </md-filled-tonal-button>
+            <md-filled-tonal-button class="watching-button hidden">
+                ${i18n.t('watching')}
             </md-filled-tonal-button>
             <md-filled-tonal-button class="watched-button">
-                <div class="button-content">${i18n.t('watched')}</div>
+                ${i18n.t('watched')}
             </md-filled-tonal-button>
         `;
-
-        this._wantButton = this.shadowRoot.querySelector('.want-button');
-        this._watchedButton = this.shadowRoot.querySelector('.watched-button');
-        this._wantButtonContent = this._wantButton.querySelector('.button-content');
-        this._watchedButtonContent = this._watchedButton.querySelector('.button-content');
     }
 
-    _getWantButtonColor() {
-        return this._state === TVShowActionButtons.States.WANT ? 
-            'transparent' : 
-            'rgba(255, 255, 255, 0.32)';
+    _setupEventListeners() {
+        const wantBtn = this.shadowRoot.querySelector('.want-button');
+        const watchingBtn = this.shadowRoot.querySelector('.watching-button');
+        const watchedBtn = this.shadowRoot.querySelector('.watched-button');
+
+        wantBtn.addEventListener('click', () => this._handleWantClick());
+        watchingBtn.addEventListener('click', () => this._handleWatchingClick());
+        watchedBtn.addEventListener('click', () => this._handleWatchedClick());
     }
 
-    _getWantButtonBorder() {
-        return this._state === TVShowActionButtons.States.WANT ? 
-            '2px solid var(--md-sys-color-on-surface)' : 
-            'none';
-    }
+    _handleWantClick() {
+        if (!this._tvShow) return;
+        haptic.light();
 
-    _getWantButtonDisplay() {
-        return this._state === TVShowActionButtons.States.WATCHED ? 'none' : 'flex';
-    }
-
-    _getWatchedButtonColor() {
-        return this._state === TVShowActionButtons.States.WATCHED ? 
-            'var(--md-sys-color-primary-container)' : 
-            'rgba(255, 255, 255, 0.32)';
-    }
-
-    _getWatchedButtonDisplay() {
-        return this._state === TVShowActionButtons.States.WANT ? 'none' : 'flex';
-    }
-
-    _setupButtonEventListeners() {
-        this._wantButton.addEventListener('click', () => {
-            if (!this._tvShow) return;
-            haptic.light();
-            
-            if (this._state === TVShowActionButtons.States.WANT) {
-                this._showWantContextMenu();
-            } else {
-                this._addToWant();
-            }
-        });
-
-        this._watchedButton.addEventListener('click', () => {
-            if (!this._tvShow) return;
-            haptic.light();
-            this._showTVWatchedMenu();
-        });
-    }
-
-    set tvShow(value) {
-        this._tvShow = value;
-        if (this._tvShow) {
-            this._state = userMoviesService.getMovieState(this._tvShow.id);
-            this._invalidateCache(); // Сбрасываем кеш при смене сериала
-            this._updateButtonStates();
-        }
-    }
-
-    set seasons(value) {
-        this._seasons = value;
-        this._invalidateCache(); // Сбрасываем кеш при установке сезонов
-    }
-
-    _handleAllSeasonsWatched(e) {
-        if (this._tvShow?.id === e.detail.tvId) {
-            haptic.medium();
-            this._markAsWatched();
-        }
-    }
-
-    _handleAllSeasonsUnwatched(e) {
-        if (this._tvShow?.id === e.detail.tvId) {
-            this._removeFromWatched();
-        }
-    }
-
-    _handleEpisodeStatusChanged(e) {
-        if (this._tvShow?.id === e.detail.tvId) {
-            this._hasWatchedEpisodes = e.detail.hasWatchedEpisodes;
-            this._updateButtonStates();
-        }
-    }
-
-    _updateButtonStates() {
-        if (this._pendingUpdate) return;
-        
-        this._pendingUpdate = true;
-        requestAnimationFrame(() => {
-            this._doUpdateButtonStates();
-            this._pendingUpdate = false;
-        });
-    }
-
-    _doUpdateButtonStates() {
-        this._updateButtonContent();
-        this._updateButtonVisibility();
-        this._updateButtonStyles();
-    }
-
-    _updateButtonContent() {
-        this._wantButtonContent.textContent = this._state === TVShowActionButtons.States.WANT ? 
-            `✓ ${i18n.t('want')}` : i18n.t('want');
-        this._watchedButtonContent.textContent = this._state === TVShowActionButtons.States.WATCHED ? 
-            `✓ ${i18n.t('watched')}` : i18n.t('watched');
-    }
-
-    _updateButtonVisibility() {
-        if (this._state === TVShowActionButtons.States.WATCHED || 
-            this._state === TVShowActionButtons.States.WANT) {
-            this._wantButton.style.display = this._getWantButtonDisplay();
-            this._watchedButton.style.display = this._getWatchedButtonDisplay();
-        } else if (this._hasWatchedEpisodes) {
-            this._wantButton.style.display = 'none';
-            this._watchedButton.style.display = 'flex';
+        if (this._state === 'want') {
+            this._showWantMenu();
         } else {
-            this._wantButton.style.display = 'flex';
-            this._watchedButton.style.display = 'flex';
+            // Добавить в Want
+            userMoviesService.addToWant(this._tvShow);
+            this._activityScreen.addActivity(this._tvShow, 'want');
+            this._state = 'want';
+            this._updateUI();
         }
     }
 
-    _updateButtonStyles() {
-        this._wantButton.style.border = this._getWantButtonBorder();
-        this._wantButton.style.setProperty('--md-sys-color-secondary-container', this._getWantButtonColor());
-        this._watchedButton.style.setProperty('--md-sys-color-secondary-container', this._getWatchedButtonColor());
+    _handleWatchingClick() {
+        if (!this._tvShow) return;
+        haptic.light();
+        this._showWatchingMenu();
     }
 
-    _addToWant() {
-        userMoviesService.addToWant(this._tvShow);
-        this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.WANT);
-        this._state = TVShowActionButtons.States.WANT;
-        this._updateButtonStates();
+    _handleWatchedClick() {
+        if (!this._tvShow) return;
+        haptic.light();
+
+        if (this._state === 'watched') {
+            this._showWatchedMenu();
+        } else {
+            this._showWatchedMenu();
+        }
     }
 
-    _markAsWatched() {
-        userMoviesService.addToWatched(this._tvShow);
-        this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.WATCHED);
-        this._state = TVShowActionButtons.States.WATCHED;
-        this._updateButtonStates();
-    }
-
-    _removeFromWatched() {
-        userMoviesService.removeFromWatched(this._tvShow.id);
-        userMoviesService.removeAllSeasonReviews(this._tvShow.id);
-        this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.REMOVED_FROM_WATCHED);
-        this._state = TVShowActionButtons.States.NONE;
-        this._updateButtonStates();
-        this._dispatchTVAction('clear-all-seasons');
-        
-        document.dispatchEvent(new CustomEvent('season-reviews-removed', {
-            bubbles: true,
-            composed: true,
-            detail: { tvId: this._tvShow.id }
-        }));
-    }
-
-    _showWantContextMenu() {
+    _showWantMenu() {
         const menu = document.createElement('context-menu');
         menu.options = [
-            { 
-                label: i18n.t('removeFromWant'),
-                action: TVShowActionButtons.Actions.REMOVE_FROM_WANT
-            },
-            {
-                label: i18n.t('imWatchingThis'),
-                action: TVShowActionButtons.Actions.WATCHING
-            },
-            {
-                label: i18n.t('markAllAsWatched'),
-                action: TVShowActionButtons.Actions.MARK_ALL_WATCHED
-            }
+            { label: i18n.t('removeFromWant'), action: 'remove-from-want' },
+            { label: i18n.t('imWatchingThis'), action: 'watching' },
+            { label: i18n.t('markAllAsWatched'), action: 'mark-all-watched' }
         ];
 
-        menu.addEventListener('menu-action', this._handleWantMenuAction.bind(this));
+        menu.addEventListener('menu-action', (e) => {
+            const action = e.detail.action;
+
+            if (action === 'remove-from-want') {
+                userMoviesService.removeFromWant(this._tvShow.id);
+                this._activityScreen.addActivity(this._tvShow, 'removed-from-want');
+                this._state = 'none';
+                this._updateUI();
+            } else if (action === 'watching') {
+                userMoviesService.removeFromWant(this._tvShow.id);
+                userMoviesService.addToWatching(this._tvShow);
+                this._activityScreen.addActivity(this._tvShow, 'watching');
+                this._state = 'watching';
+                this._updateUI();
+            } else if (action === 'mark-all-watched') {
+                userMoviesService.removeFromWant(this._tvShow.id);
+                userMoviesService.addToWatched(this._tvShow);
+                this._activityScreen.addActivity(this._tvShow, 'watched');
+                this._state = 'watched';
+                this._updateUI();
+                this._dispatchEvent('tv-action', { tvId: this._tvShow.id, action: 'mark-all-watched' });
+            }
+        });
+
         document.body.appendChild(menu);
     }
 
-    _showTVWatchedMenu() {
+    _showWatchingMenu() {
         const menu = document.createElement('context-menu');
-        
-        const checkPromise = new Promise(resolve => {
-            console.log('Waiting for check-all-seasons-result...');
-            document.addEventListener('check-all-seasons-result', (e) => {
-                console.log('Got check-all-seasons-result:', e.detail);
-                if (this._tvShow?.id === e.detail.tvId) {
-                    resolve(e.detail.allWatched);
-                }
-            }, { once: true });
+        menu.options = [
+            { label: i18n.t('removeFromWatching'), action: 'remove-from-watching' },
+            { label: i18n.t('markAllAsWatched'), action: 'mark-all-watched' },
+            { label: i18n.t('moveToWant'), action: 'move-to-want' }
+        ];
+
+        menu.addEventListener('menu-action', (e) => {
+            const action = e.detail.action;
+
+            if (action === 'remove-from-watching') {
+                userMoviesService.removeFromWatching(this._tvShow.id);
+                userMoviesService.removeAllSeasonReviews(this._tvShow.id);
+                this._activityScreen.addActivity(this._tvShow, 'removed-from-watching');
+                this._state = 'none';
+                this._updateUI();
+                this._dispatchEvent('tv-action', { tvId: this._tvShow.id, action: 'clear-all-seasons' });
+                this._dispatchEvent('season-reviews-removed', { tvId: this._tvShow.id });
+            } else if (action === 'mark-all-watched') {
+                userMoviesService.removeFromWatching(this._tvShow.id);
+                userMoviesService.addToWatched(this._tvShow);
+                this._activityScreen.addActivity(this._tvShow, 'watched');
+                this._state = 'watched';
+                this._updateUI();
+                this._dispatchEvent('tv-action', { tvId: this._tvShow.id, action: 'mark-all-watched' });
+            } else if (action === 'move-to-want') {
+                userMoviesService.removeFromWatching(this._tvShow.id);
+                userMoviesService.removeAllSeasonReviews(this._tvShow.id);
+                userMoviesService.addToWant(this._tvShow);
+                this._activityScreen.addActivity(this._tvShow, 'want');
+                this._state = 'want';
+                this._updateUI();
+                this._dispatchEvent('tv-action', { tvId: this._tvShow.id, action: 'clear-all-seasons' });
+                this._dispatchEvent('season-reviews-removed', { tvId: this._tvShow.id });
+            }
         });
 
-        console.log('Dispatching check-all-seasons for tvId:', this._tvShow.id);
-        document.dispatchEvent(new CustomEvent('check-all-seasons', {
-            bubbles: true,
-            composed: true,
-            detail: { tvId: this._tvShow.id }
-        }));
-
-        checkPromise.then(allSeasonsWatched => {
-            console.log('Creating menu with allSeasonsWatched:', allSeasonsWatched);
-            menu.options = this._getContextMenuOptions(allSeasonsWatched);
-            menu.addEventListener('menu-action', this._handleWatchedMenuAction.bind(this));
-            document.body.appendChild(menu);
-        });
+        document.body.appendChild(menu);
     }
 
-    _getContextMenuOptions(allSeasonsWatched) {
-        if (this._state === TVShowActionButtons.States.WATCHED) {
-            return allSeasonsWatched ? [
-                { label: i18n.t('removeFromWatched'), action: TVShowActionButtons.Actions.REMOVE_FROM_WATCHED },
-                { label: i18n.t('markAllAsUnwatched'), action: TVShowActionButtons.Actions.MARK_ALL_UNWATCHED },
-                { label: i18n.t('moveToWant'), action: TVShowActionButtons.Actions.MOVE_TO_WANT }
-            ] : [
-                { label: i18n.t('removeFromWatched'), action: TVShowActionButtons.Actions.REMOVE_FROM_WATCHED },
-                { label: i18n.t('markAllAsWatched'), action: TVShowActionButtons.Actions.MARK_ALL_WATCHED },
-                { label: i18n.t('moveToWant'), action: TVShowActionButtons.Actions.MOVE_TO_WANT }
+    _showWatchedMenu() {
+        const menu = document.createElement('context-menu');
+        menu.options = [
+            { label: i18n.t('removeFromWatched'), action: 'remove-from-watched' },
+            { label: i18n.t('moveToWant'), action: 'move-to-want' }
+        ];
+
+        // Если состояние none, добавляем опции для начала просмотра
+        if (this._state === 'none') {
+            menu.options = [
+                { label: i18n.t('markAllAsWatched'), action: 'mark-all-watched' },
+                { label: i18n.t('imWatchingThis'), action: 'watching' }
             ];
         }
-        
-        return [
-            { label: i18n.t('markAllAsWatched'), action: TVShowActionButtons.Actions.MARK_ALL_WATCHED },
-            { label: i18n.t('imWatchingThis'), action: TVShowActionButtons.Actions.WATCHING }
-        ];
-    }
 
-    _handleWantMenuAction(e) {
-        switch (e.detail.action) {
-            case TVShowActionButtons.Actions.REMOVE_FROM_WANT:
-                this._handleRemoveFromWant();
-                break;
-            case TVShowActionButtons.Actions.WATCHING:
-                this._handleWatching();
-                break;
-            case TVShowActionButtons.Actions.MARK_ALL_WATCHED:
-                this._handleMarkAllWatched();
-                break;
-        }
-    }
+        menu.addEventListener('menu-action', (e) => {
+            const action = e.detail.action;
 
-    _handleWatchedMenuAction(e) {
-        switch (e.detail.action) {
-            case TVShowActionButtons.Actions.REMOVE_FROM_WATCHED:
-                this._handleRemoveFromWatched();
-                break;
-            case TVShowActionButtons.Actions.MARK_ALL_UNWATCHED:
-                this._handleMarkAllUnwatched();
-                break;
-            case TVShowActionButtons.Actions.MARK_ALL_WATCHED:
-                this._dispatchTVAction(e.detail.action);
-                break;
-            case TVShowActionButtons.Actions.MOVE_TO_WANT:
-                this._handleMoveToWant();
-                break;
-            case TVShowActionButtons.Actions.WATCHING:
-                this._handleWatching();
-                break;
-        }
-    }
-
-    _handleRemoveFromWant() {
-        userMoviesService.removeFromWant(this._tvShow.id);
-        userMoviesService.removeAllSeasonReviews(this._tvShow.id);
-        this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.REMOVED_FROM_WANT);
-        this._state = TVShowActionButtons.States.NONE;
-        this._updateButtonStates();
-        this._dispatchTVAction('clear-all-seasons');
-    }
-
-    _handleRemoveFromWatched() {
-        userMoviesService.removeFromWatched(this._tvShow.id);
-        userMoviesService.removeAllSeasonReviews(this._tvShow.id);
-        this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.REMOVED_FROM_WATCHED);
-        this._state = TVShowActionButtons.States.NONE;
-        this._invalidateCache(); // Сбрасываем кеш
-        this._updateButtonStates();
-        this._dispatchTVAction('clear-all-seasons');
-        
-        document.dispatchEvent(new CustomEvent('season-reviews-removed', {
-            bubbles: true,
-            composed: true,
-            detail: { tvId: this._tvShow.id }
-        }));
-    }
-
-    _handleWatching() {
-        userMoviesService.addToWatched(this._tvShow);
-        this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.WATCHING);
-        this._state = TVShowActionButtons.States.WATCHED;
-        this._updateButtonStates();
-    }
-
-    _handleMoveToWant() {
-        userMoviesService.removeFromWatched(this._tvShow.id);
-        userMoviesService.removeAllSeasonReviews(this._tvShow.id);
-        userMoviesService.addToWant(this._tvShow);
-        this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.WANT);
-        this._state = TVShowActionButtons.States.WANT;
-        this._invalidateCache(); // Сбрасываем кеш
-        this._updateButtonStates();
-        
-        document.dispatchEvent(new CustomEvent('season-reviews-removed', {
-            bubbles: true,
-            composed: true,
-            detail: { tvId: this._tvShow.id }
-        }));
-    }
-
-    _handleMarkAllWatched() {
-        haptic.medium();
-        
-        this._dispatchTVAction(TVShowActionButtons.Actions.MARK_ALL_WATCHED);
-        
-        userMoviesService.removeFromWant(this._tvShow.id);
-        userMoviesService.addToWatched(this._tvShow);
-        this._activityScreen.addActivity(this._tvShow, TVShowActionButtons.Activities.WATCHED);
-        this._state = TVShowActionButtons.States.WATCHED;
-        this._invalidateCache(); // Сбрасываем кеш
-        this._updateButtonStates();
-    }
-
-    _handleMarkAllUnwatched() {
-        haptic.medium();
-        
-        this._dispatchTVAction(TVShowActionButtons.Actions.MARK_ALL_UNWATCHED);
-        
-        this._invalidateCache(); // Сбрасываем кеш
-        this._updateButtonStates();
-    }
-
-    _dispatchTVAction(action) {
-        document.dispatchEvent(new CustomEvent('tv-action', {
-            bubbles: true,
-            composed: true,
-            detail: {
-                tvId: this._tvShow.id,
-                action
+            if (action === 'remove-from-watched') {
+                userMoviesService.removeFromWatched(this._tvShow.id);
+                userMoviesService.removeAllSeasonReviews(this._tvShow.id);
+                this._activityScreen.addActivity(this._tvShow, 'removed-from-watched');
+                this._state = 'none';
+                this._updateUI();
+                this._dispatchEvent('season-reviews-removed', { tvId: this._tvShow.id });
+            } else if (action === 'move-to-want') {
+                userMoviesService.removeFromWatched(this._tvShow.id);
+                userMoviesService.removeAllSeasonReviews(this._tvShow.id);
+                userMoviesService.addToWant(this._tvShow);
+                this._activityScreen.addActivity(this._tvShow, 'want');
+                this._state = 'want';
+                this._updateUI();
+                this._dispatchEvent('season-reviews-removed', { tvId: this._tvShow.id });
+            } else if (action === 'mark-all-watched') {
+                userMoviesService.addToWatched(this._tvShow);
+                this._activityScreen.addActivity(this._tvShow, 'watched');
+                this._state = 'watched';
+                this._updateUI();
+                this._dispatchEvent('tv-action', { tvId: this._tvShow.id, action: 'mark-all-watched' });
+            } else if (action === 'watching') {
+                userMoviesService.addToWatching(this._tvShow);
+                this._activityScreen.addActivity(this._tvShow, 'watching');
+                this._state = 'watching';
+                this._updateUI();
             }
+        });
+
+        document.body.appendChild(menu);
+    }
+
+    _handleEpisodeChange(e) {
+        if (!this._tvShow || e.detail.tvId !== this._tvShow.id) return;
+
+        const { checked, isLastUnwatched, wasAllWatched } = e.detail;
+
+        // Переход в WATCHING при отметке первого эпизода
+        if (checked && (this._state === 'none' || this._state === 'want')) {
+            userMoviesService.removeFromWant(this._tvShow.id);
+            userMoviesService.addToWatching(this._tvShow);
+            this._activityScreen.addActivity(this._tvShow, 'watching');
+            this._state = 'watching';
+            this._updateUI();
+        }
+
+        // Переход в WATCHED при отметке последнего эпизода
+        if (checked && isLastUnwatched && this._state === 'watching') {
+            userMoviesService.removeFromWatching(this._tvShow.id);
+            userMoviesService.addToWatched(this._tvShow);
+            this._activityScreen.addActivity(this._tvShow, 'watched');
+            this._state = 'watched';
+            this._updateUI();
+        }
+
+        // Переход обратно в WATCHING при снятии отметки
+        if (!checked && wasAllWatched && this._state === 'watched') {
+            userMoviesService.removeFromWatched(this._tvShow.id);
+            userMoviesService.addToWatching(this._tvShow);
+            this._state = 'watching';
+            this._updateUI();
+        }
+    }
+
+    _handleSeasonMarkedWatched(e) {
+        if (!this._tvShow || e.detail.tvId !== this._tvShow.id) return;
+
+        const { allEpisodesWatched } = e.detail;
+
+        if (allEpisodesWatched) {
+            // Все эпизоды отмечены → переходим в WATCHED
+            userMoviesService.removeFromWatching(this._tvShow.id);
+            userMoviesService.removeFromWant(this._tvShow.id);
+            userMoviesService.addToWatched(this._tvShow);
+            this._activityScreen.addActivity(this._tvShow, 'watched');
+            this._state = 'watched';
+            this._updateUI();
+        } else if (this._state === 'none' || this._state === 'want') {
+            // Не все эпизоды отмечены, но есть просмотренные → переходим в WATCHING
+            userMoviesService.removeFromWant(this._tvShow.id);
+            userMoviesService.addToWatching(this._tvShow);
+            this._activityScreen.addActivity(this._tvShow, 'watching');
+            this._state = 'watching';
+            this._updateUI();
+        }
+    }
+
+    _handleSeasonMarkedUnwatched(e) {
+        if (!this._tvShow || e.detail.tvId !== this._tvShow.id) return;
+
+        const { wasAllWatched, hasAnyWatchedEpisodes } = e.detail;
+
+        if (wasAllWatched) {
+            // Был WATCHED, теперь не все отмечены
+            if (hasAnyWatchedEpisodes) {
+                // Есть просмотренные эпизоды → переходим в WATCHING
+                userMoviesService.removeFromWatched(this._tvShow.id);
+                userMoviesService.addToWatching(this._tvShow);
+                this._state = 'watching';
+                this._updateUI();
+            } else {
+                // Нет просмотренных эпизодов → переходим в NONE
+                userMoviesService.removeFromWatched(this._tvShow.id);
+                this._state = 'none';
+                this._updateUI();
+            }
+        }
+    }
+
+    _updateUI() {
+        const wantBtn = this.shadowRoot.querySelector('.want-button');
+        const watchingBtn = this.shadowRoot.querySelector('.watching-button');
+        const watchedBtn = this.shadowRoot.querySelector('.watched-button');
+
+        // Сброс классов
+        wantBtn.classList.remove('active', 'hidden');
+        watchingBtn.classList.remove('hidden');
+        watchedBtn.classList.remove('active', 'hidden');
+
+        // Обновление в зависимости от состояния
+        if (this._state === 'want') {
+            wantBtn.classList.add('active');
+            wantBtn.textContent = `✓ ${i18n.t('want')}`;
+            watchingBtn.classList.add('hidden');
+            watchedBtn.classList.add('hidden');
+        } else if (this._state === 'watching') {
+            wantBtn.classList.add('hidden');
+            watchingBtn.classList.remove('hidden');
+            watchedBtn.classList.add('hidden');
+        } else if (this._state === 'watched') {
+            wantBtn.classList.add('hidden');
+            watchingBtn.classList.add('hidden');
+            watchedBtn.classList.add('active');
+            watchedBtn.textContent = `✓ ${i18n.t('watched')}`;
+        } else {
+            wantBtn.textContent = i18n.t('want');
+            watchingBtn.classList.add('hidden');
+            watchedBtn.textContent = i18n.t('watched');
+        }
+    }
+
+    _dispatchEvent(name, detail) {
+        document.dispatchEvent(new CustomEvent(name, {
+            bubbles: true,
+            composed: true,
+            detail
         }));
     }
 }
 
-customElements.define('tv-show-action-buttons', TVShowActionButtons); 
+customElements.define('tv-show-action-buttons', TVShowActionButtons);

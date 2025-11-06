@@ -124,11 +124,12 @@ export class ProfileScreen extends HTMLElement {
         // Получаем списки
         const wantList = userMoviesService.getWantList() || [];
         const watchedList = userMoviesService.getWatchedList() || [];
+        const watchingList = userMoviesService.getWatchingList() || [];
 
         // Фильтруем списки по типу контента
         const moviesInWant = wantList.filter(item => item.media_type === 'movie');
         const moviesInWatched = watchedList.filter(item => item.media_type === 'movie');
-        const allTVShows = [...wantList, ...watchedList]
+        const allTVShows = [...wantList, ...watchedList, ...watchingList]
             .filter(item => item.media_type === 'tv')
             .filter((item, index, self) => 
                 index === self.findIndex((t) => t.id === item.id)
@@ -459,12 +460,13 @@ export class ProfileScreen extends HTMLElement {
         // Получаем исходные списки
         const wantList = userMoviesService.getWantList() || [];
         const watchedList = userMoviesService.getWatchedList() || [];
+        const watchingList = userMoviesService.getWatchingList() || [];
         
         // Фильтруем списки по типу контента
         const lists = {
             want: wantList.filter(item => item.media_type === 'movie'),
             watched: watchedList.filter(item => item.media_type === 'movie'),
-            tvshows: [...wantList, ...watchedList]
+            tvshows: [...wantList, ...watchedList, ...watchingList]
                 .filter(item => item.media_type === 'tv')
                 .filter((item, index, self) => 
                     index === self.findIndex((t) => t.id === item.id)

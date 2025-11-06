@@ -5,85 +5,43 @@ import './action-sheet.js';
 import './review-dialog.js';
 import '@material/web/button/filled-tonal-button.js';
 
+/**
+ * Компонент кнопок управления фильмом
+ * Состояния: none, want, watched
+ */
 export class MovieActionButtons extends HTMLElement {
-    static States = {
-        NONE: 'none',
-        WANT: 'want',
-        WATCHED: 'watched'
-    };
-
-    static Actions = {
-        MOVE_TO_WATCHED: 'move-to-watched',
-        REMOVE_FROM_WANT: 'remove-from-want',
-        MOVE_TO_WANT: 'move-to-want',
-        REMOVE_FROM_WATCHED: 'remove-from-watched',
-        EDIT_REVIEW: 'edit-review'
-    };
-
-    static Activities = {
-        WANT: 'want',
-        WATCHED: 'watched',
-        REVIEW: 'review',
-        EDITED_REVIEW: 'edited-review',
-        REMOVED_FROM_WANT: 'removed-from-want',
-        REMOVED_FROM_WATCHED: 'removed-from-watched'
-    };
-
-    static STYLES = {
-        WANT_ACTIVE_COLOR: 'transparent',
-        WANT_INACTIVE_COLOR: 'rgba(255, 255, 255, 0.32)',
-        WATCHED_ACTIVE_COLOR: 'var(--md-sys-color-primary-container)',
-        WATCHED_INACTIVE_COLOR: 'rgba(255, 255, 255, 0.32)',
-        ACTIVE_BORDER: '2px solid var(--md-sys-color-on-surface)',
-        NO_BORDER: 'none'
-    };
-
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this._state = MovieActionButtons.States.NONE;
         this._movie = null;
+        this._state = 'none';
         this._activityScreen = document.createElement('activity-screen');
-        
-        // Сохраняем bound функции для правильной очистки слушателей
-        this._boundHandlers = {
-            reviewSubmitted: this._handleGlobalReviewSubmitted.bind(this)
-        };
-        
-        // Флаг для батчинга обновлений DOM
-        this._pendingUpdate = false;
-        
-        this._createElements();
+        this._render();
     }
 
     connectedCallback() {
-        // Добавляем глобальные слушатели при подключении к DOM
-        document.addEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+        this._setupEventListeners();
     }
 
-    disconnectedCallback() {
-        // Удаляем глобальные слушатели при отключении компонента
-        document.removeEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+    set movie(value) {
+        this._movie = value;
+        if (this._movie) {
+            this._state = userMoviesService.getMovieState(this._movie.id);
+            this._updateUI();
+        }
     }
 
-    _handleGlobalReviewSubmitted(event) {
-        console.log('Global review-submitted event caught:', event.detail);
-    }
-
-    _createElements() {
+    _render() {
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
                     display: flex;
                     padding: 16px;
-                    align-items: center;
                     gap: 8px;
-                    align-self: stretch;
-                    z-index: 1;
                 }
                 
                 md-filled-tonal-button {
-                    flex: 1 0 0;
+                    flex: 1;
                     --md-filled-tonal-button-container-shape: 1000px;
                     --md-filled-tonal-button-label-text-font: 600 14px sans-serif;
                     height: 48px;
@@ -91,405 +49,186 @@ export class MovieActionButtons extends HTMLElement {
                 }
 
                 .want-button {
-                    --md-sys-color-secondary-container: ${this._getWantButtonColor()};
+                    --md-sys-color-secondary-container: rgba(255, 255, 255, 0.32);
                     --md-sys-color-on-secondary-container: var(--md-sys-color-on-surface);
-                    border: ${this._getWantButtonBorder()};
-                    display: ${this._getWantButtonDisplay()};
+                }
+
+                .want-button.active {
+                    --md-sys-color-secondary-container: transparent;
+                    border: 2px solid var(--md-sys-color-on-surface);
                 }
 
                 .watched-button {
-                    --md-sys-color-secondary-container: ${this._getWatchedButtonColor()};
+                    --md-sys-color-secondary-container: rgba(255, 255, 255, 0.32);
                     --md-sys-color-on-secondary-container: var(--md-sys-color-on-primary-container);
-                    display: ${this._getWatchedButtonDisplay()};
                 }
 
-                .button-content {
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    width: 100%;
-                    justify-content: center;
-                    position: relative;
+                .watched-button.active {
+                    --md-sys-color-secondary-container: var(--md-sys-color-primary-container);
                 }
 
-                .arrow-icon {
+                .hidden {
                     display: none;
-                    position: absolute;
-                    right: 8px;
-                }
-
-                .want-button[selected] .arrow-icon,
-                .watched-button[selected] .arrow-icon {
-                    display: block;
                 }
             </style>
             
             <md-filled-tonal-button class="want-button">
-                <div class="button-content">
-                    ${i18n.t('want')}
-                    <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M8 10L4 6h8l-4 4z"/>
-                    </svg>
-                </div>
+                ${i18n.t('want')}
             </md-filled-tonal-button>
             <md-filled-tonal-button class="watched-button">
-                <div class="button-content">
-                    ${i18n.t('watched')}
-                    <svg class="arrow-icon" width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M8 10L4 6h8l-4 4z"/>
-                    </svg>
-                </div>
+                ${i18n.t('watched')}
             </md-filled-tonal-button>
         `;
-
-        this._wantButton = this.shadowRoot.querySelector('.want-button');
-        this._watchedButton = this.shadowRoot.querySelector('.watched-button');
-        this._wantButtonContent = this._wantButton.querySelector('.button-content');
-        this._watchedButtonContent = this._watchedButton.querySelector('.button-content');
-
-        this._setupEventListeners();
-    }
-
-    _getWantButtonColor() {
-        const styles = MovieActionButtons.STYLES;
-        return this._state === MovieActionButtons.States.WANT ? 
-            styles.WANT_ACTIVE_COLOR : 
-            styles.WANT_INACTIVE_COLOR;
-    }
-
-    _getWantButtonBorder() {
-        const styles = MovieActionButtons.STYLES;
-        return this._state === MovieActionButtons.States.WANT ? 
-            styles.ACTIVE_BORDER : 
-            styles.NO_BORDER;
-    }
-
-    _getWantButtonDisplay() {
-        return this._state === MovieActionButtons.States.WATCHED ? 'none' : 'flex';
-    }
-
-    _getWatchedButtonColor() {
-        const styles = MovieActionButtons.STYLES;
-        return this._state === MovieActionButtons.States.WATCHED ? 
-            styles.WATCHED_ACTIVE_COLOR : 
-            styles.WATCHED_INACTIVE_COLOR;
-    }
-
-    _getWatchedButtonDisplay() {
-        return this._state === MovieActionButtons.States.WANT ? 'none' : 'flex';
     }
 
     _setupEventListeners() {
-        this._wantButton.addEventListener('click', () => {
-            if (!this._movie) return;
-            haptic.light();
-            
-            if (this._state === MovieActionButtons.States.WANT) {
-                this._showWantContextMenu();
-            } else {
-                this._addToWant();
-            }
-        });
+        const wantBtn = this.shadowRoot.querySelector('.want-button');
+        const watchedBtn = this.shadowRoot.querySelector('.watched-button');
 
-        this._watchedButton.addEventListener('click', () => {
-            if (!this._movie) return;
-            haptic.light();
-            
-            if (this._state === MovieActionButtons.States.WATCHED) {
-                this._showWatchedContextMenu();
-            } else {
-                this._handleWatchedClick();
-            }
-        });
+        wantBtn.addEventListener('click', () => this._handleWantClick());
+        watchedBtn.addEventListener('click', () => this._handleWatchedClick());
     }
 
-    set movie(value) {
-        console.log('Setting movie:', value);
-        this._movie = value;
-        if (this._movie) {
-            this._state = userMoviesService.getMovieState(this._movie.id);
-            console.log('Initial state set to:', this._state);
-            this._updateButtonStates();
+    _handleWantClick() {
+        if (!this._movie) return;
+        haptic.light();
+
+        if (this._state === 'want') {
+            this._showWantMenu();
+        } else {
+            // Добавить в Want
+            userMoviesService.addToWant(this._movie);
+            this._activityScreen.addActivity(this._movie, 'want');
+            this._state = 'want';
+            this._updateUI();
         }
-    }
-
-    _updateButtonStates() {
-        if (this._pendingUpdate) return;
-        
-        this._pendingUpdate = true;
-        requestAnimationFrame(() => {
-            this._doUpdateButtonStates();
-            this._pendingUpdate = false;
-        });
-    }
-
-    _doUpdateButtonStates() {
-        console.log('_doUpdateButtonStates called, current state:', this._state);
-        this._updateButtonContent();
-        this._updateButtonVisibility();
-        this._updateButtonStyles();
-        this._wantButton.toggleAttribute('selected', this._state === MovieActionButtons.States.WANT);
-        this._watchedButton.toggleAttribute('selected', this._state === MovieActionButtons.States.WATCHED);
-    }
-
-    _updateButtonContent() {
-        console.log('_updateButtonContent called');
-        this._wantButtonContent.textContent = 
-            this._state === MovieActionButtons.States.WANT ? `✓ ${i18n.t('want')}` : i18n.t('want');
-        this._watchedButtonContent.textContent = 
-            this._state === MovieActionButtons.States.WATCHED ? `✓ ${i18n.t('watched')}` : i18n.t('watched');
-        console.log('Button content updated:', {
-            want: this._wantButtonContent.textContent,
-            watched: this._watchedButtonContent.textContent
-        });
-    }
-
-    _updateButtonVisibility() {
-        console.log('_updateButtonVisibility called');
-        const wantDisplay = this._getWantButtonDisplay();
-        const watchedDisplay = this._getWatchedButtonDisplay();
-        this._wantButton.style.display = wantDisplay;
-        this._watchedButton.style.display = watchedDisplay;
-        console.log('Button visibility updated:', { want: wantDisplay, watched: watchedDisplay });
-    }
-
-    _updateButtonStyles() {
-        console.log('_updateButtonStyles called');
-        const styles = MovieActionButtons.STYLES;
-        const isWant = this._state === MovieActionButtons.States.WANT;
-        const isWatched = this._state === MovieActionButtons.States.WATCHED;
-        
-        this._wantButton.style.border = isWant ? styles.ACTIVE_BORDER : styles.NO_BORDER;
-        this._wantButton.style.setProperty('--md-sys-color-secondary-container',
-            isWant ? styles.WANT_ACTIVE_COLOR : styles.WANT_INACTIVE_COLOR);
-        this._watchedButton.style.setProperty('--md-sys-color-secondary-container',
-            isWatched ? styles.WATCHED_ACTIVE_COLOR : styles.WATCHED_INACTIVE_COLOR);
-        
-        console.log('Button styles updated');
-    }
-
-    _addToWant() {
-        userMoviesService.addToWant(this._movie);
-        this._activityScreen.addActivity(this._movie, MovieActionButtons.Activities.WANT);
-        this._state = MovieActionButtons.States.WANT;
-        this._updateButtonStates();
-    }
-
-    _showWantContextMenu() {
-        const menu = document.createElement('context-menu');
-        menu.options = [
-            { 
-                label: i18n.t('moveToWatched'),
-                action: MovieActionButtons.Actions.MOVE_TO_WATCHED
-            },
-            {
-                label: i18n.t('removeFromWant'),
-                action: MovieActionButtons.Actions.REMOVE_FROM_WANT
-            }
-        ];
-
-        menu.addEventListener('menu-action', this._handleWantMenuAction.bind(this));
-        document.body.appendChild(menu);
-    }
-
-    _showWatchedContextMenu() {
-        const menu = document.createElement('context-menu');
-        menu.options = [
-            {
-                label: i18n.t('moveToWant'),
-                action: MovieActionButtons.Actions.MOVE_TO_WANT
-            },
-            {
-                label: i18n.t('removeFromWatched'),
-                action: MovieActionButtons.Actions.REMOVE_FROM_WATCHED
-            },
-            {
-                label: i18n.t('editReview'),
-                action: MovieActionButtons.Actions.EDIT_REVIEW
-            }
-        ];
-
-        menu.addEventListener('menu-action', this._handleWatchedMenuAction.bind(this));
-        document.body.appendChild(menu);
-    }
-
-    _handleWantMenuAction(e) {
-        switch (e.detail.action) {
-            case MovieActionButtons.Actions.MOVE_TO_WATCHED:
-                this._handleMoveToWatched();
-                break;
-            case MovieActionButtons.Actions.REMOVE_FROM_WANT:
-                this._handleRemoveFromWant();
-                break;
-        }
-    }
-
-    _handleWatchedMenuAction(e) {
-        switch (e.detail.action) {
-            case MovieActionButtons.Actions.MOVE_TO_WANT:
-                this._handleMoveToWant();
-                break;
-            case MovieActionButtons.Actions.REMOVE_FROM_WATCHED:
-                this._handleRemoveFromWatched();
-                break;
-            case MovieActionButtons.Actions.EDIT_REVIEW:
-                this._handleEditReview();
-                break;
-        }
-    }
-
-    _handleMoveToWatched() {
-        userMoviesService.removeFromWant(this._movie.id);
-        this._activityScreen.addActivity(this._movie, MovieActionButtons.Activities.REMOVED_FROM_WANT);
-        
-        const handleReviewSubmitted = (event) => {
-            if (event.detail.movieId === this._movie.id) {
-                console.log('Dialog review-submitted event caught:', event.detail);
-                
-                userMoviesService.addToWatched(this._movie);
-                console.log('Movie added to watched');
-                
-                this._state = MovieActionButtons.States.WATCHED;
-                console.log('State updated to:', this._state);
-                
-                this._updateButtonStates();
-                console.log('Button states updated');
-                
-                this._activityScreen.addActivity(this._movie, MovieActionButtons.Activities.WATCHED);
-                this._activityScreen.addActivity(this._movie, MovieActionButtons.Activities.REVIEW);
-                
-                document.removeEventListener('review-submitted', handleReviewSubmitted);
-            }
-        };
-
-        document.addEventListener('review-submitted', handleReviewSubmitted);
-        this._showReviewDialog();
-    }
-
-    _handleRemoveFromWant() {
-        userMoviesService.removeFromWant(this._movie.id);
-        this._activityScreen.addActivity(this._movie, MovieActionButtons.Activities.REMOVED_FROM_WANT);
-        this._state = MovieActionButtons.States.NONE;
-        this._updateButtonStates();
-    }
-
-    _handleMoveToWant() {
-        const movieId = this._movie.id;
-        const type = this._movie.media_type || 'movie';
-
-        userMoviesService.removeFromWatched(movieId);
-        userMoviesService.removeReview(type, movieId);
-        this._dispatchReviewRemoved(movieId, type);
-        
-        userMoviesService.addToWant(this._movie);
-        this._activityScreen.addActivity(this._movie, MovieActionButtons.Activities.REMOVED_FROM_WATCHED);
-        this._activityScreen.addActivity(this._movie, MovieActionButtons.Activities.WANT);
-        
-        this._state = MovieActionButtons.States.WANT;
-        this._updateButtonStates();
-    }
-
-    _handleRemoveFromWatched() {
-        const movieId = this._movie.id;
-        const type = this._movie.media_type || 'movie';
-
-        userMoviesService.removeFromWatched(movieId);
-        userMoviesService.removeReview(type, movieId);
-        
-        this._dispatchReviewRemoved(movieId, type);
-        this._state = MovieActionButtons.States.NONE;
-        this._updateButtonStates();
-        this._activityScreen.addActivity(this._movie, MovieActionButtons.Activities.REMOVED_FROM_WATCHED);
-    }
-
-    _handleEditReview() {
-        const reviewDialog = document.createElement('review-dialog');
-        reviewDialog.movie = this._movie;
-        reviewDialog.isEdit = true;
-        
-        const currentReview = userMoviesService.getReview(
-            this._movie.media_type || 'movie',
-            this._movie.id
-        );
-        
-        if (currentReview) {
-            reviewDialog.review = currentReview;
-        }
-        
-        document.body.appendChild(reviewDialog);
-        
-        reviewDialog.addEventListener('review-submitted', () => {
-            this._activityScreen.addActivity(this._movie, MovieActionButtons.Activities.EDITED_REVIEW);
-        });
     }
 
     _handleWatchedClick() {
-        console.log('_handleWatchedClick called');
-        if (!this._movie) {
-            console.log('No movie data, returning');
-            return;
-        }
+        if (!this._movie) return;
         haptic.light();
-        
-        this._showReviewDialog();
+
+        if (this._state === 'watched') {
+            this._showWatchedMenu();
+        } else {
+            // Открыть диалог оценки
+            this._openReviewDialog();
+        }
     }
 
-    _showReviewDialog(isEdit = false) {
-        console.log('_showReviewDialog called, isEdit:', isEdit);
-        const reviewDialog = document.createElement('review-dialog');
-        reviewDialog.movie = this._movie;
-        reviewDialog.isEdit = isEdit;
-        document.body.appendChild(reviewDialog);
-        
-        const handleReviewSubmitted = (event) => {
-            if (event.detail.movieId === this._movie.id) {
-                console.log('Dialog review-submitted event caught:', event.detail);
-                
+    _showWantMenu() {
+        const menu = document.createElement('context-menu');
+        menu.options = [
+            { label: i18n.t('moveToWatched'), action: 'move-to-watched' },
+            { label: i18n.t('removeFromWant'), action: 'remove-from-want' }
+        ];
+
+        menu.addEventListener('menu-action', (e) => {
+            if (e.detail.action === 'move-to-watched') {
+                userMoviesService.removeFromWant(this._movie.id);
+                this._activityScreen.addActivity(this._movie, 'removed-from-want');
+                this._openReviewDialog();
+            } else if (e.detail.action === 'remove-from-want') {
+                userMoviesService.removeFromWant(this._movie.id);
+                this._activityScreen.addActivity(this._movie, 'removed-from-want');
+                this._state = 'none';
+                this._updateUI();
+            }
+        });
+
+        document.body.appendChild(menu);
+    }
+
+    _showWatchedMenu() {
+        const menu = document.createElement('context-menu');
+        menu.options = [
+            { label: i18n.t('moveToWant'), action: 'move-to-want' },
+            { label: i18n.t('removeFromWatched'), action: 'remove-from-watched' },
+            { label: i18n.t('editReview'), action: 'edit-review' }
+        ];
+
+        menu.addEventListener('menu-action', (e) => {
+            if (e.detail.action === 'move-to-want') {
+                userMoviesService.removeFromWatched(this._movie.id);
+                userMoviesService.removeReview('movie', this._movie.id);
+                userMoviesService.addToWant(this._movie);
+                this._activityScreen.addActivity(this._movie, 'removed-from-watched');
+                this._activityScreen.addActivity(this._movie, 'want');
+                this._state = 'want';
+                this._updateUI();
+                this._dispatchEvent('review-removed', { movieId: this._movie.id, type: 'movie' });
+            } else if (e.detail.action === 'remove-from-watched') {
+                userMoviesService.removeFromWatched(this._movie.id);
+                userMoviesService.removeReview('movie', this._movie.id);
+                this._activityScreen.addActivity(this._movie, 'removed-from-watched');
+                this._state = 'none';
+                this._updateUI();
+                this._dispatchEvent('review-removed', { movieId: this._movie.id, type: 'movie' });
+            } else if (e.detail.action === 'edit-review') {
+                this._openReviewDialog(true);
+            }
+        });
+
+        document.body.appendChild(menu);
+    }
+
+    _openReviewDialog(isEdit = false) {
+        const dialog = document.createElement('review-dialog');
+        dialog.movie = this._movie;
+        dialog.isEdit = isEdit;
+
+        if (isEdit) {
+            const review = userMoviesService.getReview('movie', this._movie.id);
+            if (review) {
+                dialog.review = review;
+            }
+        }
+
+        const handleReviewSubmitted = (e) => {
+            if (e.detail.movieId === this._movie.id) {
                 userMoviesService.addToWatched(this._movie);
-                console.log('Movie added to watched');
-                
-                this._state = MovieActionButtons.States.WATCHED;
-                console.log('State updated to:', this._state);
-                
-                this._updateButtonStates();
-                console.log('Button states updated');
-                
-                this._activityScreen.addActivity(this._movie, MovieActionButtons.Activities.WATCHED);
-                this._activityScreen.addActivity(this._movie, MovieActionButtons.Activities.REVIEW);
-                
+                this._activityScreen.addActivity(this._movie, 'watched');
+                this._activityScreen.addActivity(this._movie, isEdit ? 'edited-review' : 'review');
+                this._state = 'watched';
+                this._updateUI();
                 document.removeEventListener('review-submitted', handleReviewSubmitted);
             }
         };
 
         document.addEventListener('review-submitted', handleReviewSubmitted);
+        document.body.appendChild(dialog);
     }
 
-    _createReviewDialog(isEdit = false) {
-        const reviewDialog = document.createElement('review-dialog');
-        reviewDialog.movie = this._movie;
-        reviewDialog.isEdit = isEdit;
-        document.body.appendChild(reviewDialog);
-        return reviewDialog;
+    _updateUI() {
+        const wantBtn = this.shadowRoot.querySelector('.want-button');
+        const watchedBtn = this.shadowRoot.querySelector('.watched-button');
+
+        // Сброс классов
+        wantBtn.classList.remove('active', 'hidden');
+        watchedBtn.classList.remove('active', 'hidden');
+
+        // Обновление в зависимости от состояния
+        if (this._state === 'want') {
+            wantBtn.classList.add('active');
+            wantBtn.textContent = `✓ ${i18n.t('want')}`;
+            watchedBtn.classList.add('hidden');
+        } else if (this._state === 'watched') {
+            wantBtn.classList.add('hidden');
+            watchedBtn.classList.add('active');
+            watchedBtn.textContent = `✓ ${i18n.t('watched')}`;
+        } else {
+            wantBtn.textContent = i18n.t('want');
+            watchedBtn.textContent = i18n.t('watched');
+        }
     }
 
-    _dispatchReviewSubmitted(detail) {
-        document.dispatchEvent(new CustomEvent('review-submitted', {
+    _dispatchEvent(name, detail) {
+        document.dispatchEvent(new CustomEvent(name, {
             bubbles: true,
             composed: true,
             detail
         }));
     }
-
-    _dispatchReviewRemoved(movieId, type = 'movie') {
-        document.dispatchEvent(new CustomEvent('review-removed', {
-            bubbles: true,
-            composed: true,
-            detail: {
-                movieId,
-                type
-            }
-        }));
-    }
 }
 
-customElements.define('movie-action-buttons', MovieActionButtons); 
+customElements.define('movie-action-buttons', MovieActionButtons);

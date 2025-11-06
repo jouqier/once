@@ -56,6 +56,7 @@ class UserDataStore {
             movies: {
                 want: [],
                 watched: [],
+                watching: [],
                 reviews: {}
             },
             tvShows: {
@@ -68,6 +69,19 @@ class UserDataStore {
             },
             activity: []
         };
+    }
+
+    _migrateData(oldData) {
+        // Добавляем список watching, если его нет
+        if (!oldData.movies.watching) {
+            oldData.movies.watching = [];
+        }
+        
+        // Обновляем версию
+        oldData.version = this._version;
+        
+        this._saveStore(oldData);
+        return oldData;
     }
 
     _saveStore(data) {

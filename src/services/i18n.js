@@ -56,10 +56,14 @@ export class I18nService {
                 removeFromWant: 'Удалить из "Буду смотреть"',
                 moveToWant: 'Переместить в "Буду смотреть"',
                 removeFromWatched: 'Удалить из "Посмотрел"',
+                removeFromWatching: 'Удалить из просмотра',
                 editReview: 'Редактировать отзыв',
                 imWatchingThis: 'Сейчас смотрю',
+                watching: 'Смотрю…',
                 markAllAsWatched: 'Отметить всё как просмотренное',
                 markAllAsUnwatched: 'Отметить всё как непросмотренное',
+                markAsWatched: 'Отметить как просмотренное',
+                markAsUnwatched: 'Отметить как непросмотренное',
                 
                 // Search
                 moviesOrTVShows: 'Фильмы или сериалы...',
@@ -146,10 +150,14 @@ export class I18nService {
                 removeFromWant: 'Remove from Want',
                 moveToWant: 'Move to Want',
                 removeFromWatched: 'Remove from Watched',
+                removeFromWatching: 'Remove from Watching',
                 editReview: 'Edit Review',
                 imWatchingThis: 'I\'m watching this',
+                watching: 'Watching…',
                 markAllAsWatched: 'Mark all as watched',
                 markAllAsUnwatched: 'Mark all as unwatched',
+                markAsWatched: 'Mark as watched',
+                markAsUnwatched: 'Mark as unwatched',
                 
                 // Search
                 moviesOrTVShows: 'Movies or TV Shows...',

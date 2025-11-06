@@ -9,9 +9,13 @@ export class UserMoviesService {
     getMovieState(movieId) {
         const wantList = this._store.getMovies('want');
         const watchedList = this._store.getMovies('watched');
+        const watchingList = this._store.getMovies('watching');
 
         if (watchedList.find(m => m.id === movieId)) {
             return 'watched';
+        }
+        if (watchingList && watchingList.find(m => m.id === movieId)) {
+            return 'watching';
         }
         if (wantList.find(m => m.id === movieId)) {
             return 'want';
@@ -27,12 +31,20 @@ export class UserMoviesService {
         this._store.addMovie('watched', movie);
     }
 
+    addToWatching(movie) {
+        this._store.addMovie('watching', movie);
+    }
+
     removeFromWant(movieId) {
         this._store.removeMovie('want', movieId);
     }
 
     removeFromWatched(movieId) {
         this._store.removeMovie('watched', movieId);
+    }
+
+    removeFromWatching(movieId) {
+        this._store.removeMovie('watching', movieId);
     }
 
     isEpisodeWatched(tvId, seasonNumber, episodeNumber) {
@@ -70,6 +82,10 @@ export class UserMoviesService {
 
     getWatchedList() {
         return this._store.getMovies('watched');
+    }
+
+    getWatchingList() {
+        return this._store.getMovies('watching');
     }
 
     hasAnyWatchedEpisodes(tvId) {

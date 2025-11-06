@@ -1,215 +1,71 @@
-import { TG } from '../config/telegram.js';
 import { haptic } from '../config/telegram.js';
 import { userMoviesService } from '../services/user-movies.js';
 import { i18n } from '../services/i18n.js';
-import { API_CONFIG } from '../config/api.js';
 
+/**
+ * Компонент управления сезонами и эпизодами сериала
+ * Отображает список сезонов, эпизоды и кнопки управления
+ */
 export class TVSeasons extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        
-        // Сохраняем bound функции для правильной очистки слушателей
-        this._boundHandlers = {
-            tvSeasonsUpdated: this._handleTvSeasonsUpdated.bind(this),
-            seasonReviewSubmitted: this._handleSeasonReviewSubmittedEvent.bind(this),
-            tvAction: this._handleTvAction.bind(this),
-            checkAllSeasons: this._handleCheckAllSeasons.bind(this)
-        };
-        
-        // Хранилище для обработчиков эпизодов и кнопок (для удаления при пересоздании)
-        this._episodeHandlers = new Map();
-        this._actionButtonHandlers = new Map();
-        
-        // Кеш для состояний сезонов
-        this._seasonStates = new Map();
-        
-        // Таймер для дебаунса обновлений
-        this._updateDebounce = null;
-    }
-
-    _getSeasonState(seasonNumber) {
-        // Проверяем кеш
-        if (this._seasonStates.has(seasonNumber)) {
-            return this._seasonStates.get(seasonNumber);
-        }
-        
-        // Вычисляем состояние
-        const season = this._seasons.find(s => s.season_number === seasonNumber);
-        if (!season || !season.episodes?.length) {
-            return null;
-        }
-        
-        const totalEpisodes = season.episodes.length;
-        const isFullyWatched = userMoviesService.isSeasonFullyWatched(
-            this._tvId,
-            seasonNumber,
-            totalEpisodes
-        );
-        const hasReview = userMoviesService.getSeasonReview(this._tvId, seasonNumber);
-        
-        const state = {
-            totalEpisodes,
-            isFullyWatched,
-            hasReview
-        };
-        
-        // Сохраняем в кеш
-        this._seasonStates.set(seasonNumber, state);
-        return state;
-    }
-
-    _invalidateSeasonCache(seasonNumber) {
-        this._seasonStates.delete(seasonNumber);
+        this._tvId = null;
+        this._tvShow = null;
+        this._seasons = null;
+        this._currentSeasonNumber = 1;
     }
 
     connectedCallback() {
-        // Добавляем глобальные слушатели при подключении к DOM
-        document.addEventListener('tv-seasons-updated', this._boundHandlers.tvSeasonsUpdated);
-        document.addEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
-        document.addEventListener('tv-action', this._boundHandlers.tvAction);
-        document.addEventListener('check-all-seasons', this._boundHandlers.checkAllSeasons);
+        // Слушаем глобальные события от основных кнопок
+        document.addEventListener('tv-action', this._handleTvAction.bind(this));
     }
 
-    disconnectedCallback() {
-        // Удаляем глобальные слушатели при отключении компонента
-        document.removeEventListener('tv-seasons-updated', this._boundHandlers.tvSeasonsUpdated);
-        document.removeEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
-        document.removeEventListener('tv-action', this._boundHandlers.tvAction);
-        document.removeEventListener('check-all-seasons', this._boundHandlers.checkAllSeasons);
+    set tvId(value) {
+        this._tvId = value;
     }
 
-    _handleTvSeasonsUpdated() {
-        if (this._seasons) {
-            this._handleSeasonChange('1'); // Обновляем текущий сезон
-        }
-    }
-
-    _handleSeasonReviewSubmittedEvent(e) {
-        if (this._tvId === e.detail.tvId) {
-            // Получаем текущий выбранный сезон
-            const currentTab = this.shadowRoot.querySelector('.season-tab[selected]');
-            if (currentTab) {
-                const seasonNumber = parseInt(currentTab.dataset.season);
-                // Если отзыв добавлен к текущему сезону, обновляем UI
-                if (seasonNumber === parseInt(e.detail.seasonNumber)) {
-                    this._handleSeasonChange(seasonNumber);
-                }
-            }
-        }
-    }
-
-    _handleTvAction(e) {
-        if (this._tvId === e.detail.tvId) {
-            switch (e.detail.action) {
-                case 'mark-all-watched':
-                    this._markAllSeasonsWatched();
-                    break;
-                case 'mark-all-unwatched':
-                    this._markAllSeasonsUnwatched();
-                    break;
-                case 'clear-all-seasons':
-                    this._clearAllSeasons();
-                    break;
-            }
-        }
-    }
-
-    _handleCheckAllSeasons(e) {
-        if (this._tvId === e.detail.tvId) {
-            console.log('Checking seasons for tvId:', this._tvId);
-            console.log('Current seasons:', this._seasons);
-            
-            const allWatched = this._seasons.every(season => {
-                if (season.season_number === 0) return true;
-                
-                // Получаем количество эпизодов из season.episodes.length
-                const totalEpisodes = season.episodes?.length;
-                if (!totalEpisodes) return true; // Пропускаем сезоны без эпизодов
-                
-                const isWatched = userMoviesService.isSeasonFullyWatched(
-                    this._tvId,
-                    season.season_number,
-                    totalEpisodes
-                );
-                console.log(`Season ${season.season_number} watched:`, {
-                    totalEpisodes,
-                    isWatched
-                });
-                return isWatched;
-            });
-            
-            console.log('All seasons watched:', allWatched);
-            
-            document.dispatchEvent(new CustomEvent('check-all-seasons-result', {
-                bubbles: true,
-                composed: true,
-                detail: { 
-                    tvId: this._tvId,
-                    allWatched 
-                }
-            }));
-        }
+    set tvShow(value) {
+        this._tvShow = value;
     }
 
     set seasons(value) {
         this._seasons = value;
         if (value && value.length > 0) {
-            this.render();
-            setTimeout(() => this._handleSeasonChange('1'), 0);
+            this._render();
+            this._showSeason(1);
         }
     }
 
-    render() {
+    _render() {
         if (!this._seasons || !this._seasons.length) return;
 
         const seasonTabs = this._seasons
-            .filter(season => season.episodes?.length > 0) // Фильтруем сезоны без эпизодов
+            .filter(s => s.episodes?.length > 0)
             .map((season, index) => `
-                <md-filled-tonal-button class="season-tab" data-season="${season.season_number}" 
+                <md-filled-tonal-button 
+                    class="season-tab" 
+                    data-season="${season.season_number}"
                     ${index === 0 ? 'selected' : ''}>
                     ${i18n.t('season')} ${season.season_number}
                 </md-filled-tonal-button>
             `).join('');
-
-        const currentSeason = this._seasons[0];
-        const episodes = currentSeason.episodes?.map(episode => `
-            <div class="episode-wrapper">
-                <div class="episode-item">
-                    <div class="episode-number">${episode.episode_number}</div>
-                        <div class="episode-info">
-                            <div class="episode-title">${episode.name}</div>
-                            <div class="episode-date">${new Date(episode.air_date).toLocaleDateString(i18n.getLocale() === 'ru' ? 'ru-RU' : 'en-US')}</div>
-                        </div>
-                    <md-checkbox touch-target="wrapper"></md-checkbox>
-                </div>
-                <div class="divider"></div>
-            </div>
-        `).join('') || '';
 
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
                     display: flex;
                     flex-direction: column;
-                    align-items: flex-start;
-                    align-self: stretch;
                 }
 
-                /* Скрываем компонент только если он находится внутри movie-info */
                 :host-context(movie-info) {
                     display: none !important;
                 }
 
                 .seasons-container {
                     position: relative;
-                    display: flex;
-                    padding: 8px 0;
-                    flex-direction: column;
-                    align-items: flex-start;
-                    gap: 8px;
-                    align-self: stretch;
                     height: 40px;
+                    padding: 8px 0;
                 }
 
                 .seasons-list-wrapper {
@@ -248,23 +104,18 @@ export class TVSeasons extends HTMLElement {
 
                 .seasons-list {
                     display: flex;
-                    align-items: flex-start;
-                    flex-wrap: nowrap;
                     padding: 0 16px;
+                    gap: 4px;
                 }
 
                 .season-tab {
                     --md-filled-tonal-button-container-color: rgba(255, 255, 255, 0.0);
                     --md-filled-tonal-button-label-text-color: var(--md-sys-color-on-surface);
-                    --md-filled-tonal-button-hover-label-text-color: var(--md-sys-color-on-surface);
-                    --md-filled-tonal-button-pressed-label-text-color: var(--md-sys-color-on-surface);
                     --md-filled-tonal-button-container-shape: 1000px;
                     --md-filled-tonal-button-label-text-font: 600 14px sans-serif;
                     --md-filled-tonal-button-container-height: 40px;
-                    --md-filled-tonal-button-focus-label-text-color: var(--md-sys-color-on-surface);
-                    padding-inline-start: 16px;
-                    padding-inline-end: 16px;
-                    flex: 0 0 auto;
+                    padding: 0 16px;
+                    flex-shrink: 0;
                 }
 
                 .season-tab[selected] {
@@ -273,10 +124,8 @@ export class TVSeasons extends HTMLElement {
 
                 .episodes-list {
                     display: flex;
-                    padding-top: 8px;
                     flex-direction: column;
-                    align-items: flex-start;
-                    align-self: stretch;
+                    padding-top: 8px;
                 }
 
                 .episode-item {
@@ -284,20 +133,12 @@ export class TVSeasons extends HTMLElement {
                     padding: 10px 16px;
                     align-items: center;
                     gap: 4px;
-                    align-self: stretch;
                 }
 
                 .episode-number {
-                    display: flex;
-                    flex-direction: column;
-                    align-items: flex-start;
                     width: 20px;
-                    -webkit-box-orient: vertical;
-                    -webkit-line-clamp: 3;
                     color: var(--md-sys-color-outline);
-                    text-overflow: ellipsis;
                     font-size: 14px;
-                    font-style: normal;
                     font-weight: 600;
                     line-height: 20px;
                 }
@@ -305,37 +146,24 @@ export class TVSeasons extends HTMLElement {
                 .episode-info {
                     display: flex;
                     flex-direction: column;
-                    align-items: flex-start;
-                    flex: 1 0 0;
+                    flex: 1;
                 }
 
                 .episode-title {
-                    display: -webkit-box;
-                    -webkit-box-orient: vertical;
-                    -webkit-line-clamp: 1;
-                    overflow: hidden;
-                    color: var(--md-sys-color-on-surface);;
-                    text-overflow: ellipsis;
+                    color: var(--md-sys-color-on-surface);
                     font-size: 14px;
-                    font-style: normal;
                     font-weight: 600;
                     line-height: 20px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
                 }
 
                 .episode-date {
-                    overflow: hidden;
                     color: var(--md-sys-color-outline);
-                    text-overflow: ellipsis;
                     font-size: 12px;
-                    font-style: normal;
                     font-weight: 600;
                     line-height: 16px;
-                }
-
-                .episode-wrapper {
-                    display: flex;
-                    flex-direction: column;
-                    align-self: stretch;
                 }
 
                 .divider {
@@ -349,7 +177,6 @@ export class TVSeasons extends HTMLElement {
                     --md-checkbox-outline-color: rgba(255, 255, 255, 0.5);
                     --md-checkbox-selected-container-color: #E0E2ED;
                     --md-checkbox-selected-icon-color: #10131B;
-                    margin-right: auto;
                 }
 
                 .unwatched-dot {
@@ -364,18 +191,13 @@ export class TVSeasons extends HTMLElement {
                 .season-actions {
                     display: flex;
                     padding: 8px 16px;
-                    justify-content: center;
-                    align-items: center;
                     gap: 8px;
-                    align-self: stretch;
                 }
 
-                .mark-watched-button,
-                .mark-unwatched-button,
-                .rate-season-button {
+                .season-actions md-filled-tonal-button {
                     --md-filled-tonal-button-container-color: var(--md-sys-color-surface-container-high);
                     --md-filled-tonal-button-label-text-color: var(--md-sys-color-on-surface);
-                    width: 100%;
+                    flex: 1;
                 }
             </style>
 
@@ -383,40 +205,35 @@ export class TVSeasons extends HTMLElement {
                 <div class="seasons-list-wrapper">
                     <div class="seasons-list">
                         ${seasonTabs}
-                        <div style="padding-right: 4px; flex-shrink: 0;"> </div>
                     </div>
                 </div>
             </div>
 
-            <div class="episodes-list">
-                ${episodes}
-            </div>
+            <div class="episodes-list"></div>
         `;
 
+        // Устанавливаем обработчики для табов
         this.shadowRoot.querySelectorAll('.season-tab').forEach(tab => {
-            tab.addEventListener('click', () => this._handleSeasonChange(tab.dataset.season));
+            tab.addEventListener('click', () => {
+                haptic.light();
+                this._showSeason(parseInt(tab.dataset.season));
+            });
         });
     }
 
-    _handleSeasonChange(seasonNumber) {
-        haptic.light();
-        seasonNumber = parseInt(seasonNumber);
+    _showSeason(seasonNumber) {
+        this._currentSeasonNumber = seasonNumber;
         const season = this._seasons.find(s => s.season_number === seasonNumber);
         if (!season || !season.episodes?.length) return;
-        
-        const episodesList = this.shadowRoot.querySelector('.episodes-list');
-        
+
+        // Обновляем активный таб
         this.shadowRoot.querySelectorAll('.season-tab').forEach(tab => {
             tab.toggleAttribute('selected', parseInt(tab.dataset.season) === seasonNumber);
         });
 
-        // Используем кешированное состояние
-        const seasonState = this._getSeasonState(seasonNumber);
-        if (!seasonState) return;
-        
-        const { totalEpisodes, isFullyWatched, hasReview } = seasonState;
-
-        episodesList.innerHTML = season.episodes.map(episode => {
+        // Рендерим эпизоды
+        const episodesList = this.shadowRoot.querySelector('.episodes-list');
+        const episodesHTML = season.episodes.map(episode => {
             const isWatched = userMoviesService.isEpisodeWatched(
                 this._tvId,
                 seasonNumber,
@@ -432,7 +249,9 @@ export class TVSeasons extends HTMLElement {
                         <div class="episode-info">
                             <div class="episode-title">${episode.name}</div>
                             <div class="episode-date">
-                                ${new Date(episode.air_date).toLocaleDateString(i18n.getLocale() === 'ru' ? 'ru-RU' : 'en-US')}
+                                ${new Date(episode.air_date).toLocaleDateString(
+                                    i18n.getLocale() === 'ru' ? 'ru-RU' : 'en-US'
+                                )}
                             </div>
                         </div>
                         <md-checkbox 
@@ -446,403 +265,362 @@ export class TVSeasons extends HTMLElement {
             `;
         }).join('');
 
-        episodesList.innerHTML += `
-            <div class="season-actions">
-                ${!isFullyWatched ? `
-                    <md-filled-tonal-button class="mark-watched-button">
-                        ${i18n.t('markAllAsWatched')}
-                    </md-filled-tonal-button>
-                ` : `
+        // Проверяем состояние сезона
+        const isFullyWatched = userMoviesService.isSeasonFullyWatched(
+            this._tvId,
+            seasonNumber,
+            season.episodes.length
+        );
+        const hasReview = userMoviesService.getSeasonReview(this._tvId, seasonNumber);
+
+        // Рендерим кнопки управления
+        const actionsHTML = this._getSeasonActionsHTML(isFullyWatched, hasReview);
+
+        episodesList.innerHTML = episodesHTML + actionsHTML;
+
+        // Устанавливаем обработчики
+        this._setupEpisodeListeners(seasonNumber);
+        this._setupActionButtons(seasonNumber, season.episodes.length);
+    }
+
+    _getSeasonActionsHTML(isFullyWatched, hasReview) {
+        if (isFullyWatched) {
+            return `
+                <div class="season-actions">
                     ${!hasReview ? `
                         <md-filled-tonal-button class="rate-season-button">
                             ${i18n.t('rateSeason')}
                         </md-filled-tonal-button>
                     ` : ''}
                     <md-filled-tonal-button class="mark-unwatched-button">
-                        ${i18n.t('markAllAsUnwatched')}
+                        ${i18n.t('markAsUnwatched')}
                     </md-filled-tonal-button>
-                `}
-            </div>
-        `;
-
-        this._setupEventListeners(seasonNumber, totalEpisodes);
+                </div>
+            `;
+        } else {
+            return `
+                <div class="season-actions">
+                    <md-filled-tonal-button class="mark-watched-button">
+                        ${i18n.t('markAsWatched')}
+                    </md-filled-tonal-button>
+                </div>
+            `;
+        }
     }
 
-    _setupEventListeners(seasonNumber, totalEpisodes) {
-        // Удаляем старые слушатели для чекбоксов
+    _setupEpisodeListeners(seasonNumber) {
         this.shadowRoot.querySelectorAll('md-checkbox').forEach(checkbox => {
-            const episodeNumber = parseInt(checkbox.dataset.episode);
-            const key = `${seasonNumber}-${episodeNumber}`;
-            const oldHandler = this._episodeHandlers.get(key);
-            if (oldHandler) {
-                checkbox.removeEventListener('change', oldHandler);
-            }
-        });
-        
-        // Добавляем новые слушатели
-        this.shadowRoot.querySelectorAll('md-checkbox').forEach(checkbox => {
-            const episodeNumber = parseInt(checkbox.dataset.episode);
-            const key = `${seasonNumber}-${episodeNumber}`;
-            
-            const handler = () => {
+            checkbox.addEventListener('change', () => {
                 haptic.medium();
+                const episodeNumber = parseInt(checkbox.dataset.episode);
+
+                // Проверяем состояние ДО изменения
+                const wasAllWatched = this._checkIfAllEpisodesWatched();
+                const isLastUnwatched = checkbox.checked && 
+                    this._checkIfLastUnwatchedEpisode(seasonNumber, episodeNumber);
+
+                // Обновляем точку в UI
+                const episodeItem = checkbox.closest('.episode-item');
+                const numberEl = episodeItem.querySelector('.episode-number');
+                const dot = numberEl.querySelector('.unwatched-dot');
                 
-                // Немедленно обновляем UI точки (для отзывчивости)
-                const episodeWrapper = checkbox.closest('.episode-item');
-                const unwatchedDot = episodeWrapper.querySelector('.unwatched-dot');
-                if (checkbox.checked && unwatchedDot) {
-                    unwatchedDot.remove();
-                } else if (!checkbox.checked && !unwatchedDot) {
-                    const episodeNumberEl = episodeWrapper.querySelector('.episode-number');
-                    episodeNumberEl.innerHTML += '<span class="unwatched-dot"></span>';
+                if (checkbox.checked && dot) {
+                    dot.remove();
+                } else if (!checkbox.checked && !dot) {
+                    numberEl.innerHTML += '<span class="unwatched-dot"></span>';
                 }
 
-                // Отложенное сохранение состояния и проверка (дебаунс 300мс)
-                clearTimeout(this._updateDebounce);
-                this._updateDebounce = setTimeout(() => {
-                    if (checkbox.checked) {
-                        userMoviesService.markEpisodeAsWatched(this._tvId, seasonNumber, episodeNumber);
-                    } else {
-                        userMoviesService.markEpisodeAsUnwatched(this._tvId, seasonNumber, episodeNumber);
+                // Сохраняем изменение
+                if (checkbox.checked) {
+                    userMoviesService.markEpisodeAsWatched(this._tvId, seasonNumber, episodeNumber);
+                } else {
+                    userMoviesService.markEpisodeAsUnwatched(this._tvId, seasonNumber, episodeNumber);
+                }
+
+                // Отправляем событие для автоматических переходов
+                document.dispatchEvent(new CustomEvent('episode-checkbox-changed', {
+                    bubbles: true,
+                    composed: true,
+                    detail: {
+                        tvId: this._tvId,
+                        seasonNumber,
+                        episodeNumber,
+                        checked: checkbox.checked,
+                        isLastUnwatched,
+                        wasAllWatched,
+                        isBulkOperation: false
                     }
+                }));
 
-                    // Проверяем, есть ли просмотренные эпизоды
-                    const hasWatchedEpisodes = userMoviesService.hasAnyWatchedEpisodes(this._tvId);
-
-                    // Отправляем событие при изменении статуса эпизода (как при отметке, так и при снятии)
-                    document.dispatchEvent(new CustomEvent('episode-status-changed', {
-                        bubbles: true,
-                        composed: true,
-                        detail: { 
-                            tvId: this._tvId,
-                            hasWatchedEpisodes: hasWatchedEpisodes
-                        }
-                    }));
-
-                    // Сбрасываем кеш для сезона
-                    this._invalidateSeasonCache(seasonNumber);
-                    
-                    // Проверяем состояние сезона и обновляем кнопки
-                    const seasonState = this._getSeasonState(seasonNumber);
-                    if (seasonState) {
-                        this._updateSeasonActions(seasonNumber, seasonState.isFullyWatched, totalEpisodes);
-                    }
-                }, 300);
-            };
-            
-            this._episodeHandlers.set(key, handler);
-            checkbox.addEventListener('change', handler);
+                // Обновляем кнопки сезона
+                this._updateSeasonActions(seasonNumber);
+            });
         });
-
-        this._setupActionButtons(seasonNumber, totalEpisodes);
     }
 
     _setupActionButtons(seasonNumber, totalEpisodes) {
-        // Удаляем старые слушатели кнопок
-        const watchedButton = this.shadowRoot.querySelector('.mark-watched-button');
-        if (watchedButton) {
-            const oldHandler = this._actionButtonHandlers.get(`watched-${seasonNumber}`);
-            if (oldHandler) {
-                watchedButton.removeEventListener('click', oldHandler);
-            }
-            
-            const handler = () => {
+        // Кнопка "Mark as Watched"
+        const watchedBtn = this.shadowRoot.querySelector('.mark-watched-button');
+        if (watchedBtn) {
+            watchedBtn.addEventListener('click', () => {
                 haptic.medium();
-                
-                userMoviesService.markSeasonAsWatched(this._tvId, seasonNumber, totalEpisodes);
-                
-                // Обновляем UI чекбоксов
-                this.shadowRoot.querySelectorAll('md-checkbox').forEach(checkbox => {
-                    checkbox.checked = true;
-                    const episodeWrapper = checkbox.closest('.episode-item');
-                    const unwatchedDot = episodeWrapper.querySelector('.unwatched-dot');
-                    if (unwatchedDot) {
-                        unwatchedDot.remove();
-                    }
-                });
-
-                document.dispatchEvent(new CustomEvent('episode-status-changed', {
-                    bubbles: true,
-                    composed: true,
-                    detail: { 
-                        tvId: this._tvId,
-                        hasWatchedEpisodes: true 
-                    }
-                }));
-
-                // Сбрасываем кеш и обновляем состояние кнопок
-                this._invalidateSeasonCache(seasonNumber);
-                this._updateSeasonActions(seasonNumber, true, totalEpisodes);
-            };
-            
-            this._actionButtonHandlers.set(`watched-${seasonNumber}`, handler);
-            watchedButton.addEventListener('click', handler);
+                this._markSeasonWatched(seasonNumber, totalEpisodes);
+            });
         }
 
-        const unwatchedButton = this.shadowRoot.querySelector('.mark-unwatched-button');
-        if (unwatchedButton) {
-            const oldHandler = this._actionButtonHandlers.get(`unwatched-${seasonNumber}`);
-            if (oldHandler) {
-                unwatchedButton.removeEventListener('click', oldHandler);
-            }
-            
-            const handler = () => {
+        // Кнопка "Mark as Unwatched"
+        const unwatchedBtn = this.shadowRoot.querySelector('.mark-unwatched-button');
+        if (unwatchedBtn) {
+            unwatchedBtn.addEventListener('click', () => {
                 haptic.medium();
-                
-                userMoviesService.markSeasonAsUnwatched(this._tvId, seasonNumber);
-                
-                // Обновляем UI чекбоксов
-                this.shadowRoot.querySelectorAll('md-checkbox').forEach(checkbox => {
-                    checkbox.checked = false;
-                    const episodeWrapper = checkbox.closest('.episode-item');
-                    const episodeNumberEl = episodeWrapper.querySelector('.episode-number');
-                    if (!episodeNumberEl.querySelector('.unwatched-dot')) {
-                        episodeNumberEl.innerHTML += '<span class="unwatched-dot"></span>';
-                    }
-                });
-
-                // Проверяем, есть ли еще просмотренные эпизоды
-                const hasWatchedEpisodes = userMoviesService.hasAnyWatchedEpisodes(this._tvId);
-                
-                // Отправляем событие об изменении статуса эпизодов для обновления бейджа
-                document.dispatchEvent(new CustomEvent('episode-status-changed', {
-                    bubbles: true,
-                    composed: true,
-                    detail: { 
-                        tvId: this._tvId,
-                        hasWatchedEpisodes: hasWatchedEpisodes
-                    }
-                }));
-
-                // Сбрасываем кеш и обновляем состояние кнопок
-                this._invalidateSeasonCache(seasonNumber);
-                this._updateSeasonActions(seasonNumber, false, totalEpisodes);
-            };
-            
-            this._actionButtonHandlers.set(`unwatched-${seasonNumber}`, handler);
-            unwatchedButton.addEventListener('click', handler);
+                this._markSeasonUnwatched(seasonNumber);
+            });
         }
 
-        // Добавляем обработчик для кнопки оценки сезона
-        const rateButton = this.shadowRoot.querySelector('.rate-season-button');
-        if (rateButton) {
-            const oldHandler = this._actionButtonHandlers.get(`rate-${seasonNumber}`);
-            if (oldHandler) {
-                rateButton.removeEventListener('click', oldHandler);
-            }
-            
-            const handler = () => {
+        // Кнопка "Rate Season"
+        const rateBtn = this.shadowRoot.querySelector('.rate-season-button');
+        if (rateBtn) {
+            rateBtn.addEventListener('click', () => {
                 haptic.light();
-                this._openSeasonReviewDialog(seasonNumber);
-            };
-            
-            this._actionButtonHandlers.set(`rate-${seasonNumber}`, handler);
-            rateButton.addEventListener('click', handler);
+                this._openReviewDialog(seasonNumber);
+            });
         }
     }
 
-    _updateSeasonActions(seasonNumber, isFullyWatched, totalEpisodes) {
-        const actionsContainer = this.shadowRoot.querySelector('.season-actions');
-        if (!actionsContainer) return;
-
-        const hasReview = userMoviesService.getSeasonReview(this._tvId, seasonNumber);
-
-        if (isFullyWatched) {
-            actionsContainer.innerHTML = `
-                ${!hasReview ? `
-                    <md-filled-tonal-button class="rate-season-button">
-                        ${i18n.t('rateSeason')}
-                    </md-filled-tonal-button>
-                ` : ''}
-                <md-filled-tonal-button class="mark-unwatched-button">
-                    ${i18n.t('markAllAsUnwatched')}
-                </md-filled-tonal-button>
-            `;
-        } else {
-            actionsContainer.innerHTML = `
-                <md-filled-tonal-button class="mark-watched-button">
-                    ${i18n.t('markAllAsWatched')}
-                </md-filled-tonal-button>
-            `;
+    _markSeasonWatched(seasonNumber, totalEpisodes) {
+        // Отмечаем все эпизоды
+        for (let i = 1; i <= totalEpisodes; i++) {
+            userMoviesService.markEpisodeAsWatched(this._tvId, seasonNumber, i);
         }
 
-        // Устанавливаем слушатели только для кнопок
-        this._setupActionButtons(seasonNumber, totalEpisodes);
-    }
-
-    _openSeasonReviewDialog(seasonNumber) {
-        console.log('Opening review dialog:', {
-            tvShow: this._tvShow,
-            seasonInfo: this._seasons[seasonNumber - 1],
-            isEdit: !!userMoviesService.getSeasonReview(this._tvId, seasonNumber)
+        // Обновляем чекбоксы
+        this.shadowRoot.querySelectorAll('md-checkbox').forEach(checkbox => {
+            checkbox.checked = true;
+            const episodeItem = checkbox.closest('.episode-item');
+            const dot = episodeItem.querySelector('.unwatched-dot');
+            if (dot) dot.remove();
         });
 
-        const reviewDialog = document.createElement('review-dialog');
-        reviewDialog.setAttribute('season-number', seasonNumber);
-        reviewDialog.setAttribute('tv-id', this._tvId);
-        
+        // Проверяем, все ли эпизоды всех сезонов теперь отмечены
+        const allEpisodesWatched = this._checkIfAllEpisodesWatched();
+
+        // Отправляем событие с информацией о состоянии
+        document.dispatchEvent(new CustomEvent('season-marked-watched', {
+            bubbles: true,
+            composed: true,
+            detail: { 
+                tvId: this._tvId, 
+                allEpisodesWatched 
+            }
+        }));
+
+        // Обновляем кнопки
+        this._updateSeasonActions(seasonNumber);
+    }
+
+    _markSeasonUnwatched(seasonNumber) {
+        // Проверяем состояние ДО снятия отметок
+        const wasAllWatched = this._checkIfAllEpisodesWatched();
+
+        // Снимаем отметки со всех эпизодов
+        userMoviesService.markSeasonAsUnwatched(this._tvId, seasonNumber);
+
+        // Обновляем чекбоксы
+        this.shadowRoot.querySelectorAll('md-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+            const episodeItem = checkbox.closest('.episode-item');
+            const numberEl = episodeItem.querySelector('.episode-number');
+            if (!numberEl.querySelector('.unwatched-dot')) {
+                numberEl.innerHTML += '<span class="unwatched-dot"></span>';
+            }
+        });
+
+        // Проверяем, есть ли хоть один просмотренный эпизод после снятия отметок
+        const hasAnyWatchedEpisodes = this._checkIfHasAnyWatchedEpisodes();
+
+        // Отправляем событие с информацией о состоянии
+        document.dispatchEvent(new CustomEvent('season-marked-unwatched', {
+            bubbles: true,
+            composed: true,
+            detail: { 
+                tvId: this._tvId, 
+                wasAllWatched,
+                hasAnyWatchedEpisodes
+            }
+        }));
+
+        // Обновляем кнопки
+        this._updateSeasonActions(seasonNumber);
+    }
+
+    _updateSeasonActions(seasonNumber) {
+        const season = this._seasons.find(s => s.season_number === seasonNumber);
+        if (!season) return;
+
+        const isFullyWatched = userMoviesService.isSeasonFullyWatched(
+            this._tvId,
+            seasonNumber,
+            season.episodes.length
+        );
+        const hasReview = userMoviesService.getSeasonReview(this._tvId, seasonNumber);
+
+        const actionsContainer = this.shadowRoot.querySelector('.season-actions');
+        if (actionsContainer) {
+            actionsContainer.innerHTML = this._getSeasonActionsHTML(isFullyWatched, hasReview)
+                .replace('<div class="season-actions">', '')
+                .replace('</div>', '');
+            
+            // Переустанавливаем обработчики
+            this._setupActionButtons(seasonNumber, season.episodes.length);
+        }
+    }
+
+    _openReviewDialog(seasonNumber) {
+        const dialog = document.createElement('review-dialog');
+        dialog.setAttribute('season-number', seasonNumber);
+        dialog.setAttribute('tv-id', this._tvId);
+
         const seasonInfo = {
-            ...this._seasons[seasonNumber - 1],
+            ...this._seasons.find(s => s.season_number === seasonNumber),
             name: this._tvShow?.name || '',
             media_type: 'tv_season'
         };
 
-        console.log('Season info prepared for dialog:', seasonInfo);
-
-        // Проверяем наличие существующего отзыва
         const existingReview = userMoviesService.getSeasonReview(this._tvId, seasonNumber);
         if (existingReview) {
-            reviewDialog.review = existingReview;
+            dialog.review = existingReview;
+            dialog.isEdit = true;
         }
-        
-        reviewDialog.movie = seasonInfo;
-        reviewDialog.isEdit = !!existingReview;
 
-        console.log('Review dialog movie info set:', {
-            movie: reviewDialog.movie,
-            isEdit: reviewDialog.isEdit
+        dialog.movie = seasonInfo;
+
+        dialog.addEventListener('review-submitted', (e) => {
+            userMoviesService.saveSeasonReview(this._tvId, seasonNumber, e.detail.review);
+            this._updateSeasonActions(seasonNumber);
         });
-        
-        document.body.appendChild(reviewDialog);
-        
-        reviewDialog.addEventListener('review-submitted', (event) => {
-            userMoviesService.saveSeasonReview(this._tvId, seasonNumber, event.detail.review);
-            
-            console.log('Sending season-review-submitted event:', {
-                tvId: this._tvId,
-                seasonNumber,
-                review: event.detail.review
-            });
-            
-            this.dispatchEvent(new CustomEvent('season-review-submitted', {
-                bubbles: true,
-                composed: true,
-                detail: {
-                    tvId: this._tvId,
-                    seasonNumber,
-                    review: event.detail.review
-                }
-            }));
-            
-            this._handleSeasonChange(seasonNumber);
-        });
+
+        document.body.appendChild(dialog);
     }
 
-    set tvId(value) {
-        this._tvId = value;
+    _handleTvAction(e) {
+        if (this._tvId !== e.detail.tvId) return;
+
+        switch (e.detail.action) {
+            case 'mark-all-watched':
+                this._markAllSeasonsWatched();
+                break;
+            case 'mark-all-unwatched':
+                this._markAllSeasonsUnwatched();
+                break;
+            case 'clear-all-seasons':
+                this._clearAllSeasons();
+                break;
+        }
     }
 
     _markAllSeasonsWatched() {
         haptic.medium();
-        
-        // Отмечаем все эпизоды каждого сезона как просмотренные
+
         this._seasons.forEach(season => {
-            if (season.season_number === 0) return; // Пропускаем специальные эпизоды
-            
-            // Отмечаем каждый эпизод сезона как просмотренный
-            season.episodes.forEach(episode => {
+            if (season.season_number === 0) return;
+            season.episodes?.forEach(episode => {
                 userMoviesService.markEpisodeAsWatched(
                     this._tvId,
                     season.season_number,
                     episode.episode_number
                 );
             });
-            
-            // Сбрасываем кеш для каждого сезона
-            this._invalidateSeasonCache(season.season_number);
         });
 
-        // Обновляем UI текущего сезона
-        const currentSeasonTab = this.shadowRoot.querySelector('.season-tab[selected]');
-        if (currentSeasonTab) {
-            this._handleSeasonChange(currentSeasonTab.dataset.season);
-        }
-        
-        // Отправляем событие о просмотре всех сезонов
-        document.dispatchEvent(new CustomEvent('all-seasons-watched', {
-            bubbles: true,
-            composed: true,
-            detail: { tvId: this._tvId }
-        }));
-        
-        // Отправляем событие об изменении статуса эпизодов для обновления бейджа
-        const hasWatchedEpisodes = userMoviesService.hasAnyWatchedEpisodes(this._tvId);
-        document.dispatchEvent(new CustomEvent('episode-status-changed', {
-            bubbles: true,
-            composed: true,
-            detail: { 
-                tvId: this._tvId,
-                hasWatchedEpisodes: hasWatchedEpisodes
-            }
-        }));
+        // Обновляем текущий сезон
+        this._showSeason(this._currentSeasonNumber);
     }
 
     _markAllSeasonsUnwatched() {
         haptic.medium();
-        
-        // Снимаем отметки со всех эпизодов каждого сезона
+
         this._seasons.forEach(season => {
-            if (season.season_number === 0) return; // Пропускаем специальные эпизоды
-            
-            // Снимаем отметки с каждого эпизода сезона
-            season.episodes.forEach(episode => {
-                userMoviesService.markEpisodeAsUnwatched(
+            if (season.season_number === 0) return;
+            userMoviesService.markSeasonAsUnwatched(this._tvId, season.season_number);
+        });
+
+        // Обновляем текущий сезон
+        this._showSeason(this._currentSeasonNumber);
+    }
+
+    _clearAllSeasons() {
+        haptic.light();
+
+        this._seasons.forEach(season => {
+            if (season.season_number === 0) return;
+            userMoviesService.markSeasonAsUnwatched(this._tvId, season.season_number);
+        });
+
+        // Обновляем текущий сезон
+        this._showSeason(this._currentSeasonNumber);
+    }
+
+    _checkIfAllEpisodesWatched() {
+        if (!this._seasons) return false;
+
+        return this._seasons.every(season => {
+            if (season.season_number === 0) return true;
+            const totalEpisodes = season.episodes?.length;
+            if (!totalEpisodes) return true;
+
+            return userMoviesService.isSeasonFullyWatched(
+                this._tvId,
+                season.season_number,
+                totalEpisodes
+            );
+        });
+    }
+
+    _checkIfLastUnwatchedEpisode(currentSeasonNumber, currentEpisodeNumber) {
+        if (!this._seasons) return false;
+
+        let unwatchedCount = 0;
+
+        this._seasons.forEach(season => {
+            if (season.season_number === 0) return;
+
+            season.episodes?.forEach(episode => {
+                // Пропускаем текущий эпизод, который мы отмечаем
+                if (season.season_number === currentSeasonNumber &&
+                    episode.episode_number === currentEpisodeNumber) {
+                    return;
+                }
+
+                const isWatched = userMoviesService.isEpisodeWatched(
+                    this._tvId,
+                    season.season_number,
+                    episode.episode_number
+                );
+
+                if (!isWatched) {
+                    unwatchedCount++;
+                }
+            });
+        });
+
+        return unwatchedCount === 0;
+    }
+
+    _checkIfHasAnyWatchedEpisodes() {
+        if (!this._seasons) return false;
+
+        return this._seasons.some(season => {
+            if (season.season_number === 0) return false;
+
+            return season.episodes?.some(episode => {
+                return userMoviesService.isEpisodeWatched(
                     this._tvId,
                     season.season_number,
                     episode.episode_number
                 );
             });
-            
-            // Сбрасываем кеш для каждого сезона
-            this._invalidateSeasonCache(season.season_number);
         });
-
-        // Обновляем UI текущего сезона
-        const currentSeasonTab = this.shadowRoot.querySelector('.season-tab[selected]');
-        if (currentSeasonTab) {
-            this._handleSeasonChange(currentSeasonTab.dataset.season);
-        }
-        
-        // Отправляем событие об изменении статуса эпизодов для обновления бейджа
-        const hasWatchedEpisodes = userMoviesService.hasAnyWatchedEpisodes(this._tvId);
-        document.dispatchEvent(new CustomEvent('episode-status-changed', {
-            bubbles: true,
-            composed: true,
-            detail: { 
-                tvId: this._tvId,
-                hasWatchedEpisodes: hasWatchedEpisodes
-            }
-        }));
-    }
-
-    _clearAllSeasons() {
-        haptic.light();
-        
-        // Снимаем отметки со всех эпизодов каждого сезона
-        this._seasons.forEach(season => {
-            if (season.season_number === 0) return; // Пропускаем специальные эпизоды
-            userMoviesService.markSeasonAsUnwatched(this._tvId, season.season_number);
-            // Сбрасываем кеш для каждого сезона
-            this._invalidateSeasonCache(season.season_number);
-        });
-
-        // Обновляем UI текущего сезона
-        const currentSeasonTab = this.shadowRoot.querySelector('.season-tab[selected]');
-        if (currentSeasonTab) {
-            this._handleSeasonChange(currentSeasonTab.dataset.season);
-        }
-
-        // Отправляем событие об очистке всех сезонов
-        document.dispatchEvent(new CustomEvent('all-seasons-cleared', {
-            bubbles: true,
-            composed: true,
-            detail: { tvId: this._tvId }
-        }));
-    }
-
-    set tvShow(value) {
-        this._tvShow = value;
     }
 }
 
-customElements.define('tv-seasons', TVSeasons); 
+customElements.define('tv-seasons', TVSeasons);
