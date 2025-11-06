@@ -312,15 +312,20 @@ export class MoviesScreen extends HTMLElement {
     }
 
     _renderTrendingMovies(movies) {
-        return movies.map(movie => `
-            <div class="trending-movie-card" data-movie-id="${movie.id}">
-                <media-poster
-                    src="${API_CONFIG.IMAGE_BASE_URL}${movie.poster_path}"
-                    alt="${movie.title}"
-                    ${movie.userRating ? `user-rating="${movie.userRating}"` : ''}>
-                </media-poster>
-            </div>
-        `).join('');
+        return movies.map(movie => {
+            const userReview = userMoviesService.getReview('movie', movie.id);
+            const userRating = userReview?.rating;
+
+            return `
+                <div class="trending-movie-card" data-movie-id="${movie.id}">
+                    <media-poster
+                        src="${API_CONFIG.IMAGE_BASE_URL}${movie.poster_path}"
+                        alt="${movie.title}"
+                        ${userRating ? `user-rating="${userRating}"` : ''}>
+                    </media-poster>
+                </div>
+            `;
+        }).join('');
     }
 
     _renderScrollMovieCards(movies) {
