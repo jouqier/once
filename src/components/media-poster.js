@@ -1,94 +1,22 @@
 import './episodes-badge.js';
 import './rating-badge.js';
 
+// Статический Set для отслеживания загруженных изображений между всеми инстансами
+const loadedImages = new Set();
+
 export class MediaPoster extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
-        this._loadedImages = new Set();
-        this._imageObserver = null;
+        this._isConnected = false;
+        this._setupDOM();
     }
 
     static get observedAttributes() {
         return ['src', 'alt', 'watched-episodes', 'total-episodes', 'user-rating'];
     }
 
-    connectedCallback() {
-        this.render();
-        this._setupImageLoading();
-    }
-
-    _setupImageLoading() {
-        const img = this.shadowRoot.querySelector('.poster-image');
-        if (!img) return;
-
-        // Если изображение уже было загружено ранее, сразу показываем его
-        const imageUrl = img.getAttribute('data-src');
-        if (imageUrl && this._loadedImages.has(imageUrl)) {
-            img.src = imageUrl;
-            img.style.opacity = '1';
-            return;
-        }
-
-        // Если изображение уже загружено (например, из кэша)
-        if (img.complete && img.naturalHeight !== 0) {
-            img.style.opacity = '1';
-        }
-
-        this._imageObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    if (imageUrl && !this._loadedImages.has(imageUrl)) {
-                        this._loadedImages.add(imageUrl);
-                        
-                        img.onload = () => {
-                            requestAnimationFrame(() => {
-                                img.style.opacity = '1';
-                            });
-                        };
-                        
-                        img.onerror = () => {
-                            img.removeAttribute('src');
-                            img.style.opacity = '0';
-                        };
-
-                        img.src = imageUrl;
-                    }
-                }
-            });
-        }, {
-            rootMargin: '50px'
-        });
-        
-        this._imageObserver.observe(img);
-    }
-
-    disconnectedCallback() {
-        if (this._imageObserver) {
-            this._imageObserver.disconnect();
-        }
-    }
-
-    attributeChangedCallback(name, oldValue, newValue) {
-        if (oldValue !== newValue) {
-            this.render();
-        }
-    }
-
-    render() {
-        const watchedEpisodes = parseInt(this.getAttribute('watched-episodes')) || 0;
-        const totalEpisodes = parseInt(this.getAttribute('total-episodes')) || 0;
-        const userRating = this.getAttribute('user-rating');
-        const posterSrc = this.getAttribute('src');
-        const posterAlt = this.getAttribute('alt');
-
-        // Для сериалов (когда есть watched-episodes) не показываем бейдж рейтинга
-        const isTVShow = watchedEpisodes > 0 || totalEpisodes > 0;
-        const shouldShowRating = !isTVShow && userRating;
-
-        // Проверяем, было ли изображение уже загружено
-        const isImageLoaded = posterSrc && this._loadedImages.has(posterSrc);
-
+    _setupDOM() {
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
@@ -110,8 +38,20 @@ export class MediaPoster extends HTMLElement {
                     width: 100%;
                     height: 100%;
                     object-fit: cover;
-                    transition: opacity 0.3s;
-                    opacity: ${isImageLoaded ? '1' : '0'};
+                    display: block;
+                    transition: opacity 0.3s ease-in-out;
+                }
+
+                .poster-image.loading {
+                    opacity: 0;
+                }
+
+                .poster-image.loaded {
+                    opacity: 1;
+                }
+
+                .poster-image.hidden {
+                    display: none;
                 }
 
                 .poster-placeholder {
@@ -120,6 +60,7 @@ export class MediaPoster extends HTMLElement {
                     left: 0;
                     width: 100%;
                     height: 100%;
+                    display: flex;
                     color: var(--md-sys-color-on-surface);
                     align-items: center;
                     justify-content: center;
@@ -128,46 +69,155 @@ export class MediaPoster extends HTMLElement {
                     font-weight: 600;
                     word-break: break-word;
                     line-height: 1.2;
-                    display: none;
+                    padding: 8px;
                 }
 
-                .poster-image:not([src]) ~ .poster-placeholder,
-                .poster-image[src=""] ~ .poster-placeholder,
-                .poster-image[src="null"] ~ .poster-placeholder,
-                .poster-image[src="undefined"] ~ .poster-placeholder {
-                    display: flex;
+                .poster-placeholder.hidden {
+                    display: none;
                 }
             </style>
 
             <div class="poster-container">
-                ${posterSrc ? `
-                    <img class="poster-image" 
-                         data-src="${posterSrc}"
-                         alt="${posterAlt}"
-                         loading="lazy"
-                         ${isImageLoaded ? `src="${posterSrc}"` : ''}>
-                    <div class="poster-placeholder">
-                        ${posterAlt || '?'}
-                    </div>
-                ` : `
-                    <div class="poster-placeholder">
-                        ${posterAlt || '?'}
-                    </div>
-                `}
-                
-                <episodes-badge 
-                    watched-episodes="${watchedEpisodes}"
-                    total-episodes="${totalEpisodes}">
-                </episodes-badge>
-
-                ${shouldShowRating ? `
-                    <rating-badge 
-                        user-rating="${userRating}">
-                    </rating-badge>
-                ` : ''}
+                <img class="poster-image hidden" alt="" loading="lazy">
+                <div class="poster-placeholder">?</div>
+                <episodes-badge watched-episodes="0" total-episodes="0"></episodes-badge>
+                <rating-badge user-rating=""></rating-badge>
             </div>
         `;
+
+        // Сохраняем ссылки на элементы
+        this._img = this.shadowRoot.querySelector('.poster-image');
+        this._placeholder = this.shadowRoot.querySelector('.poster-placeholder');
+        this._episodesBadge = this.shadowRoot.querySelector('episodes-badge');
+        this._ratingBadge = this.shadowRoot.querySelector('rating-badge');
+
+        // Обработчики загрузки изображения
+        this._img.addEventListener('load', () => this._onImageLoad());
+        this._img.addEventListener('error', () => this._onImageError());
+    }
+
+    connectedCallback() {
+        this._isConnected = true;
+        this._updateAll();
+    }
+
+    disconnectedCallback() {
+        this._isConnected = false;
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (!this._isConnected || oldValue === newValue) return;
+
+        switch (name) {
+            case 'src':
+            case 'alt':
+                this._updateImage();
+                break;
+            case 'watched-episodes':
+            case 'total-episodes':
+                this._updateEpisodesBadge();
+                this._updateRatingBadgeVisibility();
+                break;
+            case 'user-rating':
+                this._updateRatingBadge();
+                break;
+        }
+    }
+
+    _updateAll() {
+        this._updateImage();
+        this._updateEpisodesBadge();
+        this._updateRatingBadge();
+    }
+
+    _updateImage() {
+        const src = this.getAttribute('src');
+        const alt = this.getAttribute('alt') || '?';
+
+        // Обновляем placeholder текст
+        this._placeholder.textContent = alt;
+
+        if (!src || src === 'null' || src === 'undefined' || src === '') {
+            // Нет изображения - показываем только placeholder
+            this._img.classList.add('hidden');
+            this._img.removeAttribute('src');
+            this._placeholder.classList.remove('hidden');
+            return;
+        }
+
+        // Есть изображение
+        this._img.alt = alt;
+
+        // Проверяем, было ли изображение уже загружено
+        if (loadedImages.has(src)) {
+            // Изображение уже загружено - показываем сразу
+            this._img.src = src;
+            this._img.classList.remove('loading', 'hidden');
+            this._img.classList.add('loaded');
+            this._placeholder.classList.add('hidden');
+        } else if (this._img.src === src && this._img.complete && this._img.naturalHeight !== 0) {
+            // Изображение уже в DOM и загружено (из кэша)
+            loadedImages.add(src);
+            this._img.classList.remove('loading', 'hidden');
+            this._img.classList.add('loaded');
+            this._placeholder.classList.add('hidden');
+        } else {
+            // Нужно загрузить изображение
+            this._img.classList.remove('loaded', 'hidden');
+            this._img.classList.add('loading');
+            this._placeholder.classList.remove('hidden');
+            this._img.src = src;
+        }
+    }
+
+    _onImageLoad() {
+        const src = this._img.src;
+        if (src) {
+            loadedImages.add(src);
+            // Используем requestAnimationFrame для плавности на iOS
+            requestAnimationFrame(() => {
+                this._img.classList.remove('loading');
+                this._img.classList.add('loaded');
+                this._placeholder.classList.add('hidden');
+            });
+        }
+    }
+
+    _onImageError() {
+        this._img.classList.add('hidden');
+        this._img.classList.remove('loading', 'loaded');
+        this._placeholder.classList.remove('hidden');
+    }
+
+    _updateEpisodesBadge() {
+        const watchedEpisodes = this.getAttribute('watched-episodes') || '0';
+        const totalEpisodes = this.getAttribute('total-episodes') || '0';
+        
+        this._episodesBadge.setAttribute('watched-episodes', watchedEpisodes);
+        this._episodesBadge.setAttribute('total-episodes', totalEpisodes);
+    }
+
+    _updateRatingBadge() {
+        const userRating = this.getAttribute('user-rating') || '';
+        this._ratingBadge.setAttribute('user-rating', userRating);
+        this._updateRatingBadgeVisibility();
+    }
+
+    _updateRatingBadgeVisibility() {
+        const watchedEpisodes = parseInt(this.getAttribute('watched-episodes')) || 0;
+        const totalEpisodes = parseInt(this.getAttribute('total-episodes')) || 0;
+        const userRating = this.getAttribute('user-rating');
+
+        // Для сериалов (когда есть эпизоды) не показываем бейдж рейтинга
+        const isTVShow = watchedEpisodes > 0 || totalEpisodes > 0;
+        const shouldShowRating = !isTVShow && userRating;
+
+        if (shouldShowRating) {
+            this._ratingBadge.style.display = '';
+        } else {
+            this._ratingBadge.style.display = 'none';
+        }
     }
 }
 
-customElements.define('media-poster', MediaPoster); 
+customElements.define('media-poster', MediaPoster);
