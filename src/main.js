@@ -237,16 +237,29 @@ window.addEventListener('DOMContentLoaded', async () => {
         let mediaId = urlParams.get('id');
         let mediaType = urlParams.get('type');
         
-        // Проверяем start параметр для Telegram (из ссылки вида t.me/bot?start=movie_123)
-        // Также проверяем start_param из initDataUnsafe (когда бот запускается с параметром)
-        const startParam = urlParams.get('start') || TG?.initDataUnsafe?.start_param;
-        if (startParam && !mediaId) {
+        // Проверяем startapp параметр для Direct Link (t.me/bot/app?startapp=movie_123)
+        // Также проверяем start_param из initDataUnsafe
+        const startApp = urlParams.get('startapp') || TG?.initDataUnsafe?.start_param;
+        if (startApp && !mediaId) {
             // Формат: movie_123 или tv_456
-            const parts = startParam.split('_');
+            const parts = startApp.split('_');
             if (parts.length === 2) {
                 mediaType = parts[0]; // 'movie' или 'tv'
                 mediaId = parts[1];   // ID
-                console.log('Telegram deep link detected:', { mediaId, mediaType, startParam });
+                console.log('Telegram Direct Link detected:', { mediaId, mediaType, startApp });
+            }
+        }
+        
+        // Fallback: проверяем start параметр (для старого формата t.me/bot?start=movie_123)
+        if (!mediaId) {
+            const startParam = urlParams.get('start');
+            if (startParam) {
+                const parts = startParam.split('_');
+                if (parts.length === 2) {
+                    mediaType = parts[0];
+                    mediaId = parts[1];
+                    console.log('Telegram start param detected:', { mediaId, mediaType, startParam });
+                }
             }
         }
         

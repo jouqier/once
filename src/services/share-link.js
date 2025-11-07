@@ -33,10 +33,16 @@ class ShareLinkService {
             return this.generateWebLink(mediaId, mediaType);
         }
 
-        // Используем формат с start параметром - работает для всех ботов
-        // Формат: https://t.me/bot_username?start=movie_123
+        // Используем Direct Link формат - открывает Mini App напрямую
+        // Требует настройки Web App в BotFather
+        // Формат: https://t.me/bot_username/app_short_name?startapp=movie_123
         const startParam = `${mediaType}_${mediaId}`;
-        return `https://t.me/${botUsername}?start=${startParam}`;
+        
+        // Если у бота есть короткое имя приложения, используем его
+        // По умолчанию используем 'app' (нужно настроить в BotFather)
+        const appShortName = BOT_CONFIG.APP_SHORT_NAME || 'app';
+        
+        return `https://t.me/${botUsername}/${appShortName}?startapp=${startParam}`;
     }
 
     /**
