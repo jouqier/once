@@ -982,6 +982,7 @@ ISC
 
 ### Прямые ссылки
 - [Руководство по настройке](./docs/SHARE_SETUP.md) - Настройка прямых ссылок для Telegram Mini App
+- [Пример кода бота](./docs/BOT_EXAMPLE.md) - Как настроить бота для обработки прямых ссылок
 - [Документация (RU)](./docs/SHARE_LINKS_RU.md) - Полное описание функционала на русском
 - [Documentation (EN)](./docs/SHARE_LINKS.md) - Full documentation in English
 

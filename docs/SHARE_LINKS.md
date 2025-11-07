@@ -10,12 +10,12 @@
 
 Приложение генерирует два типа ссылок:
 
-**Telegram Mini App ссылки** (основной формат):
+**Telegram ссылки** (основной формат):
 ```
-https://t.me/your_bot_username/app?startapp=movie_123
-https://t.me/your_bot_username/app?startapp=tv_456
+https://t.me/your_bot_username?start=movie_123
+https://t.me/your_bot_username?start=tv_456
 ```
-Эти ссылки открывают приложение напрямую внутри Telegram.
+Эти ссылки открывают чат с ботом и автоматически запускают Mini App с нужным контентом.
 
 **Веб-ссылки** (fallback):
 ```
@@ -42,7 +42,7 @@ https://your-app.com/?id=456&type=tv
 #### `src/services/share-link.js`
 Сервис для работы с прямыми ссылками:
 - `generateShareLink(mediaId, mediaType)` - генерирует URL (автоматически выбирает формат)
-- `generateTelegramLink(mediaId, mediaType)` - генерирует Telegram Mini App ссылку
+- `generateTelegramLink(mediaId, mediaType)` - генерирует Telegram ссылку (t.me/bot?start=...)
 - `generateWebLink(mediaId, mediaType)` - генерирует веб-ссылку
 - `copyToClipboard(mediaId, mediaType)` - копирует ссылку в буфер
 - `shareToTelegram(mediaId, mediaType, title)` - открывает диалог шаринга
@@ -57,10 +57,10 @@ const urlParams = new URLSearchParams(window.location.search);
 let mediaId = urlParams.get('id');
 let mediaType = urlParams.get('type');
 
-// Проверяем startapp параметр для Telegram Mini App
-const startApp = urlParams.get('startapp') || TG?.initDataUnsafe?.start_param;
-if (startApp && !mediaId) {
-    const parts = startApp.split('_');
+// Проверяем start параметр для Telegram
+const startParam = urlParams.get('start') || TG?.initDataUnsafe?.start_param;
+if (startParam && !mediaId) {
+    const parts = startParam.split('_');
     if (parts.length === 2) {
         mediaType = parts[0]; // 'movie' или 'tv'
         mediaId = parts[1];   // ID
@@ -82,8 +82,8 @@ if (mediaId && mediaType) {
 
 ### URL параметры
 
-**Для Telegram Mini App:**
-- `startapp` - параметр в формате `{type}_{id}` (например: `movie_123`, `tv_456`)
+**Для Telegram:**
+- `start` - параметр в формате `{type}_{id}` (например: `movie_123`, `tv_456`)
 
 **Для веб-версии:**
 - `id` - ID фильма или сериала в TMDB

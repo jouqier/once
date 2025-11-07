@@ -237,15 +237,16 @@ window.addEventListener('DOMContentLoaded', async () => {
         let mediaId = urlParams.get('id');
         let mediaType = urlParams.get('type');
         
-        // Проверяем startapp параметр для Telegram Mini App
-        const startApp = urlParams.get('startapp') || TG?.initDataUnsafe?.start_param;
-        if (startApp && !mediaId) {
+        // Проверяем start параметр для Telegram (из ссылки вида t.me/bot?start=movie_123)
+        // Также проверяем start_param из initDataUnsafe (когда бот запускается с параметром)
+        const startParam = urlParams.get('start') || TG?.initDataUnsafe?.start_param;
+        if (startParam && !mediaId) {
             // Формат: movie_123 или tv_456
-            const parts = startApp.split('_');
+            const parts = startParam.split('_');
             if (parts.length === 2) {
                 mediaType = parts[0]; // 'movie' или 'tv'
                 mediaId = parts[1];   // ID
-                console.log('Telegram Mini App deep link detected:', { mediaId, mediaType });
+                console.log('Telegram deep link detected:', { mediaId, mediaType, startParam });
             }
         }
         

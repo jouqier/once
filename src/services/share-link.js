@@ -33,9 +33,10 @@ class ShareLinkService {
             return this.generateWebLink(mediaId, mediaType);
         }
 
-        // Формат: https://t.me/bot_username/app?startapp=movie_123 или tv_456
+        // Используем формат с start параметром - работает для всех ботов
+        // Формат: https://t.me/bot_username?start=movie_123
         const startParam = `${mediaType}_${mediaId}`;
-        return `https://t.me/${botUsername}/app?startapp=${startParam}`;
+        return `https://t.me/${botUsername}?start=${startParam}`;
     }
 
     /**

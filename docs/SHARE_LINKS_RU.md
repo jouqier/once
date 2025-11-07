@@ -24,12 +24,12 @@
 
 ### Формат ссылок
 
-**Telegram Mini App (основной):**
+**Telegram (основной):**
 ```
-Фильмы:  https://t.me/your_bot/app?startapp=movie_550
-Сериалы: https://t.me/your_bot/app?startapp=tv_1396
+Фильмы:  https://t.me/your_bot?start=movie_550
+Сериалы: https://t.me/your_bot?start=tv_1396
 ```
-Открывают приложение напрямую в Telegram.
+Открывают чат с ботом и автоматически запускают Mini App с нужным контентом.
 
 **Веб-версия (fallback):**
 ```
@@ -45,7 +45,7 @@
 ```javascript
 // Основные методы:
 shareLinkService.generateShareLink(mediaId, mediaType)      // Автовыбор формата
-shareLinkService.generateTelegramLink(mediaId, mediaType)   // Telegram Mini App
+shareLinkService.generateTelegramLink(mediaId, mediaType)   // Telegram ссылка (t.me/bot?start=...)
 shareLinkService.generateWebLink(mediaId, mediaType)        // Веб-ссылка
 shareLinkService.copyToClipboard(mediaId, mediaType)
 shareLinkService.shareToTelegram(mediaId, mediaType, title)
@@ -55,7 +55,7 @@ shareLinkService.shareToTelegram(mediaId, mediaType, title)
 
 **`src/main.js`**
 - Добавлена проверка URL параметров при загрузке
-- Поддержка `startapp` параметра для Telegram Mini App
+- Поддержка `start` параметра для Telegram (из ссылок и `start_param`)
 - Поддержка `id` и `type` параметров для веб-версии
 - Автоматическое открытие деталей при deep link
 
@@ -93,9 +93,9 @@ http://localhost:5173/?id=1396&type=tv        # Breaking Bad
 4. Откройте Mini App в Telegram
 5. Поделитесь фильмом - получите ссылку:
    ```
-   https://t.me/your_bot/app?startapp=movie_550
+   https://t.me/your_bot?start=movie_550
    ```
-6. Откройте ссылку в Telegram - приложение откроется автоматически
+6. Откройте ссылку в Telegram - откроется чат с ботом и автоматически запустится Mini App
 
 ## Интеграция с текущей архитектурой
 
