@@ -176,8 +176,6 @@ export class GenreScreen extends HTMLElement {
                     display: flex;
                     flex-direction: column;
                     align-items: center;
-                    flex: 1;
-                    overflow-y: auto;
                     min-height: 0;
                 }
                 

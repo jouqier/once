@@ -192,7 +192,7 @@ export class MediaPoster extends HTMLElement {
     _updateEpisodesBadge() {
         const watchedEpisodes = this.getAttribute('watched-episodes') || '0';
         const totalEpisodes = this.getAttribute('total-episodes') || '0';
-        
+
         this._episodesBadge.setAttribute('watched-episodes', watchedEpisodes);
         this._episodesBadge.setAttribute('total-episodes', totalEpisodes);
     }
