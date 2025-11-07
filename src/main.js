@@ -17,6 +17,7 @@ import './pages/tvshows/shows-page.js';
 import TMDBService from './services/tmdb.js';
 import './pages/profile/profile-page.js';
 import './pages/activity-page.js';
+import './services/data-repair-utility.js'; // Утилита для диагностики данных
 import './pages/tvshows/show-card.js';
 import './pages/genre/genre-page.js';
 import './pages/person/person-page.js';

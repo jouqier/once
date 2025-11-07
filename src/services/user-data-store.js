@@ -1,3 +1,5 @@
+import { dataMigrationService } from './data-migration.js';
+
 class UserDataStore {
     constructor() {
         // Пытаемся получить сохраненный ID пользователя из sessionStorage
@@ -16,7 +18,7 @@ class UserDataStore {
         }
         
         this._userId = userId;
-        this._version = '1.0';
+        this._version = '1.1'; // Обновлена версия
         this._store = this._initStore();
         
         // Добавляем обработчик обновления данных пользователя
@@ -34,17 +36,25 @@ class UserDataStore {
         try {
             const savedData = localStorage.getItem(`user_data_${this._userId}`);
             if (!savedData) {
+                console.log('Создание нового хранилища для пользователя:', this._userId);
                 return this._createInitialStore();
             }
 
             const parsedData = JSON.parse(savedData);
-            if (parsedData.version !== this._version) {
-                return this._migrateData(parsedData);
+            
+            // Используем сервис миграции для обработки данных
+            const migratedData = dataMigrationService.migrate(parsedData);
+            
+            // Если данные были мигрированы, сохраняем их
+            if (migratedData.version !== parsedData.version) {
+                console.log('Данные мигрированы, сохраняем...');
+                this._saveStore(migratedData);
             }
 
-            return parsedData;
+            return migratedData;
         } catch (error) {
             console.error('Ошибка инициализации хранилища:', error);
+            console.error('Создаем новое хранилище из-за ошибки');
             return this._createInitialStore();
         }
     }
@@ -71,18 +81,8 @@ class UserDataStore {
         };
     }
 
-    _migrateData(oldData) {
-        // Добавляем список watching, если его нет
-        if (!oldData.movies.watching) {
-            oldData.movies.watching = [];
-        }
-        
-        // Обновляем версию
-        oldData.version = this._version;
-        
-        this._saveStore(oldData);
-        return oldData;
-    }
+    // Старый метод миграции больше не используется
+    // Миграция теперь выполняется через dataMigrationService
 
     _saveStore(data) {
         try {
@@ -94,10 +94,29 @@ class UserDataStore {
 
     // Методы для работы с фильмами
     getMovies(type) {
+        // Валидация структуры
+        if (!this._store.movies || !Array.isArray(this._store.movies[type])) {
+            console.warn(`Некорректная структура movies.${type}, инициализация...`);
+            if (!this._store.movies) this._store.movies = {};
+            this._store.movies[type] = [];
+            this._saveStore(this._store);
+        }
         return this._store.movies[type] || [];
     }
 
     addMovie(type, movie) {
+        // Валидация входных данных
+        if (!movie || !movie.id) {
+            console.error('Попытка добавить некорректный фильм:', movie);
+            return;
+        }
+
+        // Валидация структуры
+        if (!this._store.movies || !Array.isArray(this._store.movies[type])) {
+            if (!this._store.movies) this._store.movies = {};
+            this._store.movies[type] = [];
+        }
+
         if (!this._store.movies[type].find(m => m.id === movie.id)) {
             this._store.movies[type].push(movie);
             this._saveStore(this._store);
@@ -105,23 +124,59 @@ class UserDataStore {
     }
 
     removeMovie(type, movieId) {
+        // Валидация структуры
+        if (!this._store.movies || !Array.isArray(this._store.movies[type])) {
+            console.warn(`Некорректная структура movies.${type} при удалении`);
+            return;
+        }
+
         this._store.movies[type] = this._store.movies[type].filter(m => m.id !== movieId);
         this._saveStore(this._store);
     }
 
     // Методы для работы с сериалами
     getEpisodeStatus(tvId, seasonNumber, episodeNumber) {
+        // Валидация структуры
+        if (!this._store.tvShows || !this._store.tvShows.episodes) {
+            console.warn('Некорректная структура tvShows.episodes');
+            if (!this._store.tvShows) this._store.tvShows = {};
+            this._store.tvShows.episodes = {};
+            this._saveStore(this._store);
+            return false;
+        }
+
         const key = `${tvId}_${seasonNumber}`;
         if (!this._store.tvShows.episodes[key]) {
             return false;
         }
+
+        // Проверяем что это массив
+        if (!Array.isArray(this._store.tvShows.episodes[key])) {
+            console.warn(`Некорректный формат episodes[${key}], исправление...`);
+            this._store.tvShows.episodes[key] = [];
+            this._saveStore(this._store);
+            return false;
+        }
+
         return this._store.tvShows.episodes[key].includes(episodeNumber);
     }
 
     setEpisodeStatus(tvId, seasonNumber, episodeNumber, watched) {
+        // Валидация структуры
+        if (!this._store.tvShows || !this._store.tvShows.episodes) {
+            if (!this._store.tvShows) this._store.tvShows = {};
+            this._store.tvShows.episodes = {};
+        }
+
         const key = `${tvId}_${seasonNumber}`;
         
         if (!this._store.tvShows.episodes[key]) {
+            this._store.tvShows.episodes[key] = [];
+        }
+
+        // Проверяем что это массив
+        if (!Array.isArray(this._store.tvShows.episodes[key])) {
+            console.warn(`Некорректный формат episodes[${key}], исправление...`);
             this._store.tvShows.episodes[key] = [];
         }
 
