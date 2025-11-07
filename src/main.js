@@ -234,8 +234,20 @@ window.addEventListener('DOMContentLoaded', async () => {
         
         // Проверяем URL параметры для deep linking
         const urlParams = new URLSearchParams(window.location.search);
-        const mediaId = urlParams.get('id');
-        const mediaType = urlParams.get('type');
+        let mediaId = urlParams.get('id');
+        let mediaType = urlParams.get('type');
+        
+        // Проверяем startapp параметр для Telegram Mini App
+        const startApp = urlParams.get('startapp') || TG?.initDataUnsafe?.start_param;
+        if (startApp && !mediaId) {
+            // Формат: movie_123 или tv_456
+            const parts = startApp.split('_');
+            if (parts.length === 2) {
+                mediaType = parts[0]; // 'movie' или 'tv'
+                mediaId = parts[1];   // ID
+                console.log('Telegram Mini App deep link detected:', { mediaId, mediaType });
+            }
+        }
         
         // Если есть параметры медиа, открываем детали напрямую
         if (mediaId && mediaType) {

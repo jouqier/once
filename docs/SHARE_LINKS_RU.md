@@ -24,6 +24,14 @@
 
 ### Формат ссылок
 
+**Telegram Mini App (основной):**
+```
+Фильмы:  https://t.me/your_bot/app?startapp=movie_550
+Сериалы: https://t.me/your_bot/app?startapp=tv_1396
+```
+Открывают приложение напрямую в Telegram.
+
+**Веб-версия (fallback):**
 ```
 Фильмы:  https://your-app.com/?id=550&type=movie
 Сериалы: https://your-app.com/?id=1396&type=tv
@@ -36,7 +44,9 @@
 **`src/services/share-link.js`** - сервис для работы со ссылками
 ```javascript
 // Основные методы:
-shareLinkService.generateShareLink(mediaId, mediaType)
+shareLinkService.generateShareLink(mediaId, mediaType)      // Автовыбор формата
+shareLinkService.generateTelegramLink(mediaId, mediaType)   // Telegram Mini App
+shareLinkService.generateWebLink(mediaId, mediaType)        // Веб-ссылка
 shareLinkService.copyToClipboard(mediaId, mediaType)
 shareLinkService.shareToTelegram(mediaId, mediaType, title)
 ```
@@ -45,6 +55,8 @@ shareLinkService.shareToTelegram(mediaId, mediaType, title)
 
 **`src/main.js`**
 - Добавлена проверка URL параметров при загрузке
+- Поддержка `startapp` параметра для Telegram Mini App
+- Поддержка `id` и `type` параметров для веб-версии
 - Автоматическое открытие деталей при deep link
 
 **`src/components/card-poster.js`**
@@ -56,9 +68,16 @@ shareLinkService.shareToTelegram(mediaId, mediaType, title)
 **`src/services/i18n.js`**
 - Добавлены переводы: `share`, `shareToTelegram`, `copyLink`
 
+## Настройка
+
+Добавьте в `.env`:
+```env
+VITE_BOT_USERNAME=your_bot_username
+```
+
 ## Тестирование
 
-### Локально
+### Локально (веб-ссылки)
 ```bash
 npm run dev
 
@@ -67,12 +86,16 @@ http://localhost:5173/?id=550&type=movie      # Fight Club
 http://localhost:5173/?id=1396&type=tv        # Breaking Bad
 ```
 
-### В Telegram
-1. Соберите приложение: `npm run build`
-2. Разверните на хостинге
-3. Откройте Mini App в Telegram
-4. Поделитесь любым фильмом
-5. Откройте полученную ссылку
+### В Telegram (Mini App ссылки)
+1. Настройте `VITE_BOT_USERNAME` в `.env`
+2. Соберите: `npm run build`
+3. Разверните на хостинге
+4. Откройте Mini App в Telegram
+5. Поделитесь фильмом - получите ссылку:
+   ```
+   https://t.me/your_bot/app?startapp=movie_550
+   ```
+6. Откройте ссылку в Telegram - приложение откроется автоматически
 
 ## Интеграция с текущей архитектурой
 

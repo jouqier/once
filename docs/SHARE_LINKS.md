@@ -7,11 +7,22 @@
 ## Возможности
 
 ### 1. Генерация прямых ссылок
-Каждый фильм и сериал имеет уникальную ссылку вида:
+
+Приложение генерирует два типа ссылок:
+
+**Telegram Mini App ссылки** (основной формат):
+```
+https://t.me/your_bot_username/app?startapp=movie_123
+https://t.me/your_bot_username/app?startapp=tv_456
+```
+Эти ссылки открывают приложение напрямую внутри Telegram.
+
+**Веб-ссылки** (fallback):
 ```
 https://your-app.com/?id=123&type=movie
 https://your-app.com/?id=456&type=tv
 ```
+Используются если бот не настроен или для веб-версии.
 
 ### 2. Deep Linking
 При открытии приложения по прямой ссылке:
@@ -30,7 +41,9 @@ https://your-app.com/?id=456&type=tv
 
 #### `src/services/share-link.js`
 Сервис для работы с прямыми ссылками:
-- `generateShareLink(mediaId, mediaType)` - генерирует URL
+- `generateShareLink(mediaId, mediaType)` - генерирует URL (автоматически выбирает формат)
+- `generateTelegramLink(mediaId, mediaType)` - генерирует Telegram Mini App ссылку
+- `generateWebLink(mediaId, mediaType)` - генерирует веб-ссылку
 - `copyToClipboard(mediaId, mediaType)` - копирует ссылку в буфер
 - `shareToTelegram(mediaId, mediaType, title)` - открывает диалог шаринга
 - `parseUrlParams()` - парсит параметры из URL
@@ -39,9 +52,20 @@ https://your-app.com/?id=456&type=tv
 #### `src/main.js`
 Обработка deep linking при загрузке приложения:
 ```javascript
+// Проверяем URL параметры
 const urlParams = new URLSearchParams(window.location.search);
-const mediaId = urlParams.get('id');
-const mediaType = urlParams.get('type');
+let mediaId = urlParams.get('id');
+let mediaType = urlParams.get('type');
+
+// Проверяем startapp параметр для Telegram Mini App
+const startApp = urlParams.get('startapp') || TG?.initDataUnsafe?.start_param;
+if (startApp && !mediaId) {
+    const parts = startApp.split('_');
+    if (parts.length === 2) {
+        mediaType = parts[0]; // 'movie' или 'tv'
+        mediaId = parts[1];   // ID
+    }
+}
 
 if (mediaId && mediaType) {
     navigationManager.navigateToDetails(mediaId, mediaType);
@@ -58,6 +82,10 @@ if (mediaId && mediaType) {
 
 ### URL параметры
 
+**Для Telegram Mini App:**
+- `startapp` - параметр в формате `{type}_{id}` (например: `movie_123`, `tv_456`)
+
+**Для веб-версии:**
 - `id` - ID фильма или сериала в TMDB
 - `type` - тип контента (`movie` или `tv`)
 
@@ -106,9 +134,20 @@ if (shareLinkService.isDeepLink()) {
 - `shareToTelegram` - "Поделиться в Telegram" / "Share to Telegram"
 - `copyLink` - "Скопировать ссылку" / "Copy link"
 
+## Настройка
+
+### Переменные окружения
+
+В файле `.env` укажите имя вашего бота:
+```env
+VITE_BOT_USERNAME=your_bot_username
+```
+
+Без этой переменной будут генерироваться только веб-ссылки.
+
 ## Тестирование
 
-### Локальное тестирование
+### Локальное тестирование (веб-ссылки)
 ```bash
 # Запустите dev сервер
 npm run dev
@@ -118,11 +157,16 @@ http://localhost:5173/?id=550&type=movie
 http://localhost:5173/?id=1396&type=tv
 ```
 
-### Production тестирование
-```
-https://your-app.com/?id=550&type=movie
-https://your-app.com/?id=1396&type=tv
-```
+### Тестирование в Telegram
+1. Настройте `VITE_BOT_USERNAME` в `.env`
+2. Соберите приложение: `npm run build`
+3. Разверните на хостинге
+4. Откройте Mini App в Telegram
+5. Поделитесь фильмом - получите ссылку вида:
+   ```
+   https://t.me/your_bot/app?startapp=movie_550
+   ```
+6. Откройте эту ссылку в Telegram - приложение откроется с деталями фильма
 
 ## Ограничения
 

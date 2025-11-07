@@ -1,21 +1,56 @@
 import { TG } from '../config/telegram.js';
+import { BOT_CONFIG } from '../config/bot.js';
 
 /**
  * Сервис для работы с прямыми ссылками на фильмы и сериалы
  */
 class ShareLinkService {
     /**
-     * Генерирует прямую ссылку на медиа контент
+     * Генерирует прямую ссылку на медиа контент для веб-браузера
      * @param {string|number} mediaId - ID фильма или сериала
      * @param {string} mediaType - Тип медиа ('movie' или 'tv')
      * @returns {string} Полная URL ссылка
      */
-    generateShareLink(mediaId, mediaType) {
+    generateWebLink(mediaId, mediaType) {
         const baseUrl = window.location.origin + window.location.pathname;
         const url = new URL(baseUrl);
         url.searchParams.set('id', mediaId);
         url.searchParams.set('type', mediaType);
         return url.toString();
+    }
+
+    /**
+     * Генерирует прямую ссылку на медиа контент для Telegram Mini App
+     * @param {string|number} mediaId - ID фильма или сериала
+     * @param {string} mediaType - Тип медиа ('movie' или 'tv')
+     * @returns {string} Telegram Mini App ссылка
+     */
+    generateTelegramLink(mediaId, mediaType) {
+        const botUsername = BOT_CONFIG.BOT_USERNAME;
+        
+        if (!botUsername) {
+            console.warn('BOT_USERNAME not configured, falling back to web link');
+            return this.generateWebLink(mediaId, mediaType);
+        }
+
+        // Формат: https://t.me/bot_username/app?startapp=movie_123 или tv_456
+        const startParam = `${mediaType}_${mediaId}`;
+        return `https://t.me/${botUsername}/app?startapp=${startParam}`;
+    }
+
+    /**
+     * Генерирует прямую ссылку на медиа контент (автоматически выбирает формат)
+     * @param {string|number} mediaId - ID фильма или сериала
+     * @param {string} mediaType - Тип медиа ('movie' или 'tv')
+     * @returns {string} Полная URL ссылка
+     */
+    generateShareLink(mediaId, mediaType) {
+        // Если запущено в Telegram, используем Telegram ссылку
+        if (TG && BOT_CONFIG.BOT_USERNAME) {
+            return this.generateTelegramLink(mediaId, mediaType);
+        }
+        // Иначе используем веб-ссылку
+        return this.generateWebLink(mediaId, mediaType);
     }
 
     /**
@@ -56,16 +91,17 @@ class ShareLinkService {
      * @param {string} title - Название фильма/сериала
      */
     shareToTelegram(mediaId, mediaType, title) {
-        const link = this.generateShareLink(mediaId, mediaType);
-        const text = `${title}\n${link}`;
+        const link = this.generateTelegramLink(mediaId, mediaType);
         
         try {
             // Используем Telegram Web App API для шаринга
             if (TG?.openTelegramLink) {
+                // Для Mini App используем специальный формат
                 const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(title)}`;
                 TG.openTelegramLink(shareUrl);
             } else if (TG?.switchInlineQuery) {
                 // Альтернативный метод через inline query
+                const text = `${title}\n${link}`;
                 TG.switchInlineQuery(text);
             } else {
                 // Fallback - копируем в буфер обмена
