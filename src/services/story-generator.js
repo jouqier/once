@@ -29,19 +29,19 @@ export class StoryGenerator {
                 TOP_MARGIN: 360
             },
             RATING_BADGE: {
-                WIDTH: 88,
-                HEIGHT: 56,
-                CORNER_RADIUS: 16,
-                STAR_SIZE: 32,
-                FONT_SIZE: 32,
+                WIDTH: 136,
+                HEIGHT: 72,
+                CORNER_RADIUS: 18,
+                STAR_SIZE: 48,
+                FONT_SIZE: 48,
                 FONT_WEIGHT: 'bold',
                 PADDING: 12,
-                BACKGROUND: '#FFFFFF',
-                TEXT_COLOR: '#000000'
+                BACKGROUND: '#E1E2EC',
+                TEXT_COLOR: '#2D3038'
             },
             COLORS: {
-                WHITE: '#FFFFFF',
-                BLACK: '#000000',
+                WHITE: '#E1E2EC',
+                BLACK: '#2D3038',
                 OVERLAY: 'rgba(0, 0, 0, 0.7)'
             },
             TITLE: {
@@ -113,7 +113,7 @@ export class StoryGenerator {
         this._addShadow();
         
         // Рисуем постер с закругленными углами
-        this._roundRect(posterX, posterY, posterWidth, posterHeight, 16);
+        this._roundRect(posterX, posterY, posterWidth, posterHeight, 36);
         this.ctx.clip();
         this.ctx.drawImage(posterImage, posterX, posterY, posterWidth, posterHeight);
         
@@ -124,8 +124,8 @@ export class StoryGenerator {
 
     _drawRating(rating, posterData) {
         // Позиция бейджа: справа вверху на постере
-        const badgeX = posterData.posterX + posterData.posterWidth - this.STYLES.RATING_BADGE.WIDTH - 16;
-        const badgeY = posterData.posterY + 16;
+        const badgeX = posterData.posterX + posterData.posterWidth - this.STYLES.RATING_BADGE.WIDTH - 18;
+        const badgeY = posterData.posterY + 18;
         
         // Рисуем белый бейдж с закругленными углами
         this.ctx.save();
