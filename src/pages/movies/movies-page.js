@@ -14,6 +14,7 @@ export class MoviesScreen extends HTMLElement {
         this._upcomingMovies = [];
         this._popularMovies = [];
         this._upcomingTrailers = [];
+        this._recommendedMovies = [];
         this._dataLoaded = false;
         
         // Сохраняем bound функции для правильной очистки слушателей
@@ -68,23 +69,52 @@ export class MoviesScreen extends HTMLElement {
 
     async loadData() {
         try {
+            // Получаем списки пользователя для рекомендаций
+            const wantList = userMoviesService.getWantList();
+            const watchedList = userMoviesService.getWatchedList();
+
+            console.log('Movies user lists:', { 
+                want: wantList.length, 
+                watched: watchedList.length 
+            });
+
             const cachedData = MoviesScreen._cache;
             
             if (cachedData) {
-                console.log('Using cached data');
+                console.log('Using cached movies data, recommended count:', cachedData.recommended?.length || 0);
                 this._trendingMovies = cachedData.trending;
                 this._upcomingMovies = cachedData.upcoming;
                 this._popularMovies = cachedData.popular;
                 this._upcomingTrailers = cachedData.upcomingTrailers;
+                this._recommendedMovies = cachedData.recommended || [];
+                
+                // Если в кеше нет рекомендаций, но есть списки пользователя - загружаем рекомендации
+                if ((!cachedData.recommended || cachedData.recommended.length === 0) && 
+                    (wantList.length > 0 || watchedList.length > 0)) {
+                    console.log('Cache missing recommendations, fetching...');
+                    const recommended = await TMDBService.getPersonalizedRecommendations(wantList, watchedList);
+                    const recommendedWithRatings = recommended.map(movie => ({
+                        ...movie,
+                        userRating: userMoviesService.getReview('movie', movie.id)?.rating
+                    }));
+                    this._recommendedMovies = recommendedWithRatings;
+                    console.log('Fetched movie recommendations:', recommendedWithRatings.length);
+                    
+                    // Обновляем кеш
+                    MoviesScreen._cache.recommended = recommendedWithRatings;
+                }
                 return;
             }
 
-            const [trending, upcoming, popular, trailers] = await Promise.all([
+            const [trending, upcoming, popular, trailers, recommended] = await Promise.all([
                 TMDBService.getTrendingMovies(),
                 TMDBService.getUpcomingMovies(),
                 TMDBService.getPopularMovies(),
-                TMDBService.getUpcomingMoviesWithTrailers()
+                TMDBService.getUpcomingMoviesWithTrailers(),
+                TMDBService.getPersonalizedRecommendations(wantList, watchedList)
             ]);
+
+            console.log('Loaded fresh movies data, recommended count:', recommended.length);
 
             const moviesWithRatings = {
                 trending: trending.map(movie => ({
@@ -98,7 +128,11 @@ export class MoviesScreen extends HTMLElement {
                 popular: popular?.results.map(movie => ({
                     ...movie,
                     userRating: userMoviesService.getReview('movie', movie.id)?.rating
-                })) || []
+                })) || [],
+                recommended: recommended.map(movie => ({
+                    ...movie,
+                    userRating: userMoviesService.getReview('movie', movie.id)?.rating
+                }))
             };
             
             MoviesScreen._cache = {
@@ -106,6 +140,7 @@ export class MoviesScreen extends HTMLElement {
                 upcoming: moviesWithRatings.upcoming,
                 popular: moviesWithRatings.popular,
                 upcomingTrailers: trailers,
+                recommended: moviesWithRatings.recommended,
                 timestamp: Date.now()
             };
             
@@ -113,6 +148,7 @@ export class MoviesScreen extends HTMLElement {
             this._upcomingMovies = moviesWithRatings.upcoming;
             this._popularMovies = moviesWithRatings.popular;
             this._upcomingTrailers = trailers;
+            this._recommendedMovies = moviesWithRatings.recommended;
         } catch (error) {
             console.error('Error loading movies:', error);
         }
@@ -280,6 +316,20 @@ export class MoviesScreen extends HTMLElement {
                 </div>
             </div>
 
+            ${this._recommendedMovies.length > 0 ? `
+                <div class="section" data-section="recommended">
+                    <div class="section-article">${i18n.t('moviesLabel')}</div>
+                    <div class="section-title">${i18n.t('forYou')}</div>
+                    <div class="movies-scroll-container">
+                        <div class="movies-scroll-wrapper">
+                            <div class="movies-scroll">
+                                ${this._renderScrollMovieCards(this._recommendedMovies)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ` : ''}
+
             <div class="section" data-section="upcoming">
                 <div class="section-article">${i18n.t('moviesLabel')}</div>
                 <div class="section-title">${i18n.t('upcoming')}</div>
@@ -364,4 +414,12 @@ export class MoviesScreen extends HTMLElement {
 
 MoviesScreen._cache = null;
 
-customElements.define('movies-screen', MoviesScreen); 
+customElements.define('movies-screen', MoviesScreen);
+
+// Добавляем глобальную функцию для отладки
+if (typeof window !== 'undefined') {
+    window.clearMoviesCache = () => {
+        MoviesScreen._cache = null;
+        console.log('✓ Movies cache cleared! Reload the page.');
+    };
+} 

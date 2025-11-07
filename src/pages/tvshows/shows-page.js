@@ -16,6 +16,7 @@ export class TVShowsScreen extends HTMLElement {
         this._anticipatedShows = [];
         this._popularShows = [];
         this._upcomingTrailers = [];
+        this._recommendedShows = [];
         
         // Сохраняем bound функции для правильной очистки слушателей
         this._boundHandlers = {
@@ -77,35 +78,71 @@ export class TVShowsScreen extends HTMLElement {
 
     async loadData() {
         try {
+            // Получаем списки пользователя для рекомендаций
+            const wantList = userMoviesService.getWantList();
+            const watchedList = userMoviesService.getWatchedList();
+            const watchingList = userMoviesService.getWatchingList();
+
+            console.log('TV Shows user lists:', { 
+                want: wantList.length, 
+                watched: watchedList.length, 
+                watching: watchingList.length 
+            });
+
             // Проверяем наличие данных в localStorage
             const cachedData = localStorage.getItem('tvShowsData');
             if (cachedData) {
-                const { trending, anticipated, popular } = JSON.parse(cachedData);
-                this._trendingShows = trending;
-                this._anticipatedShows = anticipated;
-                this._popularShows = popular;
+                const parsed = JSON.parse(cachedData);
+                console.log('Using cached TV shows data, recommended count:', parsed.recommended?.length || 0);
+                
+                this._trendingShows = parsed.trending;
+                this._anticipatedShows = parsed.anticipated;
+                this._popularShows = parsed.popular;
+                this._recommendedShows = parsed.recommended || [];
                 this._upcomingTrailers = await TMDBService.getTrendingTVWithTrailers();
+                
+                // Если в кеше нет рекомендаций, но есть списки пользователя - загружаем рекомендации
+                if ((!parsed.recommended || parsed.recommended.length === 0) && 
+                    (wantList.length > 0 || watchedList.length > 0 || watchingList.length > 0)) {
+                    console.log('Cache missing recommendations, fetching...');
+                    const recommended = await TMDBService.getPersonalizedTVRecommendations(wantList, watchedList, watchingList);
+                    this._recommendedShows = recommended;
+                    console.log('Fetched TV recommendations:', recommended.length);
+                    
+                    // Обновляем кеш
+                    localStorage.setItem('tvShowsData', JSON.stringify({
+                        trending: this._trendingShows,
+                        anticipated: this._anticipatedShows,
+                        popular: this._popularShows,
+                        recommended: this._recommendedShows
+                    }));
+                }
                 return;
             }
 
             // Если данных нет, загружаем их с сервера
-            const [trending, popular, topRated, trailers] = await Promise.all([
+            const [trending, popular, topRated, trailers, recommended] = await Promise.all([
                 TMDBService.getTrendingTV(),
                 TMDBService.getPopularTV(),
                 TMDBService.getTopRatedTV(),
-                TMDBService.getTrendingTVWithTrailers()
+                TMDBService.getTrendingTVWithTrailers(),
+                TMDBService.getPersonalizedTVRecommendations(wantList, watchedList, watchingList)
             ]);
+
+            console.log('Loaded fresh TV data, recommended count:', recommended.length);
 
             this._trendingShows = trending;
             this._anticipatedShows = popular?.results || [];
             this._popularShows = topRated;
             this._upcomingTrailers = trailers;
+            this._recommendedShows = recommended;
 
             // Сохраняем данные в localStorage
             localStorage.setItem('tvShowsData', JSON.stringify({
                 trending: this._trendingShows,
                 anticipated: this._anticipatedShows,
-                popular: this._popularShows
+                popular: this._popularShows,
+                recommended: this._recommendedShows
             }));
         } catch (error) {
             console.error(i18n.t('errorLoadingTVShows'), error);
@@ -198,6 +235,9 @@ export class TVShowsScreen extends HTMLElement {
         
         try {
             const trendingContent = await this._renderTrendingShows(this._trendingShows);
+            const recommendedContent = this._recommendedShows.length > 0 
+                ? await this._renderScrollShowCards(this._recommendedShows) 
+                : '';
             const anticipatedContent = await this._renderScrollShowCards(this._anticipatedShows);
             const popularContent = await this._renderScrollShowCards(this._popularShows);
 
@@ -362,6 +402,20 @@ export class TVShowsScreen extends HTMLElement {
                     </div>
                 </div>
 
+                ${this._recommendedShows.length > 0 ? `
+                    <div class="section">
+                        <div class="section-article">${i18n.t('tvShowsLabel')}</div>
+                        <div class="section-title">${i18n.t('forYou')}</div>
+                        <div class="shows-scroll-container">
+                            <div class="shows-scroll-wrapper">
+                                <div class="shows-scroll">
+                                    ${recommendedContent}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+
                 <div class="section">
                     <div class="section-article">${i18n.t('tvShowsLabel')}</div>
                     <div class="section-title">${i18n.t('mostPopular')}</div>
@@ -414,4 +468,12 @@ export class TVShowsScreen extends HTMLElement {
     }
 }
 
-customElements.define('tv-shows-screen', TVShowsScreen); 
+customElements.define('tv-shows-screen', TVShowsScreen);
+
+// Добавляем глобальную функцию для отладки
+if (typeof window !== 'undefined') {
+    window.clearTVShowsCache = () => {
+        localStorage.removeItem('tvShowsData');
+        console.log('✓ TV Shows cache cleared! Reload the page.');
+    };
+} 
