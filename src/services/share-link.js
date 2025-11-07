@@ -140,12 +140,14 @@ class ShareLinkService {
         try {
             // Используем Telegram Web App API для шаринга
             if (TG?.openTelegramLink) {
+                // Формируем текст с красивой ссылкой
+                const text = `${title}\n\n👉 Открыть в ONCE`;
                 // Для Mini App используем специальный формат
-                const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(title)}`;
+                const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
                 TG.openTelegramLink(shareUrl);
             } else if (TG?.switchInlineQuery) {
                 // Альтернативный метод через inline query
-                const text = `${title}\n${link}`;
+                const text = `${title}\n\n👉 Открыть в ONCE\n${link}`;
                 TG.switchInlineQuery(text);
             } else {
                 // Fallback - копируем в буфер обмена

@@ -350,7 +350,7 @@ export class MoviePoster extends HTMLElement {
 
         const menu = document.createElement('context-menu');
         menu.options = [
-            { label: i18n.t('shareWithPreview'), action: 'share-preview' },
+            // { label: i18n.t('shareWithPreview'), action: 'share-preview' },
             { label: i18n.t('shareToTelegram'), action: 'share-telegram' },
             { label: i18n.t('copyLink'), action: 'copy-link' }
         ];
