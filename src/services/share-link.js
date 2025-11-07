@@ -92,7 +92,44 @@ class ShareLinkService {
     }
 
     /**
-     * Открывает диалог шаринга в Telegram
+     * Открывает диалог шаринга в Telegram с превью и inline кнопкой
+     * @param {string|number} mediaId - ID фильма или сериала
+     * @param {string} mediaType - Тип медиа ('movie' или 'tv')
+     * @param {string} title - Название фильма/сериала
+     * @param {string} posterUrl - URL постера фильма/сериала
+     * @param {string} description - Описание (опционально)
+     */
+    shareToTelegramWithPreview(mediaId, mediaType, title, posterUrl, description = '') {
+        const link = this.generateTelegramLink(mediaId, mediaType);
+        
+        try {
+            // Используем switchInlineQuery для шаринга с превью
+            // Бот должен поддерживать inline mode
+            if (TG?.switchInlineQuery) {
+                // Формируем текст для inline query
+                const query = `share_${mediaType}_${mediaId}`;
+                TG.switchInlineQuery(query, ['users', 'groups', 'channels']);
+                return;
+            }
+            
+            // Fallback: обычный шаринг через openTelegramLink
+            if (TG?.openTelegramLink) {
+                const text = description ? `${title}\n\n${description}` : title;
+                const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+                TG.openTelegramLink(shareUrl);
+                return;
+            }
+            
+            // Последний fallback - копируем в буфер
+            this.copyToClipboard(mediaId, mediaType);
+        } catch (error) {
+            console.error('Error sharing to Telegram:', error);
+            this.copyToClipboard(mediaId, mediaType);
+        }
+    }
+
+    /**
+     * Открывает диалог шаринга в Telegram (простой вариант)
      * @param {string|number} mediaId - ID фильма или сериала
      * @param {string} mediaType - Тип медиа ('movie' или 'tv')
      * @param {string} title - Название фильма/сериала

@@ -51,6 +51,7 @@ export class I18nService {
 
                 // Share
                 share: 'Поделиться',
+                shareWithPreview: 'Поделиться с превью',
                 shareToTelegram: 'Поделиться в Telegram',
                 copyLink: 'Скопировать ссылку',
                 somethingWentWrong: 'Что-то пошло не так',
@@ -151,6 +152,7 @@ export class I18nService {
 
                 // Share
                 share: 'Share',
+                shareWithPreview: 'Share with preview',
                 shareToTelegram: 'Share to Telegram',
                 copyLink: 'Copy link',
                 somethingWentWrong: 'Something went wrong',

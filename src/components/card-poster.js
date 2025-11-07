@@ -15,7 +15,7 @@ export class MoviePoster extends HTMLElement {
         this.attachShadow({ mode: 'open' });
         this._movie = null;
         this._createElements();
-        
+
         // Сохраняем bound функции для правильной очистки слушателей
         this._boundHandlers = {
             reviewSubmitted: this._handleReviewSubmitted.bind(this),
@@ -40,8 +40,8 @@ export class MoviePoster extends HTMLElement {
 
     _handleReviewSubmitted(event) {
         // Обновляем постер, если это фильм и ID совпадает
-        if (this._movie && 
-            this._movie.media_type === 'movie' && 
+        if (this._movie &&
+            this._movie.media_type === 'movie' &&
             event.detail.movieId === this._movie.id) {
             this._updateContent();
         }
@@ -49,8 +49,8 @@ export class MoviePoster extends HTMLElement {
 
     _handleSeasonReviewSubmitted(event) {
         // Обновляем постер, если это сериал и ID совпадает
-        if (this._movie && 
-            this._movie.media_type === 'tv' && 
+        if (this._movie &&
+            this._movie.media_type === 'tv' &&
             String(event.detail.tvId) === String(this._movie.id)) {
             this._updateContent();
         }
@@ -58,8 +58,8 @@ export class MoviePoster extends HTMLElement {
 
     _handleEpisodeStatusChanged(event) {
         // Обновляем постер, если это сериал и ID совпадает
-        if (this._movie && 
-            this._movie.media_type === 'tv' && 
+        if (this._movie &&
+            this._movie.media_type === 'tv' &&
             String(event.detail.tvId) === String(this._movie.id)) {
             this._updateContent();
         }
@@ -242,7 +242,7 @@ export class MoviePoster extends HTMLElement {
             const posterUrl = `${API_CONFIG.IMAGE_BASE_URL}${this._movie.poster_path}`;
             this._mediaPoster.setAttribute('src', posterUrl);
             this._mediaPoster.setAttribute('alt', this._movie.title || this._movie.name);
-            
+
             this._actionContainer.style.setProperty(
                 '--poster-background',
                 `url(${posterUrl}) lightgray 50% / cover no-repeat`
@@ -250,14 +250,14 @@ export class MoviePoster extends HTMLElement {
 
             try {
                 const videos = await TMDBService.getVideos(
-                    this._movie.id, 
+                    this._movie.id,
                     this._movie.media_type || 'movie'
                 );
-                
+
                 const trailer = videos.results.find(
                     video => video.type === 'Trailer' && video.site === 'YouTube'
                 );
-                
+
                 if (trailer) {
                     this._playButton.style.display = 'flex';
                     this._playButton.addEventListener('click', () => {
@@ -285,7 +285,7 @@ export class MoviePoster extends HTMLElement {
                                 const episodeCount = season.episodes?.length || season.episode_count || 0;
                                 return total + episodeCount;
                             }, 0) || 0;
-                        
+
                         let watchedEpisodes = 0;
                         if (this._movie.seasons) {
                             this._movie.seasons.forEach(season => {
@@ -303,7 +303,7 @@ export class MoviePoster extends HTMLElement {
                                 }
                             });
                         }
-                        
+
                         if (totalEpisodes > 0) {
                             this._mediaPoster.setAttribute('watched-episodes', watchedEpisodes);
                             this._mediaPoster.setAttribute('total-episodes', totalEpisodes);
@@ -350,6 +350,7 @@ export class MoviePoster extends HTMLElement {
 
         const menu = document.createElement('context-menu');
         menu.options = [
+            { label: i18n.t('shareWithPreview'), action: 'share-preview' },
             { label: i18n.t('shareToTelegram'), action: 'share-telegram' },
             { label: i18n.t('copyLink'), action: 'copy-link' }
         ];
@@ -357,15 +358,25 @@ export class MoviePoster extends HTMLElement {
         menu.addEventListener('menu-action', async (e) => {
             const mediaType = this._movie.media_type || 'movie';
             const title = this._movie.title || this._movie.name;
+            const posterUrl = this._movie.poster_path 
+                ? `${API_CONFIG.IMAGE_BASE_URL}${this._movie.poster_path}`
+                : '';
+            const description = this._movie.overview 
+                ? this._movie.overview.substring(0, 200) + '...'
+                : '';
 
-            if (e.detail.action === 'share-telegram') {
+            if (e.detail.action === 'share-preview') {
+                shareLinkService.shareToTelegramWithPreview(
+                    this._movie.id, 
+                    mediaType, 
+                    title, 
+                    posterUrl,
+                    description
+                );
+            } else if (e.detail.action === 'share-telegram') {
                 shareLinkService.shareToTelegram(this._movie.id, mediaType, title);
             } else if (e.detail.action === 'copy-link') {
-                const success = await shareLinkService.copyToClipboard(this._movie.id, mediaType);
-                if (success) {
-                    console.log('Link copied to clipboard');
-                    // Можно добавить визуальную обратную связь
-                }
+                await shareLinkService.copyToClipboard(this._movie.id, mediaType);
             }
         });
 
