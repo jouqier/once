@@ -20,32 +20,36 @@ export class StoryGenerator {
         this.canvas.height = this.config.height;
         this.ctx = this.canvas.getContext('2d');
         
-        // Добавим константы для стилей
+        // Константы для стилей согласно дизайну
         this.STYLES = {
             POSTER: {
-                HEIGHT_RATIO: 0.5,
+                WIDTH: 600,
+                HEIGHT: 900,
                 SIDE_MARGIN: 240,
-                TOP_MARGIN: 240
+                TOP_MARGIN: 360
             },
-            RATING: {
-                STAR_SIZE: 48,
-                STAR_GAP: 10,
-                FONT_SIZE: 42,
-                SIDE_MARGIN: 300,
-                BOTTOM_MARGIN: 192,
-                DIVIDER_WIDTH: 3,
-                DIVIDER_HEIGHT: 64,
+            RATING_BADGE: {
+                WIDTH: 88,
+                HEIGHT: 56,
+                CORNER_RADIUS: 16,
+                STAR_SIZE: 32,
+                FONT_SIZE: 32,
+                FONT_WEIGHT: 'bold',
+                PADDING: 12,
+                BACKGROUND: '#FFFFFF',
+                TEXT_COLOR: '#000000'
             },
             COLORS: {
                 WHITE: '#FFFFFF',
+                BLACK: '#000000',
                 OVERLAY: 'rgba(0, 0, 0, 0.7)'
             },
             TITLE: {
                 FONT_SIZE: 36,
                 LINE_HEIGHT: 1.2,
                 MAX_LINES: 2,
-                SIDE_MARGIN: 120,
-                TOP_MARGIN: 24     // отступ от постера
+                MARGIN_TOP: 32,
+                SIDE_MARGIN: 120
             },
             YEAR: {
                 FONT_SIZE: 36,
@@ -53,16 +57,17 @@ export class StoryGenerator {
                 SIDE_MARGIN: 120
             },
             LOGO: {
-                BOTTOM_MARGIN: 121
+                WIDTH: 180,
+                HEIGHT: 48,
+                BOTTOM_MARGIN: 240
             }
         };
     }
 
-    // Разделим на отдельные методы
     _drawBackground(posterImage) {
         // Определяем платформу для оптимизации
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-                     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+                     (navigator.userAgent.includes('Mac') && navigator.maxTouchPoints > 1);
         
         if (isIOS) {
             // Для iOS: без blur, просто рисуем постер и затемняем сильнее
@@ -74,8 +79,6 @@ export class StoryGenerator {
             // Более сильное затемнение для iOS
             const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
             gradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');    // Сильнее вверху
-            gradient.addColorStop(0.3, 'rgba(0, 0, 0, 0.6)'); // Еще темнее
-            gradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.8)'); // Очень темно
             gradient.addColorStop(1, 'rgba(0, 0, 0, 1.0)');  // Полностью черный внизу
             
             this.ctx.fillStyle = gradient;
@@ -83,7 +86,7 @@ export class StoryGenerator {
         } else {
             // Для Android и других: используем blur
             this.ctx.save();
-            this.ctx.filter = 'blur(120px)';
+            this.ctx.filter = 'blur(60px)';
             this.ctx.drawImage(posterImage, 
                 -50, -50, 
                 this.canvas.width + 100, this.canvas.height + 100
@@ -92,8 +95,7 @@ export class StoryGenerator {
             
             // Стандартное затемнение
             const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-            gradient.addColorStop(0, 'rgba(0, 0, 0, 0.1)');    // Более темный вверху
-            gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.5)'); // Еще темнее в середине
+            gradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');    // Более темный вверху
             gradient.addColorStop(1, 'rgba(0, 0, 0, 1.0)');    // Самый темный внизу
             
             this.ctx.fillStyle = gradient;
@@ -102,24 +104,63 @@ export class StoryGenerator {
     }
 
     _drawPoster(posterImage) {
-        const posterWidth = 600;
-        const posterHeight = 900;
-        const posterX = (this.canvas.width - posterWidth) / 2;
+        const posterX = this.STYLES.POSTER.SIDE_MARGIN;
         const posterY = this.STYLES.POSTER.TOP_MARGIN;
+        const posterWidth = this.STYLES.POSTER.WIDTH;
+        const posterHeight = this.STYLES.POSTER.HEIGHT;
 
         this.ctx.save();
         this._addShadow();
+        
+        // Рисуем постер с закругленными углами
+        this._roundRect(posterX, posterY, posterWidth, posterHeight, 16);
+        this.ctx.clip();
         this.ctx.drawImage(posterImage, posterX, posterY, posterWidth, posterHeight);
+        
         this.ctx.restore();
 
-        return { posterHeight, posterY, posterWidth };
+        return { posterX, posterY, posterWidth, posterHeight };
     }
 
-    _drawRating(rating, posterData) {
-        const ratingY = 1388+32;
+    async _drawRating(rating, posterData) {
+        // Позиция бейджа: справа вверху на постере
+        const badgeX = posterData.posterX + posterData.posterWidth - this.STYLES.RATING_BADGE.WIDTH - 16;
+        const badgeY = posterData.posterY + 16;
         
-        //this._drawStars(rating, ratingY);
-        this._drawRatingNumber(rating, ratingY);
+        // Рисуем белый бейдж с закругленными углами
+        this.ctx.save();
+        this.ctx.fillStyle = this.STYLES.RATING_BADGE.BACKGROUND;
+        this._roundRect(
+            badgeX, 
+            badgeY, 
+            this.STYLES.RATING_BADGE.WIDTH, 
+            this.STYLES.RATING_BADGE.HEIGHT, 
+            this.STYLES.RATING_BADGE.CORNER_RADIUS
+        );
+        this.ctx.fill();
+        
+        // Загружаем и рисуем иконку звезды
+        const starSvg = await this._loadSvg('/assets/svg/star.svg');
+        this.ctx.drawImage(
+            starSvg,
+            badgeX + 12,
+            badgeY + (this.STYLES.RATING_BADGE.HEIGHT - this.STYLES.RATING_BADGE.STAR_SIZE) / 2,
+            this.STYLES.RATING_BADGE.STAR_SIZE,
+            this.STYLES.RATING_BADGE.STAR_SIZE
+        );
+        
+        // Рисуем число рейтинга
+        this.ctx.font = `${this.STYLES.RATING_BADGE.FONT_WEIGHT} ${this.STYLES.RATING_BADGE.FONT_SIZE}px Inter`;
+        this.ctx.fillStyle = this.STYLES.RATING_BADGE.TEXT_COLOR;
+        this.ctx.textAlign = 'right';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillText(
+            rating.toString(),
+            badgeX + this.STYLES.RATING_BADGE.WIDTH - 12,
+            badgeY + this.STYLES.RATING_BADGE.HEIGHT / 2
+        );
+        
+        this.ctx.restore();
     }
 
     _addShadow() {
@@ -143,7 +184,6 @@ export class StoryGenerator {
             // Формируем строку с годом или информацией о сезоне
             let yearInfo;
             if (movieData.media_type === 'tv_season' || movieData.media_type === 'tv') {
-                // Используем данные напрямую из movieData для сезона
                 const seasonNumber = movieData.season_number || review.season_number;
                 const airDate = movieData.air_date || review.season_air_date;
                 const seasonYear = airDate ? airDate.substring(0, 4) : '';
@@ -168,14 +208,15 @@ export class StoryGenerator {
             const rating = parseInt(review.rating);
             
             this._drawTitleAndYear(title, yearInfo, posterData);
-            this._drawRating(rating, posterData);
+            await this._drawRating(rating, posterData);
+            await this._drawLogo();
 
             // Сохраняем метаданные для передачи в upload service
             const metadata = {
                 title: title,
                 year: yearInfo,
                 rating: rating,
-                comment: review.text || '' // Добавляем текст отзыва
+                comment: review.text || ''
             };
 
             return await this._exportToJpeg(metadata);
@@ -185,54 +226,26 @@ export class StoryGenerator {
         }
     }
 
-    _drawStars(rating, ratingY) {
-        const totalStars = 10;
-        const startX = (this.canvas.width - (totalStars * (this.STYLES.RATING.STAR_SIZE + this.STYLES.RATING.STAR_GAP))) / 2;
-
-        for (let i = 0; i < totalStars; i++) {
-            this.ctx.fillStyle = i < rating ? this.STYLES.COLORS.WHITE : 'rgba(255, 255, 255, 0.3)';
-            this.ctx.font = `${this.STYLES.RATING.STAR_SIZE}px Inter`;
-            this.ctx.fillText('★', startX + (i * (this.STYLES.RATING.STAR_SIZE + this.STYLES.RATING.STAR_GAP)), ratingY);
-        }
+    async _drawLogo() {
+        const logoY = this.canvas.height - this.STYLES.LOGO.BOTTOM_MARGIN - this.STYLES.LOGO.HEIGHT;
+        const logoX = (this.canvas.width - this.STYLES.LOGO.WIDTH) / 2;
+        
+        const logo = await this._loadSvg('/assets/svg/once-logo.svg');
+        this.ctx.drawImage(logo, logoX, logoY, this.STYLES.LOGO.WIDTH, this.STYLES.LOGO.HEIGHT);
     }
 
-    _drawRatingNumber(rating, ratingY) {
-        const centerX = this.canvas.width / 2;
-        
-        // Рисуем число слева
-        this.ctx.font = `bold ${this.STYLES.RATING.FONT_SIZE}px Inter`;
-        this.ctx.fillStyle = this.STYLES.COLORS.WHITE;
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(
-            `${rating}`,
-            centerX - 48,
-            ratingY + 48
-        );
-
-        // Рисуем разделительную черту с поворотом
-        this.ctx.save(); // Сохраняем текущее состояние контекста
-        this.ctx.fillStyle = this.STYLES.COLORS.WHITE;
-        
-        // Перемещаем точку трансформации в центр черты
-        this.ctx.translate(centerX, ratingY + this.STYLES.RATING.DIVIDER_HEIGHT / 2);
-        // Поворачиваем на 20 градусов
-        this.ctx.rotate(20 * Math.PI / 180);
-        // Рисуем черту с учетом смещения на половину высоты
-        this.ctx.fillRect(
-            -this.STYLES.RATING.DIVIDER_WIDTH / 2,
-            -this.STYLES.RATING.DIVIDER_HEIGHT / 2,
-            this.STYLES.RATING.DIVIDER_WIDTH,
-            this.STYLES.RATING.DIVIDER_HEIGHT
-        );
-        this.ctx.restore(); // Восстанавливаем состояние контекста
-
-        // Рисуем "10" справа
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText(
-            '10',
-            centerX + 48,
-            ratingY + 48
-        );
+    _roundRect(x, y, width, height, radius) {
+        this.ctx.beginPath();
+        this.ctx.moveTo(x + radius, y);
+        this.ctx.lineTo(x + width - radius, y);
+        this.ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+        this.ctx.lineTo(x + width, y + height - radius);
+        this.ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+        this.ctx.lineTo(x + radius, y + height);
+        this.ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+        this.ctx.lineTo(x, y + radius);
+        this.ctx.quadraticCurveTo(x, y, x + radius, y);
+        this.ctx.closePath();
     }
 
     _wrapText(text, maxWidth) {
@@ -257,12 +270,13 @@ export class StoryGenerator {
     }
 
     _drawTitleAndYear(title, year, posterData) {
-        const titleY = 1172+32;
+        const titleY = posterData.posterY + posterData.posterHeight + this.STYLES.TITLE.MARGIN_TOP;
         
         // Настройка шрифта для заголовка
         this.ctx.font = `bold ${this.STYLES.TITLE.FONT_SIZE}px Inter`;
         this.ctx.fillStyle = this.STYLES.COLORS.WHITE;
         this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'top';
         
         const maxWidth = this.canvas.width - (this.STYLES.TITLE.SIDE_MARGIN * 2);
         const lines = this._wrapText(title, maxWidth).slice(0, this.STYLES.TITLE.MAX_LINES);
@@ -300,6 +314,26 @@ export class StoryGenerator {
             img.onload = () => resolve(img);
             img.onerror = reject;
             img.src = url;
+        });
+    }
+
+    async _loadSvg(url) {
+        return new Promise((resolve, reject) => {
+            fetch(url)
+                .then(response => response.text())
+                .then(svgText => {
+                    const img = new Image();
+                    const blob = new Blob([svgText], { type: 'image/svg+xml' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    
+                    img.onload = () => {
+                        URL.revokeObjectURL(blobUrl);
+                        resolve(img);
+                    };
+                    img.onerror = reject;
+                    img.src = blobUrl;
+                })
+                .catch(reject);
         });
     }
 } 
