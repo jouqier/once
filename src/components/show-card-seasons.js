@@ -147,6 +147,7 @@ export class TVSeasons extends HTMLElement {
                     display: flex;
                     flex-direction: column;
                     flex: 1;
+                    min-width: 0;
                 }
 
                 .episode-title {
