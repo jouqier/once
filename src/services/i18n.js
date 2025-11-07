@@ -13,7 +13,7 @@ export class I18nService {
                 tvShows: 'Сериалы',
                 search: 'Поиск',
                 activity: 'Активность',
-                
+
                 // Profile
                 want: 'Буду смотреть',
                 watched: 'Посмотрел',
@@ -26,7 +26,7 @@ export class I18nService {
                 startAddingTVShows: 'Начните добавлять сериалы в список',
                 browseMovies: 'Смотреть фильмы',
                 browseTVShows: 'Смотреть сериалы',
-                
+
                 // Movies/TV Shows
                 moviesLabel: 'ФИЛЬМЫ',
                 tvShowsLabel: 'СЕРИАЛЫ',
@@ -39,7 +39,7 @@ export class I18nService {
                 errorLoadingTVShows: 'Ошибка загрузки сериалов',
                 errorInMoviesScreen: 'Ошибка в экране фильмов',
                 loading: 'Загрузка...',
-                
+
                 // Reviews
                 reviews: 'Отзывы',
                 writeReview: 'Напишите свой отзыв...',
@@ -48,10 +48,15 @@ export class I18nService {
                 generatingStory: 'Генерация истории...',
                 sharingStory: 'Публикация истории...',
                 failedToShareStory: 'Не удалось опубликовать историю',
+
+                // Share
+                share: 'Поделиться',
+                shareToTelegram: 'Поделиться в Telegram',
+                copyLink: 'Скопировать ссылку',
                 somethingWentWrong: 'Что-то пошло не так',
                 season: 'Сезон',
                 user: 'Пользователь',
-                
+
                 // Actions
                 moveToWatched: 'Переместить в "Посмотрел"',
                 removeFromWant: 'Удалить из "Буду смотреть"',
@@ -65,7 +70,7 @@ export class I18nService {
                 markAllAsUnwatched: 'Отметить всё как непросмотренное',
                 markAsWatched: 'Отметить как просмотренное',
                 markAsUnwatched: 'Отметить как непросмотренное',
-                
+
                 // Search
                 moviesOrTVShows: 'Фильмы или сериалы...',
                 justStartTyping: 'Просто начните печатать...',
@@ -73,19 +78,19 @@ export class I18nService {
                 nothingFound: 'Ничего не найдено',
                 maybeNotFilmedYet: 'Возможно, еще не снято',
                 recent: 'Недавние',
-                
+
                 // Story Viewer
                 letsGetStarted: 'Начнем',
                 next: 'Далее',
                 story: 'История',
-                
+
                 // Common
                 error: 'Ошибка',
                 success: 'Успешно',
                 cancel: 'Отмена',
                 confirm: 'Подтвердить',
                 close: 'Закрыть',
-                
+
                 // Card labels
                 castAndCrew: 'Актёры и съёмочная группа',
                 ifYouLike: 'Если вам понравился',
@@ -108,7 +113,7 @@ export class I18nService {
                 tvShows: 'TV Shows',
                 search: 'Search',
                 activity: 'Activity',
-                
+
                 // Profile
                 want: 'Want',
                 watched: 'Watched',
@@ -121,7 +126,7 @@ export class I18nService {
                 startAddingTVShows: 'Start adding TV shows to your list',
                 browseMovies: 'Browse Movies',
                 browseTVShows: 'Browse TV Shows',
-                
+
                 // Movies/TV Shows
                 moviesLabel: 'MOVIES',
                 tvShowsLabel: 'TV SHOWS',
@@ -134,7 +139,7 @@ export class I18nService {
                 errorLoadingTVShows: 'Error loading TV shows',
                 errorInMoviesScreen: 'Error in MoviesScreen',
                 loading: 'Loading...',
-                
+
                 // Reviews
                 reviews: 'Reviews',
                 writeReview: 'Write your review...',
@@ -143,10 +148,15 @@ export class I18nService {
                 generatingStory: 'Generating story...',
                 sharingStory: 'Sharing story...',
                 failedToShareStory: 'Failed to share story',
+
+                // Share
+                share: 'Share',
+                shareToTelegram: 'Share to Telegram',
+                copyLink: 'Copy link',
                 somethingWentWrong: 'Something went wrong',
                 season: 'Season',
                 user: 'User',
-                
+
                 // Actions
                 moveToWatched: 'Move to Watched',
                 removeFromWant: 'Remove from Want',
@@ -160,7 +170,7 @@ export class I18nService {
                 markAllAsUnwatched: 'Mark all as unwatched',
                 markAsWatched: 'Mark as watched',
                 markAsUnwatched: 'Mark as unwatched',
-                
+
                 // Search
                 moviesOrTVShows: 'Movies or TV Shows...',
                 justStartTyping: 'Just start typing…',
@@ -168,19 +178,19 @@ export class I18nService {
                 nothingFound: 'Nothing was found',
                 maybeNotFilmedYet: 'Maybe hasn\'t been filmed yet',
                 recent: 'Recent',
-                
+
                 // Story Viewer
                 letsGetStarted: 'Let\'s Get Started',
                 next: 'Next',
                 story: 'Story',
-                
+
                 // Common
                 error: 'Error',
                 success: 'Success',
                 cancel: 'Cancel',
                 confirm: 'Confirm',
                 close: 'Close',
-                
+
                 // Card labels
                 castAndCrew: 'Cast and Crew',
                 ifYouLike: 'If you like',
@@ -198,14 +208,14 @@ export class I18nService {
             }
         };
     }
-    
+
     /**
      * Получить код языка для API (ru-RU или en-US)
      */
     getApiLanguage() {
         return this._locale === 'ru' ? 'ru-RU' : 'en-US';
     }
-    
+
     /**
      * Определяет локаль из Telegram или браузера
      * ru для русского, en для всех остальных
@@ -213,24 +223,24 @@ export class I18nService {
     _detectLocale() {
         // Проверяем язык из Telegram
         const telegramLang = window.Telegram?.WebApp?.initDataUnsafe?.user?.language_code;
-        
+
         if (telegramLang) {
             // Если язык начинается с 'ru', возвращаем 'ru', иначе 'en'
             return telegramLang.startsWith('ru') ? 'ru' : 'en';
         }
-        
+
         // Fallback на язык браузера
         const browserLang = navigator.language || navigator.userLanguage;
         return browserLang.startsWith('ru') ? 'ru' : 'en';
     }
-    
+
     /**
      * Получить текущую локаль
      */
     getLocale() {
         return this._locale;
     }
-    
+
     /**
      * Установить локаль вручную
      */
@@ -239,7 +249,7 @@ export class I18nService {
             this._locale = locale;
         }
     }
-    
+
     /**
      * Получить перевод по ключу
      * @param {string} key - Ключ перевода
@@ -247,10 +257,10 @@ export class I18nService {
      * @returns {string} Переведенная строка
      */
     t(key, params = {}) {
-        const translation = this._translations[this._locale]?.[key] || 
-                           this._translations.en[key] || 
-                           key;
-        
+        const translation = this._translations[this._locale]?.[key] ||
+            this._translations.en[key] ||
+            key;
+
         // Поддержка параметров (например, {name}, {count})
         return translation.replace(/\{(\w+)\}/g, (match, paramKey) => {
             return params[paramKey] !== undefined ? params[paramKey] : match;

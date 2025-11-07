@@ -19,15 +19,15 @@ export class TabBar extends HTMLElement {
 
     setActiveTab(tabName) {
         if (this._activeTab === tabName) return;
-        
+
         this._activeTab = tabName;
         this.setAttribute('active-tab', tabName);
-        
+
         const tabs = this.shadowRoot.querySelectorAll('.tab-item');
         tabs.forEach(tab => {
             tab.classList.toggle('active', tab.dataset.tab === tabName);
         });
-        
+
         this.dispatchEvent(new CustomEvent('tab-changed', {
             detail: { tab: tabName },
             bubbles: true,
@@ -132,16 +132,16 @@ export class TabBar extends HTMLElement {
 
     setupEventListeners() {
         const tabs = this.shadowRoot.querySelectorAll('.tab-item');
-        
+
         tabs.forEach(tab => {
             tab.addEventListener('click', (e) => {
                 e.preventDefault();
                 const tabName = tab.dataset.tab;
-                
+
                 haptic.light();
-                
+
                 this.setActiveTab(tabName);
-                
+
                 this.dispatchEvent(new CustomEvent('tab-changed', {
                     detail: { tab: tabName },
                     bubbles: true,

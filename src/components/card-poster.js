@@ -4,7 +4,10 @@ import './show-card-buttons.js';
 import './media-poster.js';
 import { API_CONFIG } from '../config/api.js';
 import { userMoviesService } from '../services/user-movies.js';
+import { shareLinkService } from '../services/share-link.js';
+import { i18n } from '../services/i18n.js';
 import TMDBService from '../services/tmdb.js';
+import './action-sheet.js';
 
 export class MoviePoster extends HTMLElement {
     constructor() {
@@ -106,11 +109,43 @@ export class MoviePoster extends HTMLElement {
                     align-items: center;
                     align-self: stretch;
                     z-index: 1;
+                    position: relative;
                 }
                 
                 .poster {
                     aspect-ratio: 2/3;
                     position: relative;
+                }
+
+                .share-button {
+                    position: absolute;
+                    top: 16px;
+                    right: 16px;
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, 0.32);
+                    border: none;
+                    cursor: pointer;
+                    z-index: 2;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    transition: all 0.3s ease;
+                    padding: 0;
+                }
+
+                .share-button:active {
+                    transform: scale(0.95);
+                }
+
+                .share-button svg {
+                    width: 20px;
+                    height: 20px;
+                }
+
+                .share-button svg path {
+                    stroke: var(--md-sys-color-on-surface);
                 }
                 
                 media-poster {
@@ -160,6 +195,11 @@ export class MoviePoster extends HTMLElement {
             
             <div class="action-container">
                 <div class="image-container">
+                    <button class="share-button" title="Share">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M5.83333 9.16667C5.05836 9.16667 4.67087 9.16667 4.35295 9.25185C3.49022 9.48302 2.81635 10.1569 2.58519 11.0196C2.5 11.3375 2.5 11.725 2.5 12.5V13.5C2.5 14.9001 2.5 15.6002 2.77248 16.135C3.01217 16.6054 3.39462 16.9878 3.86502 17.2275C4.3998 17.5 5.09987 17.5 6.5 17.5H13.5C14.9001 17.5 15.6002 17.5 16.135 17.2275C16.6054 16.9878 16.9878 16.6054 17.2275 16.135C17.5 15.6002 17.5 14.9001 17.5 13.5V12.5C17.5 11.725 17.5 11.3375 17.4148 11.0196C17.1836 10.1569 16.5098 9.48302 15.647 9.25185C15.3291 9.16667 14.9416 9.16667 14.1667 9.16667M13.3333 5.83333L10 2.5M10 2.5L6.66667 5.83333M10 2.5V12.5" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
                     <div class="poster">
                         <media-poster size="large"></media-poster>
                         <button class="play-button" style="display: none">
@@ -181,6 +221,10 @@ export class MoviePoster extends HTMLElement {
         this._movieActionButtons = this.shadowRoot.querySelector('movie-action-buttons');
         this._tvShowActionButtons = this.shadowRoot.querySelector('tv-show-action-buttons');
         this._playButton = this.shadowRoot.querySelector('.play-button');
+        this._shareButton = this.shadowRoot.querySelector('.share-button');
+
+        // Добавляем обработчик для кнопки "Поделиться"
+        this._shareButton.addEventListener('click', () => this._handleShareClick());
     }
 
     set movie(value) {
@@ -298,6 +342,34 @@ export class MoviePoster extends HTMLElement {
             this._movieActionButtons.style.display = 'flex';
             this._movieActionButtons.movie = this._movie;
         }
+    }
+
+    _handleShareClick() {
+        if (!this._movie) return;
+        haptic.light();
+
+        const menu = document.createElement('context-menu');
+        menu.options = [
+            { label: i18n.t('shareToTelegram'), action: 'share-telegram' },
+            { label: i18n.t('copyLink'), action: 'copy-link' }
+        ];
+
+        menu.addEventListener('menu-action', async (e) => {
+            const mediaType = this._movie.media_type || 'movie';
+            const title = this._movie.title || this._movie.name;
+
+            if (e.detail.action === 'share-telegram') {
+                shareLinkService.shareToTelegram(this._movie.id, mediaType, title);
+            } else if (e.detail.action === 'copy-link') {
+                const success = await shareLinkService.copyToClipboard(this._movie.id, mediaType);
+                if (success) {
+                    console.log('Link copied to clipboard');
+                    // Можно добавить визуальную обратную связь
+                }
+            }
+        });
+
+        document.body.appendChild(menu);
     }
 }
 

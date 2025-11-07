@@ -232,6 +232,19 @@ window.addEventListener('DOMContentLoaded', async () => {
             console.warn('Не удалось получить ID пользователя Telegram');
         }
         
+        // Проверяем URL параметры для deep linking
+        const urlParams = new URLSearchParams(window.location.search);
+        const mediaId = urlParams.get('id');
+        const mediaType = urlParams.get('type');
+        
+        // Если есть параметры медиа, открываем детали напрямую
+        if (mediaId && mediaType) {
+            console.log('Deep link detected:', { mediaId, mediaType });
+            localStorage.setItem('app_launched', 'true'); // Пропускаем сторис
+            navigationManager.navigateToDetails(mediaId, mediaType);
+            return;
+        }
+        
         // Проверяем, первый ли это запуск
         const isFirstLaunch = !localStorage.getItem('app_launched');
         
