@@ -378,7 +378,15 @@ export class MoviePoster extends HTMLElement {
                 const rating = this._movie.vote_average 
                     ? Math.round(this._movie.vote_average * 10) / 10 
                     : null;
-                shareLinkService.shareToTelegram(this._movie.id, mediaType, title, rating);
+                
+                // Получаем год выпуска
+                const year = this._movie.release_date 
+                    ? new Date(this._movie.release_date).getFullYear()
+                    : this._movie.first_air_date 
+                        ? new Date(this._movie.first_air_date).getFullYear()
+                        : null;
+                
+                shareLinkService.shareToTelegram(this._movie.id, mediaType, title, rating, year);
             } else if (e.detail.action === 'copy-link') {
                 await shareLinkService.copyToClipboard(this._movie.id, mediaType);
             }

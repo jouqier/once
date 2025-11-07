@@ -22,7 +22,6 @@ import './pages/tvshows/show-card.js';
 import './pages/genre/genre-page.js';
 import './pages/person/person-page.js';
 import { API_CONFIG } from './config/api.js';
-import { MetaTagsManager } from './utils/meta-tags.js';
 
 // Импортируем изображения
 import story2 from '../public/assets/stories/story2.jpg';
@@ -52,20 +51,6 @@ async function showMovieDetails(id, type = 'movie') {
             ...data,
             media_type: type
         };
-        
-        // Обновляем Open Graph meta-теги для шаринга
-        const title = movieData.title || movieData.name;
-        const description = movieData.overview || 'Discover and track your favorite movies and TV shows';
-        const posterUrl = movieData.poster_path 
-            ? `${API_CONFIG.IMAGE_BASE_URL}${movieData.poster_path}`
-            : '';
-        
-        MetaTagsManager.updateMetaTags({
-            title: `${title} - ONCE`,
-            description: description.substring(0, 200),
-            image: posterUrl,
-            url: window.location.href
-        });
         
         if (movieData.backdrop_path) {
             document.documentElement.style.setProperty(

@@ -134,30 +134,35 @@ class ShareLinkService {
      * @param {string} mediaType - Тип медиа ('movie' или 'tv')
      * @param {string} title - Название фильма/сериала
      * @param {number} rating - Рейтинг (опционально)
+     * @param {number} year - Год выпуска (опционально)
      */
-    shareToTelegram(mediaId, mediaType, title, rating = null) {
+    shareToTelegram(mediaId, mediaType, title, rating = null, year = null) {
         const link = this.generateTelegramLink(mediaId, mediaType);
 
         try {
             // Используем Telegram Web App API для шаринга
             if (TG?.openTelegramLink) {
-                // Формируем красивый текст без ссылки (ссылка будет в превью)
+                // Формируем красивый текст: название с годом и рейтинг
                 let text = `🎬 ${title}`;
+                if (year) {
+                    text += ` (${year})`;
+                }
                 if (rating) {
                     text += `\n⭐ ${rating} / 10`;
                 }
-                text += `\n\n📱 Открыть в ONCE`;
 
-                // Ссылка передается отдельно и отобразится как превью с кнопкой
-                const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
+                // Ссылка передается отдельно и отобразится сверху с отступом
+                const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('\n' + text)}`;
                 TG.openTelegramLink(shareUrl);
             } else if (TG?.switchInlineQuery) {
                 // Альтернативный метод через inline query
                 let text = `🎬 ${title}`;
+                if (year) {
+                    text += ` (${year})`;
+                }
                 if (rating) {
                     text += `\n⭐ ${rating} / 10`;
                 }
-                text += `\n\n📱 Открыть в ONCE`;
                 TG.switchInlineQuery(text);
             } else {
                 // Fallback - копируем в буфер обмена
