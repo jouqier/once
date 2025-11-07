@@ -27,7 +27,7 @@ class ShareLinkService {
      */
     generateTelegramLink(mediaId, mediaType) {
         const botUsername = BOT_CONFIG.BOT_USERNAME;
-        
+
         if (!botUsername) {
             console.warn('BOT_USERNAME not configured, falling back to web link');
             return this.generateWebLink(mediaId, mediaType);
@@ -37,11 +37,11 @@ class ShareLinkService {
         // Требует настройки Web App в BotFather
         // Формат: https://t.me/bot_username/app_short_name?startapp=movie_123
         const startParam = `${mediaType}_${mediaId}`;
-        
+
         // Если у бота есть короткое имя приложения, используем его
         // По умолчанию используем 'app' (нужно настроить в BotFather)
         const appShortName = BOT_CONFIG.APP_SHORT_NAME || 'app';
-        
+
         return `https://t.me/${botUsername}/${appShortName}?startapp=${startParam}`;
     }
 
@@ -68,7 +68,7 @@ class ShareLinkService {
      */
     async copyToClipboard(mediaId, mediaType) {
         const link = this.generateShareLink(mediaId, mediaType);
-        
+
         try {
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 await navigator.clipboard.writeText(link);
@@ -101,7 +101,7 @@ class ShareLinkService {
      */
     shareToTelegramWithPreview(mediaId, mediaType, title, posterUrl, description = '') {
         const link = this.generateTelegramLink(mediaId, mediaType);
-        
+
         try {
             // Используем switchInlineQuery для шаринга с превью
             // Бот должен поддерживать inline mode
@@ -111,7 +111,7 @@ class ShareLinkService {
                 TG.switchInlineQuery(query, ['users', 'groups', 'channels']);
                 return;
             }
-            
+
             // Fallback: обычный шаринг через openTelegramLink
             if (TG?.openTelegramLink) {
                 const text = description ? `${title}\n\n${description}` : title;
@@ -119,7 +119,7 @@ class ShareLinkService {
                 TG.openTelegramLink(shareUrl);
                 return;
             }
-            
+
             // Последний fallback - копируем в буфер
             this.copyToClipboard(mediaId, mediaType);
         } catch (error) {
@@ -133,21 +133,32 @@ class ShareLinkService {
      * @param {string|number} mediaId - ID фильма или сериала
      * @param {string} mediaType - Тип медиа ('movie' или 'tv')
      * @param {string} title - Название фильма/сериала
+     * @param {number} rating - Рейтинг (опционально)
      */
-    shareToTelegram(mediaId, mediaType, title) {
+    shareToTelegram(mediaId, mediaType, title, rating = null) {
         const link = this.generateTelegramLink(mediaId, mediaType);
-        
+
         try {
             // Используем Telegram Web App API для шаринга
             if (TG?.openTelegramLink) {
-                // Формируем текст с красивой ссылкой
-                const text = `${title}\n\n👉 Открыть в ONCE`;
+                // Формируем текст с эмодзи и рейтингом
+                let text = `🎬 ${title}`;
+                if (rating) {
+                    text += `\n⭐ ${rating} / 10`;
+                }
+                text += `\n\n📱 [Открыть в ONCE](${link})`;
+
                 // Для Mini App используем специальный формат
+                // Telegram автоматически преобразует Markdown ссылки
                 const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`;
                 TG.openTelegramLink(shareUrl);
             } else if (TG?.switchInlineQuery) {
                 // Альтернативный метод через inline query
-                const text = `${title}\n\n👉 Открыть в ONCE\n${link}`;
+                let text = `🎬 ${title}`;
+                if (rating) {
+                    text += `\n⭐ ${rating} / 10`;
+                }
+                text += `\n\n📱 Открыть в ONCE\n${link}`;
                 TG.switchInlineQuery(text);
             } else {
                 // Fallback - копируем в буфер обмена
@@ -168,14 +179,14 @@ class ShareLinkService {
         const urlParams = new URLSearchParams(window.location.search);
         const mediaId = urlParams.get('id');
         const mediaType = urlParams.get('type');
-        
+
         if (mediaId && mediaType && (mediaType === 'movie' || mediaType === 'tv')) {
             return {
                 mediaId: parseInt(mediaId),
                 mediaType
             };
         }
-        
+
         return null;
     }
 

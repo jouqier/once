@@ -374,7 +374,11 @@ export class MoviePoster extends HTMLElement {
                     description
                 );
             } else if (e.detail.action === 'share-telegram') {
-                shareLinkService.shareToTelegram(this._movie.id, mediaType, title);
+                // Получаем рейтинг фильма (vote_average из TMDB)
+                const rating = this._movie.vote_average 
+                    ? Math.round(this._movie.vote_average * 10) / 10 
+                    : null;
+                shareLinkService.shareToTelegram(this._movie.id, mediaType, title, rating);
             } else if (e.detail.action === 'copy-link') {
                 await shareLinkService.copyToClipboard(this._movie.id, mediaType);
             }

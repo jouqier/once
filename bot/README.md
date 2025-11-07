@@ -30,11 +30,11 @@ cp .env.example .env
 Заполните `.env`:
 
 ```env
-BOT_TOKEN=7760619955:AAGx92Yd0NrHVBLue9I27dZ4bdqJv6lyH1s
-TMDB_API_KEY=8e2566462de35ecf36a54f4a04235ca8
-WEB_APP_URL=https://your-app.pages.dev
-BOT_USERNAME=onceappbot
-APP_SHORT_NAME=app
+BOT_TOKEN=
+TMDB_API_KEY=
+WEB_APP_URL=
+BOT_USERNAME=
+APP_SHORT_NAME=
 ```
 
 ### 3. Включите Inline Mode
