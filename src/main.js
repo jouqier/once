@@ -22,6 +22,7 @@ import './pages/tvshows/show-card.js';
 import './pages/genre/genre-page.js';
 import './pages/person/person-page.js';
 import { API_CONFIG } from './config/api.js';
+import { cacheMigration } from './services/cache-migration.js';
 
 // Импортируем изображения
 import story2 from '../public/assets/stories/story2.jpg';
@@ -217,6 +218,9 @@ function mockTelegramData() {
 // Инициализация приложения
 window.addEventListener('DOMContentLoaded', async () => {
     try {
+        // Запускаем миграцию кеша (если нужна)
+        cacheMigration.migrate();
+        
         // В режиме разработки добавляем моковые данные
         if (import.meta.env.DEV) {
             mockTelegramData();
