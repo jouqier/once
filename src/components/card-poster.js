@@ -20,7 +20,10 @@ export class MoviePoster extends HTMLElement {
         this._boundHandlers = {
             reviewSubmitted: this._handleReviewSubmitted.bind(this),
             seasonReviewSubmitted: this._handleSeasonReviewSubmitted.bind(this),
-            episodeStatusChanged: this._handleEpisodeStatusChanged.bind(this)
+            episodeCheckboxChanged: this._handleEpisodeCheckboxChanged.bind(this),
+            seasonMarkedWatched: this._handleSeasonMarkedWatched.bind(this),
+            seasonMarkedUnwatched: this._handleSeasonMarkedUnwatched.bind(this),
+            tvAction: this._handleTvAction.bind(this)
         };
     }
 
@@ -28,14 +31,20 @@ export class MoviePoster extends HTMLElement {
         // Добавляем слушатели при подключении к DOM
         document.addEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
         document.addEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
-        document.addEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+        document.addEventListener('episode-checkbox-changed', this._boundHandlers.episodeCheckboxChanged);
+        document.addEventListener('season-marked-watched', this._boundHandlers.seasonMarkedWatched);
+        document.addEventListener('season-marked-unwatched', this._boundHandlers.seasonMarkedUnwatched);
+        document.addEventListener('tv-action', this._boundHandlers.tvAction);
     }
 
     disconnectedCallback() {
         // Удаляем слушатели при отключении компонента
         document.removeEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
         document.removeEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
-        document.removeEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+        document.removeEventListener('episode-checkbox-changed', this._boundHandlers.episodeCheckboxChanged);
+        document.removeEventListener('season-marked-watched', this._boundHandlers.seasonMarkedWatched);
+        document.removeEventListener('season-marked-unwatched', this._boundHandlers.seasonMarkedUnwatched);
+        document.removeEventListener('tv-action', this._boundHandlers.tvAction);
     }
 
     _handleReviewSubmitted(event) {
@@ -56,7 +65,34 @@ export class MoviePoster extends HTMLElement {
         }
     }
 
-    _handleEpisodeStatusChanged(event) {
+    _handleEpisodeCheckboxChanged(event) {
+        // Обновляем постер, если это сериал и ID совпадает
+        if (this._movie &&
+            this._movie.media_type === 'tv' &&
+            String(event.detail.tvId) === String(this._movie.id)) {
+            this._updateContent();
+        }
+    }
+
+    _handleSeasonMarkedWatched(event) {
+        // Обновляем постер, если это сериал и ID совпадает
+        if (this._movie &&
+            this._movie.media_type === 'tv' &&
+            String(event.detail.tvId) === String(this._movie.id)) {
+            this._updateContent();
+        }
+    }
+
+    _handleSeasonMarkedUnwatched(event) {
+        // Обновляем постер, если это сериал и ID совпадает
+        if (this._movie &&
+            this._movie.media_type === 'tv' &&
+            String(event.detail.tvId) === String(this._movie.id)) {
+            this._updateContent();
+        }
+    }
+
+    _handleTvAction(event) {
         // Обновляем постер, если это сериал и ID совпадает
         if (this._movie &&
             this._movie.media_type === 'tv' &&
@@ -270,54 +306,40 @@ export class MoviePoster extends HTMLElement {
             }
 
             if (this._movie.media_type === 'tv') {
-                // Используем getShowProgress для получения актуальных данных о прогрессе
-                // Это более надежный способ, который работает с любой структурой данных
-                try {
-                    const progress = await userMoviesService.getShowProgress(this._movie.id);
-                    if (progress && progress.totalEpisodes > 0) {
-                        this._mediaPoster.setAttribute('watched-episodes', progress.watchedEpisodes || 0);
-                        this._mediaPoster.setAttribute('total-episodes', progress.totalEpisodes);
-                    } else {
-                        // Если нет данных о прогрессе, пытаемся подсчитать вручную
-                        const totalEpisodes = this._movie.seasons
-                            ?.filter(season => season.season_number > 0)
-                            .reduce((total, season) => {
-                                const episodeCount = season.episodes?.length || season.episode_count || 0;
-                                return total + episodeCount;
-                            }, 0) || 0;
+                // Подсчитываем прогресс на основе уже загруженных данных
+                const totalEpisodes = this._movie.seasons
+                    ?.filter(season => season.season_number > 0)
+                    .reduce((total, season) => {
+                        const episodeCount = season.episodes?.length || season.episode_count || 0;
+                        return total + episodeCount;
+                    }, 0) || 0;
 
-                        let watchedEpisodes = 0;
-                        if (this._movie.seasons) {
-                            this._movie.seasons.forEach(season => {
-                                if (season.season_number > 0) {
-                                    const episodeCount = season.episodes?.length || season.episode_count || 0;
-                                    for (let i = 1; i <= episodeCount; i++) {
-                                        if (userMoviesService.isEpisodeWatched(
-                                            this._movie.id,
-                                            season.season_number,
-                                            i
-                                        )) {
-                                            watchedEpisodes++;
-                                        }
-                                    }
+                let watchedEpisodes = 0;
+                if (this._movie.seasons) {
+                    this._movie.seasons.forEach(season => {
+                        if (season.season_number > 0) {
+                            const episodeCount = season.episodes?.length || season.episode_count || 0;
+                            for (let i = 1; i <= episodeCount; i++) {
+                                if (userMoviesService.isEpisodeWatched(
+                                    this._movie.id,
+                                    season.season_number,
+                                    i
+                                )) {
+                                    watchedEpisodes++;
                                 }
-                            });
+                            }
                         }
+                    });
+                }
 
-                        if (totalEpisodes > 0) {
-                            this._mediaPoster.setAttribute('watched-episodes', watchedEpisodes);
-                            this._mediaPoster.setAttribute('total-episodes', totalEpisodes);
-                        } else {
-                            this._mediaPoster.removeAttribute('watched-episodes');
-                            this._mediaPoster.removeAttribute('total-episodes');
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error getting show progress:', error);
-                    // В случае ошибки убираем атрибуты
+                if (totalEpisodes > 0) {
+                    this._mediaPoster.setAttribute('watched-episodes', watchedEpisodes);
+                    this._mediaPoster.setAttribute('total-episodes', totalEpisodes);
+                } else {
                     this._mediaPoster.removeAttribute('watched-episodes');
                     this._mediaPoster.removeAttribute('total-episodes');
                 }
+                
                 // Убираем user-rating для сериалов, чтобы не показывать бейдж рейтинга
                 this._mediaPoster.removeAttribute('user-rating');
             } else {

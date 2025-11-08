@@ -25,7 +25,6 @@ export class MoviesScreen extends HTMLElement {
     }
 
     async connectedCallback() {
-        console.log('MoviesScreen connecting...');
         // Добавляем слушатели при подключении
         document.addEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
         document.addEventListener('movie-list-changed', this._boundHandlers.movieListChanged);

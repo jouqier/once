@@ -978,6 +978,40 @@ self.addEventListener('install', event => {
 
 ISC
 
+## 🆕 Версия 1.2 - Разделение хранилищ
+
+**Важное обновление!** В версии 1.2 фильмы и сериалы хранятся в отдельных структурах данных.
+
+### Что изменилось?
+
+- ✅ **Фильмы** теперь имеют только 2 состояния: `want` и `watched`
+- ✅ **Сериалы** имеют 3 состояния: `want`, `watching` и `watched`
+- ✅ **Автоматическая миграция** данных при первом запуске
+- ✅ **Новые методы API** для работы с сериалами
+
+### Для разработчиков
+
+```javascript
+// Для фильмов
+userMoviesService.getMovieState(movieId)
+userMoviesService.addToWant(movie)
+userMoviesService.addToWatched(movie)
+
+// Для сериалов (новые методы)
+userMoviesService.getTVShowState(showId)
+userMoviesService.addTVShowToWant(show)
+userMoviesService.addTVShowToWatching(show)
+userMoviesService.addTVShowToWatched(show)
+```
+
+📖 **Подробнее**: 
+- [Краткая справка API](./docs/API_CHANGES_v1.2.md)
+- [Полная документация](./docs/STORAGE_SEPARATION.md)
+- [Резюме миграции](./docs/MIGRATION_SUMMARY.md)
+- [Changelog](./CHANGELOG.md)
+
+---
+
 ## 📚 Документация
 
 ### Прямые ссылки и шаринг

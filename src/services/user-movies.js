@@ -6,16 +6,13 @@ export class UserMoviesService {
         this._store = userDataStore;
     }
 
+    // Методы для фильмов (только want и watched)
     getMovieState(movieId) {
         const wantList = this._store.getMovies('want');
         const watchedList = this._store.getMovies('watched');
-        const watchingList = this._store.getMovies('watching');
 
         if (watchedList.find(m => m.id === movieId)) {
             return 'watched';
-        }
-        if (watchingList && watchingList.find(m => m.id === movieId)) {
-            return 'watching';
         }
         if (wantList.find(m => m.id === movieId)) {
             return 'want';
@@ -24,15 +21,15 @@ export class UserMoviesService {
     }
 
     addToWant(movie) {
+        // Убеждаемся что это фильм
+        if (!movie.media_type) movie.media_type = 'movie';
         this._store.addMovie('want', movie);
     }
 
     addToWatched(movie) {
+        // Убеждаемся что это фильм
+        if (!movie.media_type) movie.media_type = 'movie';
         this._store.addMovie('watched', movie);
-    }
-
-    addToWatching(movie) {
-        this._store.addMovie('watching', movie);
     }
 
     removeFromWant(movieId) {
@@ -43,8 +40,52 @@ export class UserMoviesService {
         this._store.removeMovie('watched', movieId);
     }
 
-    removeFromWatching(movieId) {
-        this._store.removeMovie('watching', movieId);
+    // Методы для сериалов (want, watching, watched)
+    getTVShowState(showId) {
+        const wantList = this._store.getTVShows('want');
+        const watchingList = this._store.getTVShows('watching');
+        const watchedList = this._store.getTVShows('watched');
+
+        if (watchedList.find(s => s.id === showId)) {
+            return 'watched';
+        }
+        if (watchingList.find(s => s.id === showId)) {
+            return 'watching';
+        }
+        if (wantList.find(s => s.id === showId)) {
+            return 'want';
+        }
+        return 'none';
+    }
+
+    addTVShowToWant(show) {
+        // Убеждаемся что это сериал
+        if (!show.media_type) show.media_type = 'tv';
+        this._store.addTVShow('want', show);
+    }
+
+    addTVShowToWatching(show) {
+        // Убеждаемся что это сериал
+        if (!show.media_type) show.media_type = 'tv';
+        this._store.addTVShow('watching', show);
+    }
+
+    addTVShowToWatched(show) {
+        // Убеждаемся что это сериал
+        if (!show.media_type) show.media_type = 'tv';
+        this._store.addTVShow('watched', show);
+    }
+
+    removeTVShowFromWant(showId) {
+        this._store.removeTVShow('want', showId);
+    }
+
+    removeTVShowFromWatching(showId) {
+        this._store.removeTVShow('watching', showId);
+    }
+
+    removeTVShowFromWatched(showId) {
+        this._store.removeTVShow('watched', showId);
     }
 
     isEpisodeWatched(tvId, seasonNumber, episodeNumber) {
@@ -76,6 +117,7 @@ export class UserMoviesService {
         return watchedEpisodes.length === totalEpisodes;
     }
 
+    // Получение списков фильмов
     getWantList() {
         return this._store.getMovies('want');
     }
@@ -84,8 +126,17 @@ export class UserMoviesService {
         return this._store.getMovies('watched');
     }
 
-    getWatchingList() {
-        return this._store.getMovies('watching');
+    // Получение списков сериалов
+    getTVShowWantList() {
+        return this._store.getTVShows('want');
+    }
+
+    getTVShowWatchingList() {
+        return this._store.getTVShows('watching');
+    }
+
+    getTVShowWatchedList() {
+        return this._store.getTVShows('watched');
     }
 
     hasAnyWatchedEpisodes(tvId) {

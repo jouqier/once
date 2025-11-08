@@ -18,7 +18,7 @@ class UserDataStore {
         }
         
         this._userId = userId;
-        this._version = '1.1'; // Обновлена версия
+        this._version = '1.2'; // Обновлена версия - разделение хранилищ
         this._store = this._initStore();
         
         // Добавляем обработчик обновления данных пользователя
@@ -66,10 +66,12 @@ class UserDataStore {
             movies: {
                 want: [],
                 watched: [],
-                watching: [],
                 reviews: {}
             },
             tvShows: {
+                want: [],
+                watching: [],
+                watched: [],
                 episodes: {},
                 seasonReviews: {},
                 reviews: {}
@@ -92,8 +94,14 @@ class UserDataStore {
         }
     }
 
-    // Методы для работы с фильмами
+    // Методы для работы с фильмами (только want и watched)
     getMovies(type) {
+        // Валидация: фильмы не могут быть в watching
+        if (type === 'watching') {
+            console.warn('Фильмы не могут быть в состоянии watching');
+            return [];
+        }
+
         // Валидация структуры
         if (!this._store.movies || !Array.isArray(this._store.movies[type])) {
             console.warn(`Некорректная структура movies.${type}, инициализация...`);
@@ -105,9 +113,21 @@ class UserDataStore {
     }
 
     addMovie(type, movie) {
+        // Валидация: фильмы не могут быть в watching
+        if (type === 'watching') {
+            console.error('Фильмы не могут быть в состоянии watching');
+            return;
+        }
+
         // Валидация входных данных
         if (!movie || !movie.id) {
             console.error('Попытка добавить некорректный фильм:', movie);
+            return;
+        }
+
+        // Валидация: только фильмы
+        if (movie.media_type === 'tv') {
+            console.error('Попытка добавить сериал в список фильмов. Используйте addTVShow()');
             return;
         }
 
@@ -127,6 +147,12 @@ class UserDataStore {
     }
 
     removeMovie(type, movieId) {
+        // Валидация: фильмы не могут быть в watching
+        if (type === 'watching') {
+            console.warn('Фильмы не могут быть в состоянии watching');
+            return;
+        }
+
         // Валидация структуры
         if (!this._store.movies || !Array.isArray(this._store.movies[type])) {
             console.warn(`Некорректная структура movies.${type} при удалении`);
@@ -140,6 +166,63 @@ class UserDataStore {
         // Отправляем событие об изменении списка
         if (movie) {
             this._dispatchListChangedEvent(type, 'removed', movie);
+        }
+    }
+
+    // Методы для работы с сериалами (want, watching, watched)
+    getTVShows(type) {
+        // Валидация структуры
+        if (!this._store.tvShows || !Array.isArray(this._store.tvShows[type])) {
+            console.warn(`Некорректная структура tvShows.${type}, инициализация...`);
+            if (!this._store.tvShows) this._store.tvShows = {};
+            this._store.tvShows[type] = [];
+            this._saveStore(this._store);
+        }
+        return this._store.tvShows[type] || [];
+    }
+
+    addTVShow(type, show) {
+        // Валидация входных данных
+        if (!show || !show.id) {
+            console.error('Попытка добавить некорректный сериал:', show);
+            return;
+        }
+
+        // Валидация: только сериалы
+        if (show.media_type === 'movie') {
+            console.error('Попытка добавить фильм в список сериалов. Используйте addMovie()');
+            return;
+        }
+
+        // Валидация структуры
+        if (!this._store.tvShows || !Array.isArray(this._store.tvShows[type])) {
+            if (!this._store.tvShows) this._store.tvShows = {};
+            this._store.tvShows[type] = [];
+        }
+
+        if (!this._store.tvShows[type].find(s => s.id === show.id)) {
+            this._store.tvShows[type].push(show);
+            this._saveStore(this._store);
+            
+            // Отправляем событие об изменении списка
+            this._dispatchListChangedEvent(type, 'added', show);
+        }
+    }
+
+    removeTVShow(type, showId) {
+        // Валидация структуры
+        if (!this._store.tvShows || !Array.isArray(this._store.tvShows[type])) {
+            console.warn(`Некорректная структура tvShows.${type} при удалении`);
+            return;
+        }
+
+        const show = this._store.tvShows[type].find(s => s.id === showId);
+        this._store.tvShows[type] = this._store.tvShows[type].filter(s => s.id !== showId);
+        this._saveStore(this._store);
+        
+        // Отправляем событие об изменении списка
+        if (show) {
+            this._dispatchListChangedEvent(type, 'removed', show);
         }
     }
 

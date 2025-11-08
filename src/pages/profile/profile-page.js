@@ -121,16 +121,17 @@ export class ProfileScreen extends HTMLElement {
     }
 
     async loadStats() {
-        // Получаем списки
-        const wantList = userMoviesService.getWantList() || [];
-        const watchedList = userMoviesService.getWatchedList() || [];
-        const watchingList = userMoviesService.getWatchingList() || [];
+        // Получаем списки фильмов
+        const moviesWant = userMoviesService.getWantList() || [];
+        const moviesWatched = userMoviesService.getWatchedList() || [];
 
-        // Фильтруем списки по типу контента
-        const moviesInWant = wantList.filter(item => item.media_type === 'movie');
-        const moviesInWatched = watchedList.filter(item => item.media_type === 'movie');
-        const allTVShows = [...wantList, ...watchedList, ...watchingList]
-            .filter(item => item.media_type === 'tv')
+        // Получаем списки сериалов
+        const tvWant = userMoviesService.getTVShowWantList() || [];
+        const tvWatching = userMoviesService.getTVShowWatchingList() || [];
+        const tvWatched = userMoviesService.getTVShowWatchedList() || [];
+
+        // Объединяем все сериалы и удаляем дубликаты
+        const allTVShows = [...tvWant, ...tvWatching, ...tvWatched]
             .filter((item, index, self) => 
                 index === self.findIndex((t) => t.id === item.id)
             );
@@ -140,8 +141,8 @@ export class ProfileScreen extends HTMLElement {
             place: 481516,
             following: 23,
             followers: 42,
-            want: moviesInWant.length,
-            watched: moviesInWatched.length,
+            want: moviesWant.length,
+            watched: moviesWatched.length,
             tvShows: allTVShows.length
         };
     }
@@ -455,17 +456,20 @@ export class ProfileScreen extends HTMLElement {
     async _renderContent() {
         const activeTab = this._activeTab.toLowerCase();
         
-        // Получаем исходные списки
-        const wantList = userMoviesService.getWantList() || [];
-        const watchedList = userMoviesService.getWatchedList() || [];
-        const watchingList = userMoviesService.getWatchingList() || [];
+        // Получаем списки фильмов
+        const moviesWant = userMoviesService.getWantList() || [];
+        const moviesWatched = userMoviesService.getWatchedList() || [];
         
-        // Фильтруем списки по типу контента
+        // Получаем списки сериалов
+        const tvWant = userMoviesService.getTVShowWantList() || [];
+        const tvWatching = userMoviesService.getTVShowWatchingList() || [];
+        const tvWatched = userMoviesService.getTVShowWatchedList() || [];
+        
+        // Формируем списки для отображения
         const lists = {
-            want: wantList.filter(item => item.media_type === 'movie'),
-            watched: watchedList.filter(item => item.media_type === 'movie'),
-            tvshows: [...wantList, ...watchedList, ...watchingList]
-                .filter(item => item.media_type === 'tv')
+            want: moviesWant,
+            watched: moviesWatched,
+            tvshows: [...tvWant, ...tvWatching, ...tvWatched]
                 .filter((item, index, self) => 
                     index === self.findIndex((t) => t.id === item.id)
                 )

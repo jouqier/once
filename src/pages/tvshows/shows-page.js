@@ -82,9 +82,9 @@ export class TVShowsScreen extends HTMLElement {
 
     async _reloadRecommendations() {
         try {
-            const wantList = userMoviesService.getWantList();
-            const watchedList = userMoviesService.getWatchedList();
-            const watchingList = userMoviesService.getWatchingList();
+            const wantList = userMoviesService.getTVShowWantList();
+            const watchedList = userMoviesService.getTVShowWatchedList();
+            const watchingList = userMoviesService.getTVShowWatchingList();
             
             const recommended = await TMDBService.getPersonalizedTVRecommendations(wantList, watchedList, watchingList);
             this._recommendedShows = recommended;
@@ -141,9 +141,9 @@ export class TVShowsScreen extends HTMLElement {
     async loadData() {
         try {
             // Получаем списки пользователя для рекомендаций
-            const wantList = userMoviesService.getWantList();
-            const watchedList = userMoviesService.getWatchedList();
-            const watchingList = userMoviesService.getWatchingList();
+            const wantList = userMoviesService.getTVShowWantList();
+            const watchedList = userMoviesService.getTVShowWatchedList();
+            const watchingList = userMoviesService.getTVShowWatchingList();
 
             // Проверяем наличие данных в localStorage
             const cachedData = localStorage.getItem('tvShowsData');

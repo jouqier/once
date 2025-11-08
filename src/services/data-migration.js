@@ -5,10 +5,11 @@
 
 class DataMigrationService {
     constructor() {
-        this.CURRENT_VERSION = '1.1';
+        this.CURRENT_VERSION = '1.2';
         this.migrations = {
             '1.0': this._migrateFrom1_0.bind(this),
-            '1.1': null // текущая версия, миграция не нужна
+            '1.1': this._migrateFrom1_1.bind(this),
+            '1.2': null // текущая версия, миграция не нужна
         };
     }
 
@@ -35,6 +36,9 @@ class DataMigrationService {
         // Применяем все необходимые миграции по порядку
         if (dataVersion === '1.0') {
             migratedData = this._migrateFrom1_0(migratedData);
+            migratedData = this._migrateFrom1_1(migratedData);
+        } else if (dataVersion === '1.1') {
+            migratedData = this._migrateFrom1_1(migratedData);
         }
 
         // Валидируем после миграции
@@ -129,37 +133,108 @@ class DataMigrationService {
     }
 
     /**
+     * Миграция с версии 1.1 на 1.2
+     * Разделяет хранилища фильмов и сериалов
+     */
+    _migrateFrom1_1(data) {
+        console.log('Применяется миграция 1.1 → 1.2: Разделение хранилищ фильмов и сериалов');
+        
+        const migrated = { ...data };
+
+        // Создаем новую структуру для сериалов
+        if (!migrated.tvShows) {
+            migrated.tvShows = {
+                want: [],
+                watching: [],
+                watched: [],
+                episodes: {},
+                seasonReviews: {},
+                reviews: {}
+            };
+        } else {
+            // Добавляем списки для сериалов, если их нет
+            if (!migrated.tvShows.want) migrated.tvShows.want = [];
+            if (!migrated.tvShows.watching) migrated.tvShows.watching = [];
+            if (!migrated.tvShows.watched) migrated.tvShows.watched = [];
+        }
+
+        // Переносим сериалы из movies в tvShows
+        if (migrated.movies) {
+            ['want', 'watched', 'watching'].forEach(listType => {
+                if (Array.isArray(migrated.movies[listType])) {
+                    // Фильтруем сериалы и переносим их
+                    const tvShows = migrated.movies[listType].filter(item => item.media_type === 'tv');
+                    const movies = migrated.movies[listType].filter(item => item.media_type === 'movie' || !item.media_type);
+                    
+                    // Обновляем список фильмов (только фильмы)
+                    migrated.movies[listType] = movies;
+                    
+                    // Добавляем сериалы в соответствующий список
+                    tvShows.forEach(show => {
+                        if (!migrated.tvShows[listType].find(s => s.id === show.id)) {
+                            migrated.tvShows[listType].push(show);
+                        }
+                    });
+                    
+                    console.log(`Перенесено ${tvShows.length} сериалов из movies.${listType} в tvShows.${listType}`);
+                }
+            });
+
+            // Удаляем watching из movies (фильмы не могут быть в watching)
+            if (migrated.movies.watching) {
+                console.log(`Удалено ${migrated.movies.watching.length} записей из movies.watching (фильмы не могут быть в watching)`);
+                delete migrated.movies.watching;
+            }
+        }
+
+        console.log('Миграция 1.1 → 1.2 завершена');
+        return migrated;
+    }
+
+    /**
      * Валидирует и исправляет структуру данных
      */
     _validateAndFix(data) {
         const fixed = { ...data };
 
-        // Проверяем movies
+        // Проверяем movies (только want и watched, без watching)
         if (!fixed.movies || typeof fixed.movies !== 'object') {
-            fixed.movies = { want: [], watched: [], watching: [], reviews: {} };
+            fixed.movies = { want: [], watched: [], reviews: {} };
         } else {
             if (!Array.isArray(fixed.movies.want)) fixed.movies.want = [];
             if (!Array.isArray(fixed.movies.watched)) fixed.movies.watched = [];
-            if (!Array.isArray(fixed.movies.watching)) fixed.movies.watching = [];
             if (!fixed.movies.reviews || typeof fixed.movies.reviews !== 'object') {
                 fixed.movies.reviews = {};
+            }
+
+            // Удаляем watching из movies (фильмы не могут быть в watching)
+            if (fixed.movies.watching) {
+                delete fixed.movies.watching;
             }
 
             // Удаляем дубликаты
             fixed.movies.want = this._removeDuplicates(fixed.movies.want);
             fixed.movies.watched = this._removeDuplicates(fixed.movies.watched);
-            fixed.movies.watching = this._removeDuplicates(fixed.movies.watching);
 
-            // Удаляем некорректные записи
-            fixed.movies.want = fixed.movies.want.filter(m => m && m.id);
-            fixed.movies.watched = fixed.movies.watched.filter(m => m && m.id);
-            fixed.movies.watching = fixed.movies.watching.filter(m => m && m.id);
+            // Удаляем некорректные записи и сериалы из списков фильмов
+            fixed.movies.want = fixed.movies.want.filter(m => m && m.id && m.media_type !== 'tv');
+            fixed.movies.watched = fixed.movies.watched.filter(m => m && m.id && m.media_type !== 'tv');
         }
 
-        // Проверяем tvShows
+        // Проверяем tvShows (с добавлением списков want, watching, watched)
         if (!fixed.tvShows || typeof fixed.tvShows !== 'object') {
-            fixed.tvShows = { episodes: {}, seasonReviews: {}, reviews: {} };
+            fixed.tvShows = { 
+                want: [], 
+                watching: [], 
+                watched: [], 
+                episodes: {}, 
+                seasonReviews: {}, 
+                reviews: {} 
+            };
         } else {
+            if (!Array.isArray(fixed.tvShows.want)) fixed.tvShows.want = [];
+            if (!Array.isArray(fixed.tvShows.watching)) fixed.tvShows.watching = [];
+            if (!Array.isArray(fixed.tvShows.watched)) fixed.tvShows.watched = [];
             if (!fixed.tvShows.episodes || typeof fixed.tvShows.episodes !== 'object') {
                 fixed.tvShows.episodes = {};
             }
@@ -169,6 +244,16 @@ class DataMigrationService {
             if (!fixed.tvShows.reviews || typeof fixed.tvShows.reviews !== 'object') {
                 fixed.tvShows.reviews = {};
             }
+
+            // Удаляем дубликаты из списков сериалов
+            fixed.tvShows.want = this._removeDuplicates(fixed.tvShows.want);
+            fixed.tvShows.watching = this._removeDuplicates(fixed.tvShows.watching);
+            fixed.tvShows.watched = this._removeDuplicates(fixed.tvShows.watched);
+
+            // Удаляем некорректные записи и фильмы из списков сериалов
+            fixed.tvShows.want = fixed.tvShows.want.filter(s => s && s.id && s.media_type !== 'movie');
+            fixed.tvShows.watching = fixed.tvShows.watching.filter(s => s && s.id && s.media_type !== 'movie');
+            fixed.tvShows.watched = fixed.tvShows.watched.filter(s => s && s.id && s.media_type !== 'movie');
 
             // Очищаем некорректные данные эпизодов
             Object.keys(fixed.tvShows.episodes).forEach(key => {
@@ -223,10 +308,12 @@ class DataMigrationService {
             movies: {
                 want: [],
                 watched: [],
-                watching: [],
                 reviews: {}
             },
             tvShows: {
+                want: [],
+                watching: [],
+                watched: [],
                 episodes: {},
                 seasonReviews: {},
                 reviews: {}

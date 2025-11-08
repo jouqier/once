@@ -36,7 +36,7 @@ export class TVShowActionButtons extends HTMLElement {
     set tvShow(value) {
         this._tvShow = value;
         if (this._tvShow) {
-            this._state = userMoviesService.getMovieState(this._tvShow.id);
+            this._state = userMoviesService.getTVShowState(this._tvShow.id);
             this._updateUI();
         }
     }
@@ -117,7 +117,7 @@ export class TVShowActionButtons extends HTMLElement {
             this._showWantMenu();
         } else {
             // Добавить в Want
-            userMoviesService.addToWant(this._tvShow);
+            userMoviesService.addTVShowToWant(this._tvShow);
             this._activityScreen.addActivity(this._tvShow, 'want');
             this._state = 'want';
             this._updateUI();
@@ -153,19 +153,19 @@ export class TVShowActionButtons extends HTMLElement {
             const action = e.detail.action;
 
             if (action === 'remove-from-want') {
-                userMoviesService.removeFromWant(this._tvShow.id);
+                userMoviesService.removeTVShowFromWant(this._tvShow.id);
                 this._activityScreen.addActivity(this._tvShow, 'removed-from-want');
                 this._state = 'none';
                 this._updateUI();
             } else if (action === 'watching') {
-                userMoviesService.removeFromWant(this._tvShow.id);
-                userMoviesService.addToWatching(this._tvShow);
+                userMoviesService.removeTVShowFromWant(this._tvShow.id);
+                userMoviesService.addTVShowToWatching(this._tvShow);
                 this._activityScreen.addActivity(this._tvShow, 'watching');
                 this._state = 'watching';
                 this._updateUI();
             } else if (action === 'mark-all-watched') {
-                userMoviesService.removeFromWant(this._tvShow.id);
-                userMoviesService.addToWatched(this._tvShow);
+                userMoviesService.removeTVShowFromWant(this._tvShow.id);
+                userMoviesService.addTVShowToWatched(this._tvShow);
                 this._activityScreen.addActivity(this._tvShow, 'watched');
                 this._state = 'watched';
                 this._updateUI();
@@ -188,7 +188,7 @@ export class TVShowActionButtons extends HTMLElement {
             const action = e.detail.action;
 
             if (action === 'remove-from-watching') {
-                userMoviesService.removeFromWatching(this._tvShow.id);
+                userMoviesService.removeTVShowFromWatching(this._tvShow.id);
                 userMoviesService.removeAllSeasonReviews(this._tvShow.id);
                 this._activityScreen.addActivity(this._tvShow, 'removed-from-watching');
                 this._state = 'none';
@@ -196,16 +196,16 @@ export class TVShowActionButtons extends HTMLElement {
                 this._dispatchEvent('tv-action', { tvId: this._tvShow.id, action: 'clear-all-seasons' });
                 this._dispatchEvent('season-reviews-removed', { tvId: this._tvShow.id });
             } else if (action === 'mark-all-watched') {
-                userMoviesService.removeFromWatching(this._tvShow.id);
-                userMoviesService.addToWatched(this._tvShow);
+                userMoviesService.removeTVShowFromWatching(this._tvShow.id);
+                userMoviesService.addTVShowToWatched(this._tvShow);
                 this._activityScreen.addActivity(this._tvShow, 'watched');
                 this._state = 'watched';
                 this._updateUI();
                 this._dispatchEvent('tv-action', { tvId: this._tvShow.id, action: 'mark-all-watched' });
             } else if (action === 'move-to-want') {
-                userMoviesService.removeFromWatching(this._tvShow.id);
+                userMoviesService.removeTVShowFromWatching(this._tvShow.id);
                 userMoviesService.removeAllSeasonReviews(this._tvShow.id);
-                userMoviesService.addToWant(this._tvShow);
+                userMoviesService.addTVShowToWant(this._tvShow);
                 this._activityScreen.addActivity(this._tvShow, 'want');
                 this._state = 'want';
                 this._updateUI();
@@ -236,7 +236,7 @@ export class TVShowActionButtons extends HTMLElement {
             const action = e.detail.action;
 
             if (action === 'remove-from-watched') {
-                userMoviesService.removeFromWatched(this._tvShow.id);
+                userMoviesService.removeTVShowFromWatched(this._tvShow.id);
                 userMoviesService.removeAllSeasonReviews(this._tvShow.id);
                 this._activityScreen.addActivity(this._tvShow, 'removed-from-watched');
                 this._state = 'none';
@@ -244,22 +244,22 @@ export class TVShowActionButtons extends HTMLElement {
                 this._dispatchEvent('tv-action', { tvId: this._tvShow.id, action: 'clear-all-seasons' });
                 this._dispatchEvent('season-reviews-removed', { tvId: this._tvShow.id });
             } else if (action === 'move-to-want') {
-                userMoviesService.removeFromWatched(this._tvShow.id);
+                userMoviesService.removeTVShowFromWatched(this._tvShow.id);
                 userMoviesService.removeAllSeasonReviews(this._tvShow.id);
-                userMoviesService.addToWant(this._tvShow);
+                userMoviesService.addTVShowToWant(this._tvShow);
                 this._activityScreen.addActivity(this._tvShow, 'want');
                 this._state = 'want';
                 this._updateUI();
                 this._dispatchEvent('tv-action', { tvId: this._tvShow.id, action: 'clear-all-seasons' });
                 this._dispatchEvent('season-reviews-removed', { tvId: this._tvShow.id });
             } else if (action === 'mark-all-watched') {
-                userMoviesService.addToWatched(this._tvShow);
+                userMoviesService.addTVShowToWatched(this._tvShow);
                 this._activityScreen.addActivity(this._tvShow, 'watched');
                 this._state = 'watched';
                 this._updateUI();
                 this._dispatchEvent('tv-action', { tvId: this._tvShow.id, action: 'mark-all-watched' });
             } else if (action === 'watching') {
-                userMoviesService.addToWatching(this._tvShow);
+                userMoviesService.addTVShowToWatching(this._tvShow);
                 this._activityScreen.addActivity(this._tvShow, 'watching');
                 this._state = 'watching';
                 this._updateUI();
@@ -276,8 +276,8 @@ export class TVShowActionButtons extends HTMLElement {
 
         // Переход в WATCHING при отметке первого эпизода
         if (checked && (this._state === 'none' || this._state === 'want')) {
-            userMoviesService.removeFromWant(this._tvShow.id);
-            userMoviesService.addToWatching(this._tvShow);
+            userMoviesService.removeTVShowFromWant(this._tvShow.id);
+            userMoviesService.addTVShowToWatching(this._tvShow);
             this._activityScreen.addActivity(this._tvShow, 'watching');
             this._state = 'watching';
             this._updateUI();
@@ -285,8 +285,8 @@ export class TVShowActionButtons extends HTMLElement {
 
         // Переход в WATCHED при отметке последнего эпизода
         if (checked && isLastUnwatched && this._state === 'watching') {
-            userMoviesService.removeFromWatching(this._tvShow.id);
-            userMoviesService.addToWatched(this._tvShow);
+            userMoviesService.removeTVShowFromWatching(this._tvShow.id);
+            userMoviesService.addTVShowToWatched(this._tvShow);
             this._activityScreen.addActivity(this._tvShow, 'watched');
             this._state = 'watched';
             this._updateUI();
@@ -294,8 +294,8 @@ export class TVShowActionButtons extends HTMLElement {
 
         // Переход обратно в WATCHING при снятии отметки
         if (!checked && wasAllWatched && this._state === 'watched') {
-            userMoviesService.removeFromWatched(this._tvShow.id);
-            userMoviesService.addToWatching(this._tvShow);
+            userMoviesService.removeTVShowFromWatched(this._tvShow.id);
+            userMoviesService.addTVShowToWatching(this._tvShow);
             this._state = 'watching';
             this._updateUI();
         }
@@ -308,16 +308,16 @@ export class TVShowActionButtons extends HTMLElement {
 
         if (allEpisodesWatched) {
             // Все эпизоды отмечены → переходим в WATCHED
-            userMoviesService.removeFromWatching(this._tvShow.id);
-            userMoviesService.removeFromWant(this._tvShow.id);
-            userMoviesService.addToWatched(this._tvShow);
+            userMoviesService.removeTVShowFromWatching(this._tvShow.id);
+            userMoviesService.removeTVShowFromWant(this._tvShow.id);
+            userMoviesService.addTVShowToWatched(this._tvShow);
             this._activityScreen.addActivity(this._tvShow, 'watched');
             this._state = 'watched';
             this._updateUI();
         } else if (this._state === 'none' || this._state === 'want') {
             // Не все эпизоды отмечены, но есть просмотренные → переходим в WATCHING
-            userMoviesService.removeFromWant(this._tvShow.id);
-            userMoviesService.addToWatching(this._tvShow);
+            userMoviesService.removeTVShowFromWant(this._tvShow.id);
+            userMoviesService.addTVShowToWatching(this._tvShow);
             this._activityScreen.addActivity(this._tvShow, 'watching');
             this._state = 'watching';
             this._updateUI();
@@ -333,13 +333,13 @@ export class TVShowActionButtons extends HTMLElement {
             // Был WATCHED, теперь не все отмечены
             if (hasAnyWatchedEpisodes) {
                 // Есть просмотренные эпизоды → переходим в WATCHING
-                userMoviesService.removeFromWatched(this._tvShow.id);
-                userMoviesService.addToWatching(this._tvShow);
+                userMoviesService.removeTVShowFromWatched(this._tvShow.id);
+                userMoviesService.addTVShowToWatching(this._tvShow);
                 this._state = 'watching';
                 this._updateUI();
             } else {
                 // Нет просмотренных эпизодов → переходим в NONE
-                userMoviesService.removeFromWatched(this._tvShow.id);
+                userMoviesService.removeTVShowFromWatched(this._tvShow.id);
                 this._state = 'none';
                 this._updateUI();
             }

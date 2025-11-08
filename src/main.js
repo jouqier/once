@@ -102,8 +102,6 @@ document.addEventListener('person-selected', (event) => {
 });
 
 function showMainScreen(screenName) {
-    console.log('Showing screen:', screenName);
-    
     const container = document.querySelector('#movies-container');
     container.innerHTML = '';
     
@@ -291,20 +289,17 @@ window.addEventListener('DOMContentLoaded', async () => {
                     localStorage.setItem('app_launched', 'true');
                     // Инициализируем основной экран после закрытия сторис
                     navigationManager.navigateToTab('movies');
-                    showMainScreen('movies');
                 }
             };
             document.body.appendChild(storyViewer);
         } else {
             // Если не первый запуск, сразу показываем основной экран
             navigationManager.navigateToTab('movies');
-            showMainScreen('movies');
         }
         
     } catch (error) {
         console.error('Ошибка инициализации приложения:', error);
         // Если произошла ошибка, все равно показываем основной экран
         navigationManager.navigateToTab('movies');
-        showMainScreen('movies');
     }
 });

@@ -28,11 +28,8 @@ export class TabBar extends HTMLElement {
             tab.classList.toggle('active', tab.dataset.tab === tabName);
         });
 
-        this.dispatchEvent(new CustomEvent('tab-changed', {
-            detail: { tab: tabName },
-            bubbles: true,
-            composed: true
-        }));
+        // Не диспатчим событие здесь, так как setActiveTab вызывается
+        // из обработчика tab-changed в main.js, что создаёт дубликаты
     }
 
     render() {
