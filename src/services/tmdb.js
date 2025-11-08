@@ -38,19 +38,20 @@ class TMDBService {
 
     // Получить популярные фильмы
     static async getPopularMovies(page = 1) {
-        return this.makeRequest('/movie/popular', { page });
+        const data = await this.makeRequest('/movie/popular', { page });
+        return { ...data, results: data.results.slice(0, 15) };
     }
 
     // Получить трендовые фильмы
     static async getTrendingMovies() {
         const data = await this.makeRequest('/trending/movie/day');
-        return data.results;
+        return data.results.slice(0, 15);
     }
 
     // Получить предстоящие фильмы
     static async getUpcomingMovies() {
         const data = await this.makeRequest('/movie/upcoming');
-        return data.results;
+        return data.results.slice(0, 15);
     }
 
     // Получить детали фильма
@@ -160,7 +161,7 @@ class TMDBService {
 
     static async getTrendingTV() {
         const data = await this.makeRequest('/trending/tv/day');
-        return data.results;
+        return data.results.slice(0, 15);
     }
 
     static async getAnticipatedTV() {
@@ -169,17 +170,18 @@ class TMDBService {
     }
 
     static async getPopularTV() {
-        return this.makeRequest('/tv/popular');
+        const data = await this.makeRequest('/tv/popular');
+        return { ...data, results: data.results.slice(0, 15) };
     }
 
     static async getAiringTodayTV() {
         const data = await this.makeRequest('/tv/airing_today');
-        return data.results;
+        return data.results.slice(0, 15);
     }
 
     static async getTopRatedTV() {
         const data = await this.makeRequest('/tv/top_rated');
-        return data.results;
+        return data.results.slice(0, 15);
     }
 
     static async getOnTheAirTV() {
@@ -324,7 +326,7 @@ class TMDBService {
         try {
             const upcoming = await this.makeRequest('/movie/upcoming');
             const moviesWithTrailers = await Promise.all(
-                upcoming.results.slice(0, 20).map(async movie => {
+                upcoming.results.slice(0, 10).map(async movie => {
                     const videos = await this.makeRequest(`/movie/${movie.id}/videos`);
                     const trailer = videos.results.find(
                         video => video.type === 'Trailer' && video.site === 'YouTube'
@@ -346,7 +348,7 @@ class TMDBService {
         try {
             const popular = await this.makeRequest('/tv/popular');
             const showsWithTrailers = await Promise.all(
-                popular.results.slice(0, 20).map(async show => {
+                popular.results.slice(0, 10).map(async show => {
                     const videos = await this.makeRequest(`/tv/${show.id}/videos`);
                     const trailer = videos.results.find(
                         video => video.type === 'Trailer' && video.site === 'YouTube'
@@ -369,7 +371,7 @@ class TMDBService {
         try {
             const trending = await this.makeRequest('/trending/tv/day');
             const showsWithTrailers = await Promise.all(
-                trending.results.slice(0, 20).map(async show => {
+                trending.results.slice(0, 10).map(async show => {
                     const videos = await this.makeRequest(`/tv/${show.id}/videos`);
                     const trailer = videos.results.find(
                         video => video.type === 'Trailer' && video.site === 'YouTube'

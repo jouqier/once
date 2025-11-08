@@ -93,8 +93,7 @@ export class TabBar extends HTMLElement {
             <div class="tab-bar">
                 <a class="tab-item" data-tab="profile">
                     <svg class="tab-icon" viewBox="0 0 24 24" fill="none">
-                        <path d="M12.6002 15C9.43012 15 6.61099 16.5306 4.81619 18.906C4.4299 19.4172 4.23675 19.6728 4.24307 20.0183C4.24795 20.2852 4.41555 20.6219 4.62556 20.7867C4.89738 21 5.27406 21 6.02742 21H19.173C19.9263 21 20.303 21 20.5748 20.7867C20.7848 20.6219 20.9524 20.2852 20.9573 20.0183C20.9636 19.6728 20.7705 19.4172 20.3842 18.906C18.5894 16.5306 15.7703 15 12.6002 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M12.6002 12C15.0855 12 17.1002 9.98528 17.1002 7.5C17.1002 5.01472 15.0855 3 12.6002 3C10.1149 3 8.10019 5.01472 8.10019 7.5C8.10019 9.98528 10.1149 12 12.6002 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M3 20C5.33579 17.5226 8.50702 16 12 16C15.493 16 18.6642 17.5226 21 20M16.5 7.5C16.5 9.98528 14.4853 12 12 12C9.51472 12 7.5 9.98528 7.5 7.5C7.5 5.01472 9.51472 3 12 3C14.4853 3 16.5 5.01472 16.5 7.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                     <span class="tab-label">${i18n.t('profile')}</span>
                 </a>
