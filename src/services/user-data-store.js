@@ -120,6 +120,9 @@ class UserDataStore {
         if (!this._store.movies[type].find(m => m.id === movie.id)) {
             this._store.movies[type].push(movie);
             this._saveStore(this._store);
+            
+            // Отправляем событие об изменении списка
+            this._dispatchListChangedEvent(type, 'added', movie);
         }
     }
 
@@ -130,8 +133,28 @@ class UserDataStore {
             return;
         }
 
+        const movie = this._store.movies[type].find(m => m.id === movieId);
         this._store.movies[type] = this._store.movies[type].filter(m => m.id !== movieId);
         this._saveStore(this._store);
+        
+        // Отправляем событие об изменении списка
+        if (movie) {
+            this._dispatchListChangedEvent(type, 'removed', movie);
+        }
+    }
+
+    _dispatchListChangedEvent(listType, action, movie) {
+        const event = new CustomEvent('movie-list-changed', {
+            detail: {
+                listType,
+                action,
+                movie,
+                timestamp: Date.now()
+            },
+            bubbles: true,
+            composed: true
+        });
+        document.dispatchEvent(event);
     }
 
     // Методы для работы с сериалами

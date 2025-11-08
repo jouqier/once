@@ -17,11 +17,13 @@ export class TVShowsScreen extends HTMLElement {
         this._popularShows = [];
         this._upcomingTrailers = [];
         this._recommendedShows = [];
+        this._dataLoaded = false;
         
         // Сохраняем bound функции для правильной очистки слушателей
         this._boundHandlers = {
             seasonReviewSubmitted: this._handleSeasonReviewSubmitted.bind(this),
-            episodeStatusChanged: this._handleEpisodeStatusChanged.bind(this)
+            episodeStatusChanged: this._handleEpisodeStatusChanged.bind(this),
+            movieListChanged: this._handleMovieListChanged.bind(this)
         };
         
         this.shadowRoot.innerHTML = this._getLoadingTemplate();
@@ -31,15 +33,75 @@ export class TVShowsScreen extends HTMLElement {
         // Добавляем слушатели при подключении
         document.addEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
         document.addEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+        document.addEventListener('movie-list-changed', this._boundHandlers.movieListChanged);
         
-        this.loadData().then(() => this.render());
-        this._preloadShowProgress();
+        // Инвалидируем кеш рекомендаций при каждом переходе на экран
+        const cachedData = localStorage.getItem('tvShowsData');
+        if (cachedData) {
+            try {
+                const parsed = JSON.parse(cachedData);
+                if (parsed.recommended) {
+                    parsed.recommended = null;
+                    localStorage.setItem('tvShowsData', JSON.stringify(parsed));
+                }
+            } catch (e) {
+                console.error('Error invalidating TV recommendations cache:', e);
+            }
+        }
+        
+        if (!this._dataLoaded) {
+            await this.loadData();
+            this._dataLoaded = true;
+            this._preloadShowProgress();
+        } else {
+            // Если данные уже загружены, обновляем только рекомендации
+            await this._reloadRecommendations();
+        }
+        
+        this.render();
     }
 
     disconnectedCallback() {
         // Удаляем слушатели при отключении компонента
         document.removeEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
         document.removeEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
+        document.removeEventListener('movie-list-changed', this._boundHandlers.movieListChanged);
+    }
+
+    _handleMovieListChanged(event) {
+        // Инвалидируем кеш рекомендаций
+        const cachedData = localStorage.getItem('tvShowsData');
+        if (cachedData) {
+            const parsed = JSON.parse(cachedData);
+            parsed.recommended = null;
+            localStorage.setItem('tvShowsData', JSON.stringify(parsed));
+        }
+        // Перезагружаем рекомендации
+        this._reloadRecommendations();
+    }
+
+    async _reloadRecommendations() {
+        try {
+            const wantList = userMoviesService.getWantList();
+            const watchedList = userMoviesService.getWatchedList();
+            const watchingList = userMoviesService.getWatchingList();
+            
+            const recommended = await TMDBService.getPersonalizedTVRecommendations(wantList, watchedList, watchingList);
+            this._recommendedShows = recommended;
+            
+            // Обновляем кеш
+            const cachedData = localStorage.getItem('tvShowsData');
+            if (cachedData) {
+                const parsed = JSON.parse(cachedData);
+                parsed.recommended = recommended;
+                localStorage.setItem('tvShowsData', JSON.stringify(parsed));
+            }
+            
+            // Перерендериваем страницу
+            this.render();
+        } catch (error) {
+            console.error('Error reloading TV recommendations:', error);
+        }
     }
 
     async _handleSeasonReviewSubmitted(event) {
@@ -83,17 +145,10 @@ export class TVShowsScreen extends HTMLElement {
             const watchedList = userMoviesService.getWatchedList();
             const watchingList = userMoviesService.getWatchingList();
 
-            console.log('TV Shows user lists:', { 
-                want: wantList.length, 
-                watched: watchedList.length, 
-                watching: watchingList.length 
-            });
-
             // Проверяем наличие данных в localStorage
             const cachedData = localStorage.getItem('tvShowsData');
             if (cachedData) {
                 const parsed = JSON.parse(cachedData);
-                console.log('Using cached TV shows data, recommended count:', parsed.recommended?.length || 0);
                 
                 this._trendingShows = parsed.trending;
                 this._anticipatedShows = parsed.anticipated;
@@ -104,10 +159,8 @@ export class TVShowsScreen extends HTMLElement {
                 // Если в кеше нет рекомендаций, но есть списки пользователя - загружаем рекомендации
                 if ((!parsed.recommended || parsed.recommended.length === 0) && 
                     (wantList.length > 0 || watchedList.length > 0 || watchingList.length > 0)) {
-                    console.log('Cache missing recommendations, fetching...');
                     const recommended = await TMDBService.getPersonalizedTVRecommendations(wantList, watchedList, watchingList);
                     this._recommendedShows = recommended;
-                    console.log('Fetched TV recommendations:', recommended.length);
                     
                     // Обновляем кеш
                     localStorage.setItem('tvShowsData', JSON.stringify({
@@ -128,8 +181,6 @@ export class TVShowsScreen extends HTMLElement {
                 TMDBService.getTrendingTVWithTrailers(),
                 TMDBService.getPersonalizedTVRecommendations(wantList, watchedList, watchingList)
             ]);
-
-            console.log('Loaded fresh TV data, recommended count:', recommended.length);
 
             this._trendingShows = trending;
             this._anticipatedShows = popular?.results || [];

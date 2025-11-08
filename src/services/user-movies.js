@@ -128,9 +128,6 @@ export class UserMoviesService {
             const details = await TMDBService.getTVDetails(tvId);
             if (!details || !details.seasons) return null;
 
-            // Ищем первую доступную оценку сезона
-            const rating = this._getFirstAvailableRating(tvId);
-
             // Считаем общее количество эпизодов во всех сезонах
             const totalEpisodes = details.seasons.reduce((total, season) => {
                 if (season.season_number === 0) return total;
@@ -154,45 +151,12 @@ export class UserMoviesService {
 
             return {
                 watchedEpisodes: watchedCount,
-                totalEpisodes: totalEpisodes,
-                rating: rating
+                totalEpisodes: totalEpisodes
             };
         } catch (error) {
             console.error('Error getting show progress:', error);
             return null;
         }
-    }
-
-    _getFirstAvailableRating(tvId) {
-        console.log('Checking ratings for TV show:', tvId);
-
-        // Получаем все оценки сезонов из seasonReviews
-        const seasonReviews = this._store._store.tvShows?.seasonReviews;
-        if (seasonReviews) {
-            // Ищем все оценки для данного сериала
-            const seasonKeys = Object.keys(seasonReviews)
-                .filter(key => key.startsWith(`${tvId}_`))
-                .sort((a, b) => {
-                    const seasonA = parseInt(a.split('_')[1]);
-                    const seasonB = parseInt(b.split('_')[1]);
-                    return seasonA - seasonB;
-                });
-
-            // Возвращаем первую найденную оценку
-            for (const key of seasonKeys) {
-                const review = seasonReviews[key];
-                if (review?.rating) {
-                    console.log(`Found rating ${review.rating} for season key ${key}`);
-                    return review.rating;
-                }
-            }
-        }
-
-        // Если нет оценок сезонов, проверяем общую оценку сериала
-        const showReview = this._store.getReview('tv', tvId);
-        console.log('Show review:', showReview);
-        
-        return showReview?.rating || null;
     }
 
     async getBatchShowProgress(showIds) {
@@ -206,7 +170,6 @@ export class UserMoviesService {
                 if (!details || !details.seasons) return null;
 
                 const tvId = showIds[index];
-                const rating = this._getFirstAvailableRating(tvId);
 
                 // Считаем общее количество эпизодов
                 const totalEpisodes = details.seasons.reduce((total, season) => {
@@ -232,8 +195,7 @@ export class UserMoviesService {
                 return {
                     showId: tvId,
                     watchedEpisodes: watchedCount,
-                    totalEpisodes: totalEpisodes,
-                    rating: rating
+                    totalEpisodes: totalEpisodes
                 };
             });
         } catch (error) {

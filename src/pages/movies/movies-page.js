@@ -19,7 +19,8 @@ export class MoviesScreen extends HTMLElement {
         
         // Сохраняем bound функции для правильной очистки слушателей
         this._boundHandlers = {
-            reviewSubmitted: this._handleReviewSubmitted.bind(this)
+            reviewSubmitted: this._handleReviewSubmitted.bind(this),
+            movieListChanged: this._handleMovieListChanged.bind(this)
         };
     }
 
@@ -27,11 +28,20 @@ export class MoviesScreen extends HTMLElement {
         console.log('MoviesScreen connecting...');
         // Добавляем слушатели при подключении
         document.addEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+        document.addEventListener('movie-list-changed', this._boundHandlers.movieListChanged);
+        
+        // Инвалидируем кеш рекомендаций при каждом переходе на экран
+        if (MoviesScreen._cache && MoviesScreen._cache.recommended) {
+            MoviesScreen._cache.recommended = null;
+        }
         
         try {
             if (!this._dataLoaded) {
                 await this.loadData();
                 this._dataLoaded = true;
+            } else {
+                // Если данные уже загружены, обновляем только рекомендации
+                await this._reloadRecommendations();
             }
             this.render();
         } catch (error) {
@@ -42,6 +52,40 @@ export class MoviesScreen extends HTMLElement {
     disconnectedCallback() {
         // Удаляем слушатели при отключении компонента
         document.removeEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
+        document.removeEventListener('movie-list-changed', this._boundHandlers.movieListChanged);
+    }
+
+    _handleMovieListChanged(event) {
+        // Инвалидируем кеш рекомендаций
+        if (MoviesScreen._cache) {
+            MoviesScreen._cache.recommended = null;
+        }
+        // Перезагружаем рекомендации
+        this._reloadRecommendations();
+    }
+
+    async _reloadRecommendations() {
+        try {
+            const wantList = userMoviesService.getWantList();
+            const watchedList = userMoviesService.getWatchedList();
+            
+            const recommended = await TMDBService.getPersonalizedRecommendations(wantList, watchedList);
+            const recommendedWithRatings = recommended.map(movie => ({
+                ...movie,
+                userRating: userMoviesService.getReview('movie', movie.id)?.rating
+            }));
+            
+            this._recommendedMovies = recommendedWithRatings;
+            
+            if (MoviesScreen._cache) {
+                MoviesScreen._cache.recommended = recommendedWithRatings;
+            }
+            
+            // Перерендериваем страницу
+            this.render();
+        } catch (error) {
+            console.error('Error reloading recommendations:', error);
+        }
     }
 
     _handleReviewSubmitted(event) {
@@ -73,15 +117,9 @@ export class MoviesScreen extends HTMLElement {
             const wantList = userMoviesService.getWantList();
             const watchedList = userMoviesService.getWatchedList();
 
-            console.log('Movies user lists:', { 
-                want: wantList.length, 
-                watched: watchedList.length 
-            });
-
             const cachedData = MoviesScreen._cache;
             
             if (cachedData) {
-                console.log('Using cached movies data, recommended count:', cachedData.recommended?.length || 0);
                 this._trendingMovies = cachedData.trending;
                 this._upcomingMovies = cachedData.upcoming;
                 this._popularMovies = cachedData.popular;
@@ -91,14 +129,12 @@ export class MoviesScreen extends HTMLElement {
                 // Если в кеше нет рекомендаций, но есть списки пользователя - загружаем рекомендации
                 if ((!cachedData.recommended || cachedData.recommended.length === 0) && 
                     (wantList.length > 0 || watchedList.length > 0)) {
-                    console.log('Cache missing recommendations, fetching...');
                     const recommended = await TMDBService.getPersonalizedRecommendations(wantList, watchedList);
                     const recommendedWithRatings = recommended.map(movie => ({
                         ...movie,
                         userRating: userMoviesService.getReview('movie', movie.id)?.rating
                     }));
                     this._recommendedMovies = recommendedWithRatings;
-                    console.log('Fetched movie recommendations:', recommendedWithRatings.length);
                     
                     // Обновляем кеш
                     MoviesScreen._cache.recommended = recommendedWithRatings;
@@ -113,8 +149,6 @@ export class MoviesScreen extends HTMLElement {
                 TMDBService.getUpcomingMoviesWithTrailers(),
                 TMDBService.getPersonalizedRecommendations(wantList, watchedList)
             ]);
-
-            console.log('Loaded fresh movies data, recommended count:', recommended.length);
 
             const moviesWithRatings = {
                 trending: trending.map(movie => ({

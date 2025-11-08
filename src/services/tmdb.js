@@ -23,7 +23,6 @@ class TMDBService {
                 mode: 'cors'
             };
 
-            console.log('Fetching:', url.toString());
             const response = await fetch(url.toString(), options);
             
             if (!response.ok) {
@@ -96,7 +95,7 @@ class TMDBService {
 
             const fullCast = [...directors, ...credits.cast];
 
-            const result = {
+            return {
                 ...details,
                 type,
                 seasons,
@@ -106,9 +105,6 @@ class TMDBService {
                 },
                 recommendations: recommendations.results
             };
-            
-            console.log('Full result:', result); // Для отладки
-            return result;
         } catch (error) {
             console.error('Error fetching full info:', error);
             throw error;
@@ -148,7 +144,6 @@ class TMDBService {
     static async getTVSeasons(tvId) {
         try {
             const details = await this.getTVDetails(tvId);
-            console.log('TV Details:', details);
             
             const regularSeasons = details.seasons.filter(season => season.season_number > 0);
             
@@ -156,9 +151,7 @@ class TMDBService {
                 this.makeRequest(`/tv/${tvId}/season/${season.season_number}`)
             );
 
-            const seasons = await Promise.all(seasonsPromises);
-            console.log('Seasons data:', seasons);
-            return seasons;
+            return await Promise.all(seasonsPromises);
         } catch (error) {
             console.error('Error fetching TV seasons:', error);
             throw error;
@@ -408,24 +401,24 @@ class TMDBService {
                 return [];
             }
 
-            // Объединяем списки и сортируем по рейтингу пользователя
-            const allMovies = [...watchedList, ...wantList]
-                .filter(movie => movie.type === 'movie')
-                .sort((a, b) => {
-                    const ratingA = a.userRating || 0;
-                    const ratingB = b.userRating || 0;
-                    return ratingB - ratingA;
-                });
+            // Объединяем ВСЕ списки для создания полного Set ID пользователя
+            const allUserItems = [...watchedList, ...wantList];
+            
+            // Создаем Set всех ID из списков пользователя (включая фильмы и сериалы)
+            const allUserIds = new Set(allUserItems.map(item => item.id));
 
-            // Берем топ-3 фильма для получения рекомендаций
-            const topMovies = allMovies.slice(0, 3);
+            // Фильтруем только фильмы для получения рекомендаций
+            const allMovies = allUserItems.filter(movie => movie.type === 'movie');
 
-            if (topMovies.length === 0) {
+            if (allMovies.length === 0) {
                 return [];
             }
 
-            // Получаем рекомендации для каждого топ-фильма
-            const recommendationsPromises = topMovies.map(movie => 
+            // Рандомно выбираем 3 фильма из списков
+            const selectedMovies = this._getRandomItems(allMovies, 3);
+
+            // Получаем рекомендации для каждого выбранного фильма
+            const recommendationsPromises = selectedMovies.map(movie => 
                 this.getMovieRecommendations(movie.id)
                     .then(data => data.results || [])
                     .catch(err => {
@@ -439,14 +432,12 @@ class TMDBService {
             // Объединяем все рекомендации
             const allRecommendations = recommendationsArrays.flat();
 
-            // Создаем Set для отслеживания уникальных ID
-            const userMovieIds = new Set(allMovies.map(m => m.id));
             const seenIds = new Set();
             const uniqueRecommendations = [];
 
             // Фильтруем дубликаты и фильмы из списков пользователя
             for (const movie of allRecommendations) {
-                if (!seenIds.has(movie.id) && !userMovieIds.has(movie.id)) {
+                if (!seenIds.has(movie.id) && !allUserIds.has(movie.id)) {
                     seenIds.add(movie.id);
                     uniqueRecommendations.push(movie);
                 }
@@ -458,6 +449,32 @@ class TMDBService {
                 const scoreB = (b.vote_average || 0) * (b.popularity || 0);
                 return scoreB - scoreA;
             });
+
+            // Если после фильтрации осталось меньше чем limit, пытаемся добавить еще
+            if (uniqueRecommendations.length < limit) {
+                const additionalMovies = this._getRandomItems(allMovies, 2);
+                
+                for (const movie of additionalMovies) {
+                    if (uniqueRecommendations.length >= limit) break;
+                    
+                    try {
+                        const moreRecs = await this.getMovieRecommendations(movie.id);
+                        const filtered = (moreRecs.results || []).filter(m => 
+                            !seenIds.has(m.id) && !allUserIds.has(m.id)
+                        );
+                        
+                        for (const rec of filtered) {
+                            if (uniqueRecommendations.length >= limit) break;
+                            if (!seenIds.has(rec.id)) {
+                                seenIds.add(rec.id);
+                                uniqueRecommendations.push(rec);
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error fetching additional recommendations:', err);
+                    }
+                }
+            }
 
             // Возвращаем ограниченное количество
             return uniqueRecommendations.slice(0, limit);
@@ -475,19 +492,24 @@ class TMDBService {
                 return [];
             }
 
-            // Объединяем списки и фильтруем только сериалы
-            const allShows = [...watchedList, ...watchingList, ...wantList]
-                .filter(show => show.type === 'tv');
+            // Объединяем ВСЕ списки для создания полного Set ID пользователя
+            const allUserItems = [...watchedList, ...watchingList, ...wantList];
+            
+            // Создаем Set всех ID из списков пользователя (включая фильмы и сериалы)
+            const allUserIds = new Set(allUserItems.map(item => item.id));
 
-            // Берем топ-3 сериала для получения рекомендаций
-            const topShows = allShows.slice(0, 3);
+            // Фильтруем только сериалы для получения рекомендаций
+            const allShows = allUserItems.filter(show => show.type === 'tv');
 
-            if (topShows.length === 0) {
+            if (allShows.length === 0) {
                 return [];
             }
 
-            // Получаем рекомендации для каждого топ-сериала
-            const recommendationsPromises = topShows.map(show => 
+            // Рандомно выбираем 3 сериала из списков
+            const selectedShows = this._getRandomItems(allShows, 3);
+
+            // Получаем рекомендации для каждого выбранного сериала
+            const recommendationsPromises = selectedShows.map(show => 
                 this.getTVRecommendations(show.id)
                     .then(data => data.results || [])
                     .catch(err => {
@@ -501,14 +523,12 @@ class TMDBService {
             // Объединяем все рекомендации
             const allRecommendations = recommendationsArrays.flat();
 
-            // Создаем Set для отслеживания уникальных ID
-            const userShowIds = new Set(allShows.map(s => s.id));
             const seenIds = new Set();
             const uniqueRecommendations = [];
 
             // Фильтруем дубликаты и сериалы из списков пользователя
             for (const show of allRecommendations) {
-                if (!seenIds.has(show.id) && !userShowIds.has(show.id)) {
+                if (!seenIds.has(show.id) && !allUserIds.has(show.id)) {
                     seenIds.add(show.id);
                     uniqueRecommendations.push(show);
                 }
@@ -521,12 +541,48 @@ class TMDBService {
                 return scoreB - scoreA;
             });
 
+            // Если после фильтрации осталось меньше чем limit, пытаемся добавить еще
+            if (uniqueRecommendations.length < limit) {
+                const additionalShows = this._getRandomItems(allShows, 2);
+                
+                for (const show of additionalShows) {
+                    if (uniqueRecommendations.length >= limit) break;
+                    
+                    try {
+                        const moreRecs = await this.getTVRecommendations(show.id);
+                        const filtered = (moreRecs.results || []).filter(s => 
+                            !seenIds.has(s.id) && !allUserIds.has(s.id)
+                        );
+                        
+                        for (const rec of filtered) {
+                            if (uniqueRecommendations.length >= limit) break;
+                            if (!seenIds.has(rec.id)) {
+                                seenIds.add(rec.id);
+                                uniqueRecommendations.push(rec);
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error fetching additional TV recommendations:', err);
+                    }
+                }
+            }
+
             // Возвращаем ограниченное количество
             return uniqueRecommendations.slice(0, limit);
         } catch (error) {
             console.error('Error getting personalized TV recommendations:', error);
             return [];
         }
+    }
+
+    // Вспомогательная функция для получения случайных элементов из массива
+    static _getRandomItems(array, count) {
+        if (array.length <= count) {
+            return [...array];
+        }
+        
+        const shuffled = [...array].sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, count);
     }
 }
 

@@ -16,7 +16,7 @@ export class I18nService {
 
                 // Profile
                 want: 'Посмотрю',
-                watched: 'Посмотрено',
+                watched: 'Просмотрено',
                 wantListEmpty: 'Список пуст',
                 watchedListEmpty: 'Список пуст',
                 tvShowsListEmpty: 'Список пуст',
@@ -41,7 +41,7 @@ export class I18nService {
                 loading: 'Загрузка...',
 
                 // Reviews
-                reviews: 'Отзывы',
+                reviews: 'Отзывы и оценки',
                 writeReview: 'Напишите свои впечатления...',
                 shareReview: 'Поделиться в истории',
                 submit: 'Отправить',
@@ -140,7 +140,7 @@ export class I18nService {
                 loading: 'Loading...',
 
                 // Reviews
-                reviews: 'Reviews',
+                reviews: 'Reviews and Ratings',
                 writeReview: 'Write your review...',
                 shareReview: 'Share a review',
                 submit: 'Submit',
