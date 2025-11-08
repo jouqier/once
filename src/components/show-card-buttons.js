@@ -241,6 +241,7 @@ export class TVShowActionButtons extends HTMLElement {
                 this._activityScreen.addActivity(this._tvShow, 'removed-from-watched');
                 this._state = 'none';
                 this._updateUI();
+                this._dispatchEvent('tv-action', { tvId: this._tvShow.id, action: 'clear-all-seasons' });
                 this._dispatchEvent('season-reviews-removed', { tvId: this._tvShow.id });
             } else if (action === 'move-to-want') {
                 userMoviesService.removeFromWatched(this._tvShow.id);
@@ -249,6 +250,7 @@ export class TVShowActionButtons extends HTMLElement {
                 this._activityScreen.addActivity(this._tvShow, 'want');
                 this._state = 'want';
                 this._updateUI();
+                this._dispatchEvent('tv-action', { tvId: this._tvShow.id, action: 'clear-all-seasons' });
                 this._dispatchEvent('season-reviews-removed', { tvId: this._tvShow.id });
             } else if (action === 'mark-all-watched') {
                 userMoviesService.addToWatched(this._tvShow);
