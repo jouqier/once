@@ -15,14 +15,14 @@ export class I18nService {
                 activity: 'Активность',
 
                 // Profile
-                want: 'Буду смотреть',
-                watched: 'Посмотрел',
-                wantListEmpty: 'Список "Буду смотреть" пуст',
-                watchedListEmpty: 'Список "Посмотрел" пуст',
-                tvShowsListEmpty: 'Список сериалов пуст',
+                want: 'Посмотрю',
+                watched: 'Посмотрено',
+                wantListEmpty: 'Список пуст',
+                watchedListEmpty: 'Список пуст',
+                tvShowsListEmpty: 'Список пуст',
                 startAddingMovies: 'Начните добавлять фильмы',
-                startAddingToWant: 'Начните добавлять фильмы в желаемое',
-                startAddingToWatched: 'Начните добавлять фильмы в просмотренное',
+                startAddingToWant: 'Отмечайте фильмы которые хотите посмотреть',
+                startAddingToWatched: 'Отмечайте фильмы которые уже смотрели',
                 startAddingTVShows: 'Начните добавлять сериалы в список',
                 browseMovies: 'Смотреть фильмы',
                 browseTVShows: 'Смотреть сериалы',
@@ -30,8 +30,8 @@ export class I18nService {
                 // Movies/TV Shows
                 moviesLabel: 'ФИЛЬМЫ',
                 tvShowsLabel: 'СЕРИАЛЫ',
-                trendingNow: 'В тренде',
-                forYou: 'Для вас',
+                trendingNow: 'Сейчас в тренде',
+                forYou: 'Рекомендации',
                 upcoming: 'Скоро выйдет',
                 mostPopular: 'Популярное',
                 topRated: 'Топ рейтинга',
@@ -42,8 +42,8 @@ export class I18nService {
 
                 // Reviews
                 reviews: 'Отзывы',
-                writeReview: 'Напишите свой отзыв...',
-                shareReview: 'Поделиться отзывом',
+                writeReview: 'Напишите свои впечатления...',
+                shareReview: 'Поделиться в истории',
                 submit: 'Отправить',
                 generatingStory: 'Генерация истории...',
                 sharingStory: 'Публикация истории...',
@@ -52,25 +52,25 @@ export class I18nService {
                 // Share
                 share: 'Поделиться',
                 shareWithPreview: 'Поделиться с превью',
-                shareToTelegram: 'Поделиться в Telegram',
+                shareToTelegram: 'Отправить друзьям',
                 copyLink: 'Скопировать ссылку',
                 somethingWentWrong: 'Что-то пошло не так',
                 season: 'Сезон',
                 user: 'Пользователь',
 
                 // Actions
-                moveToWatched: 'Переместить в "Посмотрел"',
+                moveToWatched: 'Переместить в "Просмотрено"',
                 removeFromWant: 'Удалить из "Буду смотреть"',
                 moveToWant: 'Переместить в "Буду смотреть"',
-                removeFromWatched: 'Удалить из "Посмотрел"',
-                removeFromWatching: 'Удалить из просмотра',
+                removeFromWatched: 'Удалить из "Просмотрено"',
+                removeFromWatching: 'Удалить из "Буду смотреть"',
                 editReview: 'Редактировать отзыв',
                 imWatchingThis: 'Сейчас смотрю',
                 watching: 'Смотрю…',
-                markAllAsWatched: 'Отметить всё как просмотренное',
-                markAllAsUnwatched: 'Отметить всё как непросмотренное',
-                markAsWatched: 'Отметить как просмотренное',
-                markAsUnwatched: 'Отметить как непросмотренное',
+                markAllAsWatched: 'Весь сериал просмотрен',
+                markAllAsUnwatched: 'Весь сериал непросмотрен',
+                markAsWatched: 'Сезон просмотрен',
+                markAsUnwatched: 'Сезон не просмотрен',
 
                 // Search
                 moviesOrTVShows: 'Фильмы или сериалы...',
@@ -103,9 +103,7 @@ export class I18nService {
                 statusEnded: 'Завершён',
                 statusInProgress: 'В производстве',
                 present: 'Настоящее время',
-                markAllAsWatched: 'Смотрел все',
-                markAllAsUnwatched: 'Не смотрел',
-                rateSeason: 'Оценить сезон'
+                rateSeason: 'Оценить'
             },
             en: {
                 // Navigation
@@ -132,7 +130,7 @@ export class I18nService {
                 moviesLabel: 'MOVIES',
                 tvShowsLabel: 'TV SHOWS',
                 trendingNow: 'Trending Now',
-                forYou: 'For You',
+                forYou: 'Recommendation',
                 upcoming: 'Upcoming',
                 mostPopular: 'Most Popular',
                 topRated: 'Top Rated',
@@ -166,12 +164,12 @@ export class I18nService {
                 removeFromWatched: 'Remove from Watched',
                 removeFromWatching: 'Remove from Watching',
                 editReview: 'Edit Review',
-                imWatchingThis: 'I\'m watching this',
+                imWatchingThis: 'I\'m Watching this',
                 watching: 'Watching…',
-                markAllAsWatched: 'Mark all as watched',
-                markAllAsUnwatched: 'Mark all as unwatched',
-                markAsWatched: 'Mark as watched',
-                markAsUnwatched: 'Mark as unwatched',
+                markAllAsWatched: 'Mark all as Watched',
+                markAllAsUnwatched: 'Mark all as Unwatched',
+                markAsWatched: 'Mark as Watched',
+                markAsUnwatched: 'Mark as Unwatched',
 
                 // Search
                 moviesOrTVShows: 'Movies or TV Shows...',
@@ -204,9 +202,7 @@ export class I18nService {
                 statusEnded: 'Ended',
                 statusInProgress: 'In progress',
                 present: 'Present',
-                markAllAsWatched: 'Mark all as Watched',
-                markAllAsUnwatched: 'Mark all as Unwatched',
-                rateSeason: 'Rate season'
+                rateSeason: 'Rate Season'
             }
         };
     }
