@@ -14,7 +14,7 @@
   "license": "ISC",
   "dependencies": {
     "@material/material-color-utilities": "^0.3.0",
-    "@material/web": "^2.2.0",
+    "@material/web": "^2.4.1",
     "html2canvas": "^1.4.1"
   },
   "description": "",

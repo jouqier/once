@@ -234,12 +234,12 @@ export class ProfileScreen extends HTMLElement {
 
                 .content {
                     display: flex;
-                    padding: 8px 0px;
+                    /* padding: 8px 0px; */
                     flex-direction: column;
                     align-items: flex-start;
                     align-self: stretch;
                     border-radius: 36px;
-                    background: var(--md-sys-color-surface);
+                    /* background: var(--md-sys-color-surface); */
                     overflow: hidden;
                 }   
 
