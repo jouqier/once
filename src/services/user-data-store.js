@@ -18,7 +18,7 @@ class UserDataStore {
         }
         
         this._userId = userId;
-        this._version = '1.2'; // Обновлена версия - разделение хранилищ
+        this._version = '1.3'; // Обновлена версия - оптимизация хранения (только ID)
         this._store = this._initStore();
         
         // Добавляем обработчик обновления данных пользователя
@@ -64,14 +64,14 @@ class UserDataStore {
             version: this._version,
             userId: this._userId,
             movies: {
-                want: [],
-                watched: [],
+                want: [],      // Только ID фильмов
+                watched: [],   // Только ID фильмов
                 reviews: {}
             },
             tvShows: {
-                want: [],
-                watching: [],
-                watched: [],
+                want: [],      // Только ID сериалов
+                watching: [],  // Только ID сериалов
+                watched: [],   // Только ID сериалов
                 episodes: {},
                 seasonReviews: {},
                 reviews: {}
@@ -83,14 +83,46 @@ class UserDataStore {
         };
     }
 
+    // Оптимизация: сохраняем только ID вместо полных объектов
+    _extractMovieId(movie) {
+        return typeof movie === 'object' ? movie.id : movie;
+    }
+
     // Старый метод миграции больше не используется
     // Миграция теперь выполняется через dataMigrationService
 
     _saveStore(data) {
         try {
-            localStorage.setItem(`user_data_${this._userId}`, JSON.stringify(data));
+            const jsonData = JSON.stringify(data);
+            const sizeKB = (jsonData.length / 1024).toFixed(2);
+            
+            localStorage.setItem(`user_data_${this._userId}`, jsonData);
+            
+            // Логируем размер данных для мониторинга
+            if (sizeKB > 1000) {
+                console.warn(`⚠️ Размер данных: ${sizeKB} KB (приближается к лимиту)`);
+            }
         } catch (error) {
             console.error('Ошибка сохранения данных:', error);
+            
+            if (error.name === 'QuotaExceededError') {
+                // Показываем пользователю понятное сообщение
+                const message = 'Хранилище переполнено. Пожалуйста, обновите страницу для оптимизации данных.';
+                
+                // Пытаемся показать через Telegram
+                if (window.Telegram?.WebApp?.showAlert) {
+                    window.Telegram.WebApp.showAlert(message);
+                } else {
+                    alert(message);
+                }
+                
+                // Отправляем событие для обработки в UI
+                document.dispatchEvent(new CustomEvent('storage-quota-exceeded', {
+                    detail: { error, userId: this._userId }
+                }));
+            }
+            
+            throw error;
         }
     }
 
@@ -109,7 +141,10 @@ class UserDataStore {
             this._store.movies[type] = [];
             this._saveStore(this._store);
         }
-        return this._store.movies[type] || [];
+        
+        // Нормализуем данные: если хранятся объекты, извлекаем ID
+        const list = this._store.movies[type] || [];
+        return list.map(item => this._extractMovieId(item));
     }
 
     addMovie(type, movie) {
@@ -137,8 +172,10 @@ class UserDataStore {
             this._store.movies[type] = [];
         }
 
-        if (!this._store.movies[type].find(m => m.id === movie.id)) {
-            this._store.movies[type].push(movie);
+        // Сохраняем только ID для экономии места
+        const movieId = this._extractMovieId(movie);
+        if (!this._store.movies[type].includes(movieId)) {
+            this._store.movies[type].push(movieId);
             this._saveStore(this._store);
             
             // Отправляем событие об изменении списка
@@ -159,13 +196,13 @@ class UserDataStore {
             return;
         }
 
-        const movie = this._store.movies[type].find(m => m.id === movieId);
-        this._store.movies[type] = this._store.movies[type].filter(m => m.id !== movieId);
+        const hadMovie = this._store.movies[type].includes(movieId);
+        this._store.movies[type] = this._store.movies[type].filter(id => id !== movieId);
         this._saveStore(this._store);
         
         // Отправляем событие об изменении списка
-        if (movie) {
-            this._dispatchListChangedEvent(type, 'removed', movie);
+        if (hadMovie) {
+            this._dispatchListChangedEvent(type, 'removed', { id: movieId });
         }
     }
 
@@ -178,7 +215,10 @@ class UserDataStore {
             this._store.tvShows[type] = [];
             this._saveStore(this._store);
         }
-        return this._store.tvShows[type] || [];
+        
+        // Нормализуем данные: если хранятся объекты, извлекаем ID
+        const list = this._store.tvShows[type] || [];
+        return list.map(item => this._extractMovieId(item));
     }
 
     addTVShow(type, show) {
@@ -200,8 +240,10 @@ class UserDataStore {
             this._store.tvShows[type] = [];
         }
 
-        if (!this._store.tvShows[type].find(s => s.id === show.id)) {
-            this._store.tvShows[type].push(show);
+        // Сохраняем только ID для экономии места
+        const showId = this._extractMovieId(show);
+        if (!this._store.tvShows[type].includes(showId)) {
+            this._store.tvShows[type].push(showId);
             this._saveStore(this._store);
             
             // Отправляем событие об изменении списка
@@ -216,13 +258,13 @@ class UserDataStore {
             return;
         }
 
-        const show = this._store.tvShows[type].find(s => s.id === showId);
-        this._store.tvShows[type] = this._store.tvShows[type].filter(s => s.id !== showId);
+        const hadShow = this._store.tvShows[type].includes(showId);
+        this._store.tvShows[type] = this._store.tvShows[type].filter(id => id !== showId);
         this._saveStore(this._store);
         
         // Отправляем событие об изменении списка
-        if (show) {
-            this._dispatchListChangedEvent(type, 'removed', show);
+        if (hadShow) {
+            this._dispatchListChangedEvent(type, 'removed', { id: showId });
         }
     }
 

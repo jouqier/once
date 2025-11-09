@@ -11,10 +11,10 @@ export class UserMoviesService {
         const wantList = this._store.getMovies('want');
         const watchedList = this._store.getMovies('watched');
 
-        if (watchedList.find(m => m.id === movieId)) {
+        if (watchedList.includes(movieId)) {
             return 'watched';
         }
-        if (wantList.find(m => m.id === movieId)) {
+        if (wantList.includes(movieId)) {
             return 'want';
         }
         return 'none';
@@ -46,13 +46,13 @@ export class UserMoviesService {
         const watchingList = this._store.getTVShows('watching');
         const watchedList = this._store.getTVShows('watched');
 
-        if (watchedList.find(s => s.id === showId)) {
+        if (watchedList.includes(showId)) {
             return 'watched';
         }
-        if (watchingList.find(s => s.id === showId)) {
+        if (watchingList.includes(showId)) {
             return 'watching';
         }
-        if (wantList.find(s => s.id === showId)) {
+        if (wantList.includes(showId)) {
             return 'want';
         }
         return 'none';
@@ -117,7 +117,7 @@ export class UserMoviesService {
         return watchedEpisodes.length === totalEpisodes;
     }
 
-    // Получение списков фильмов
+    // Получение списков фильмов (возвращают только ID)
     getWantList() {
         return this._store.getMovies('want');
     }
@@ -126,7 +126,7 @@ export class UserMoviesService {
         return this._store.getMovies('watched');
     }
 
-    // Получение списков сериалов
+    // Получение списков сериалов (возвращают только ID)
     getTVShowWantList() {
         return this._store.getTVShows('want');
     }
@@ -137,6 +137,47 @@ export class UserMoviesService {
 
     getTVShowWatchedList() {
         return this._store.getTVShows('watched');
+    }
+
+    // Получение полных данных фильмов по ID (для рекомендаций)
+    async getMoviesWithDetails(type) {
+        const ids = this._store.getMovies(type);
+        if (ids.length === 0) return [];
+        
+        const movies = await Promise.all(
+            ids.map(id => TMDBService.getMovieDetails(id).catch(() => null))
+        );
+        return movies.filter(m => m !== null).map(m => ({ ...m, media_type: 'movie', type: 'movie' }));
+    }
+
+    // Получение полных данных сериалов по ID (для рекомендаций)
+    async getTVShowsWithDetails(type) {
+        const ids = this._store.getTVShows(type);
+        if (ids.length === 0) return [];
+        
+        const shows = await Promise.all(
+            ids.map(id => TMDBService.getTVDetails(id).catch(() => null))
+        );
+        return shows.filter(s => s !== null).map(s => ({ ...s, media_type: 'tv', type: 'tv' }));
+    }
+
+    // Получение всех фильмов с деталями (для рекомендаций)
+    async getAllMoviesWithDetails() {
+        const [want, watched] = await Promise.all([
+            this.getMoviesWithDetails('want'),
+            this.getMoviesWithDetails('watched')
+        ]);
+        return [...want, ...watched];
+    }
+
+    // Получение всех сериалов с деталями (для рекомендаций)
+    async getAllTVShowsWithDetails() {
+        const [want, watching, watched] = await Promise.all([
+            this.getTVShowsWithDetails('want'),
+            this.getTVShowsWithDetails('watching'),
+            this.getTVShowsWithDetails('watched')
+        ]);
+        return [...want, ...watching, ...watched];
     }
 
     hasAnyWatchedEpisodes(tvId) {

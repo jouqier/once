@@ -5,11 +5,12 @@
 
 class DataMigrationService {
     constructor() {
-        this.CURRENT_VERSION = '1.2';
+        this.CURRENT_VERSION = '1.3';
         this.migrations = {
             '1.0': this._migrateFrom1_0.bind(this),
             '1.1': this._migrateFrom1_1.bind(this),
-            '1.2': null // текущая версия, миграция не нужна
+            '1.2': this._migrateFrom1_2.bind(this),
+            '1.3': null // текущая версия, миграция не нужна
         };
     }
 
@@ -37,8 +38,12 @@ class DataMigrationService {
         if (dataVersion === '1.0') {
             migratedData = this._migrateFrom1_0(migratedData);
             migratedData = this._migrateFrom1_1(migratedData);
+            migratedData = this._migrateFrom1_2(migratedData);
         } else if (dataVersion === '1.1') {
             migratedData = this._migrateFrom1_1(migratedData);
+            migratedData = this._migrateFrom1_2(migratedData);
+        } else if (dataVersion === '1.2') {
+            migratedData = this._migrateFrom1_2(migratedData);
         }
 
         // Валидируем после миграции
@@ -192,6 +197,57 @@ class DataMigrationService {
     }
 
     /**
+     * Миграция с версии 1.2 на 1.3
+     * Оптимизация: сохраняем только ID вместо полных объектов
+     */
+    _migrateFrom1_2(data) {
+        console.log('Применяется миграция 1.2 → 1.3: Оптимизация хранения (только ID)');
+        
+        const migrated = { ...data };
+
+        // Конвертируем массивы фильмов в массивы ID
+        if (migrated.movies) {
+            ['want', 'watched'].forEach(listType => {
+                if (Array.isArray(migrated.movies[listType])) {
+                    const originalLength = migrated.movies[listType].length;
+                    migrated.movies[listType] = migrated.movies[listType].map(item => {
+                        return typeof item === 'object' ? item.id : item;
+                    }).filter(id => id !== undefined && id !== null);
+                    
+                    console.log(`Оптимизировано movies.${listType}: ${originalLength} объектов → ${migrated.movies[listType].length} ID`);
+                }
+            });
+        }
+
+        // Конвертируем массивы сериалов в массивы ID
+        if (migrated.tvShows) {
+            ['want', 'watching', 'watched'].forEach(listType => {
+                if (Array.isArray(migrated.tvShows[listType])) {
+                    const originalLength = migrated.tvShows[listType].length;
+                    migrated.tvShows[listType] = migrated.tvShows[listType].map(item => {
+                        return typeof item === 'object' ? item.id : item;
+                    }).filter(id => id !== undefined && id !== null);
+                    
+                    console.log(`Оптимизировано tvShows.${listType}: ${originalLength} объектов → ${migrated.tvShows[listType].length} ID`);
+                }
+            });
+        }
+
+        // Оптимизируем recent searches - оставляем только последние 10
+        if (migrated.search && Array.isArray(migrated.search.recent)) {
+            migrated.search.recent = migrated.search.recent.slice(0, 10);
+        }
+
+        // Оптимизируем activity - оставляем только последние 50
+        if (Array.isArray(migrated.activity)) {
+            migrated.activity = migrated.activity.slice(0, 50);
+        }
+
+        console.log('Миграция 1.2 → 1.3 завершена');
+        return migrated;
+    }
+
+    /**
      * Валидирует и исправляет структуру данных
      */
     _validateAndFix(data) {
@@ -212,13 +268,9 @@ class DataMigrationService {
                 delete fixed.movies.watching;
             }
 
-            // Удаляем дубликаты
-            fixed.movies.want = this._removeDuplicates(fixed.movies.want);
-            fixed.movies.watched = this._removeDuplicates(fixed.movies.watched);
-
-            // Удаляем некорректные записи и сериалы из списков фильмов
-            fixed.movies.want = fixed.movies.want.filter(m => m && m.id && m.media_type !== 'tv');
-            fixed.movies.watched = fixed.movies.watched.filter(m => m && m.id && m.media_type !== 'tv');
+            // Нормализуем к ID и удаляем дубликаты
+            fixed.movies.want = this._normalizeToIds(fixed.movies.want);
+            fixed.movies.watched = this._normalizeToIds(fixed.movies.watched);
         }
 
         // Проверяем tvShows (с добавлением списков want, watching, watched)
@@ -245,15 +297,10 @@ class DataMigrationService {
                 fixed.tvShows.reviews = {};
             }
 
-            // Удаляем дубликаты из списков сериалов
-            fixed.tvShows.want = this._removeDuplicates(fixed.tvShows.want);
-            fixed.tvShows.watching = this._removeDuplicates(fixed.tvShows.watching);
-            fixed.tvShows.watched = this._removeDuplicates(fixed.tvShows.watched);
-
-            // Удаляем некорректные записи и фильмы из списков сериалов
-            fixed.tvShows.want = fixed.tvShows.want.filter(s => s && s.id && s.media_type !== 'movie');
-            fixed.tvShows.watching = fixed.tvShows.watching.filter(s => s && s.id && s.media_type !== 'movie');
-            fixed.tvShows.watched = fixed.tvShows.watched.filter(s => s && s.id && s.media_type !== 'movie');
+            // Нормализуем к ID и удаляем дубликаты
+            fixed.tvShows.want = this._normalizeToIds(fixed.tvShows.want);
+            fixed.tvShows.watching = this._normalizeToIds(fixed.tvShows.watching);
+            fixed.tvShows.watched = this._normalizeToIds(fixed.tvShows.watched);
 
             // Очищаем некорректные данные эпизодов
             Object.keys(fixed.tvShows.episodes).forEach(key => {
@@ -297,6 +344,20 @@ class DataMigrationService {
             seen.add(item.id);
             return true;
         });
+    }
+
+    /**
+     * Нормализует массив к массиву ID (удаляет дубликаты)
+     */
+    _normalizeToIds(array) {
+        if (!Array.isArray(array)) return [];
+        
+        const ids = array.map(item => {
+            return typeof item === 'object' ? item.id : item;
+        }).filter(id => id !== undefined && id !== null && typeof id === 'number');
+        
+        // Удаляем дубликаты
+        return [...new Set(ids)];
     }
 
     /**

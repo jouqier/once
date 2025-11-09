@@ -121,20 +121,17 @@ export class ProfileScreen extends HTMLElement {
     }
 
     async loadStats() {
-        // Получаем списки фильмов
+        // Получаем списки фильмов (только ID для подсчета)
         const moviesWant = userMoviesService.getWantList() || [];
         const moviesWatched = userMoviesService.getWatchedList() || [];
 
-        // Получаем списки сериалов
+        // Получаем списки сериалов (только ID для подсчета)
         const tvWant = userMoviesService.getTVShowWantList() || [];
         const tvWatching = userMoviesService.getTVShowWatchingList() || [];
         const tvWatched = userMoviesService.getTVShowWatchedList() || [];
 
-        // Объединяем все сериалы и удаляем дубликаты
-        const allTVShows = [...tvWant, ...tvWatching, ...tvWatched]
-            .filter((item, index, self) => 
-                index === self.findIndex((t) => t.id === item.id)
-            );
+        // Объединяем все ID сериалов и удаляем дубликаты
+        const allTVShowIds = [...new Set([...tvWant, ...tvWatching, ...tvWatched])];
 
         // Обновляем статистику
         this._stats = {
@@ -143,7 +140,7 @@ export class ProfileScreen extends HTMLElement {
             followers: 42,
             want: moviesWant.length,
             watched: moviesWatched.length,
-            tvShows: allTVShows.length
+            tvShows: allTVShowIds.length
         };
     }
 
@@ -456,14 +453,14 @@ export class ProfileScreen extends HTMLElement {
     async _renderContent() {
         const activeTab = this._activeTab.toLowerCase();
         
-        // Получаем списки фильмов
-        const moviesWant = userMoviesService.getWantList() || [];
-        const moviesWatched = userMoviesService.getWatchedList() || [];
+        // Получаем списки фильмов с полными данными
+        const moviesWant = await userMoviesService.getMoviesWithDetails('want') || [];
+        const moviesWatched = await userMoviesService.getMoviesWithDetails('watched') || [];
         
-        // Получаем списки сериалов
-        const tvWant = userMoviesService.getTVShowWantList() || [];
-        const tvWatching = userMoviesService.getTVShowWatchingList() || [];
-        const tvWatched = userMoviesService.getTVShowWatchedList() || [];
+        // Получаем списки сериалов с полными данными
+        const tvWant = await userMoviesService.getTVShowsWithDetails('want') || [];
+        const tvWatching = await userMoviesService.getTVShowsWithDetails('watching') || [];
+        const tvWatched = await userMoviesService.getTVShowsWithDetails('watched') || [];
         
         // Формируем списки для отображения
         const lists = {

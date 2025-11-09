@@ -23,6 +23,7 @@ import './pages/genre/genre-page.js';
 import './pages/person/person-page.js';
 import { API_CONFIG } from './config/api.js';
 import { cacheMigration } from './services/cache-migration.js';
+import { StorageCleanup } from './utils/storage-cleanup.js'; // Утилита для очистки хранилища
 
 // Импортируем изображения
 import story2 from '../public/assets/stories/story2.jpg';
@@ -228,6 +229,23 @@ window.addEventListener('DOMContentLoaded', async () => {
         
         // Сначала инициализируем Telegram
         await initTelegram();
+        
+        // Мониторинг размера хранилища
+        try {
+            const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'guest';
+            const data = localStorage.getItem(`user_data_${userId}`);
+            if (data) {
+                const sizeKB = (data.length / 1024).toFixed(2);
+                console.log(`📊 Размер данных: ${sizeKB} KB`);
+                
+                // Предупреждение при приближении к лимиту
+                if (sizeKB > 2000) {
+                    console.warn(`⚠️ Размер данных приближается к лимиту: ${sizeKB} KB`);
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка мониторинга хранилища:', error);
+        }
         
         // Проверяем, что получили данные пользователя
         if (!window.Telegram?.WebApp?.initDataUnsafe?.user?.id) {

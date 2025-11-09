@@ -63,9 +63,10 @@ export class TVShowsScreen extends HTMLElement {
 
     async _reloadRecommendations() {
         try {
-            const wantList = userMoviesService.getTVShowWantList();
-            const watchedList = userMoviesService.getTVShowWatchedList();
-            const watchingList = userMoviesService.getTVShowWatchingList();
+            const allShows = await userMoviesService.getAllTVShowsWithDetails();
+            const wantList = allShows.filter(s => userMoviesService.getTVShowState(s.id) === 'want');
+            const watchedList = allShows.filter(s => userMoviesService.getTVShowState(s.id) === 'watched');
+            const watchingList = allShows.filter(s => userMoviesService.getTVShowState(s.id) === 'watching');
             
             const recommended = await TMDBCacheService.getPersonalizedTVRecommendations(wantList, watchedList, watchingList);
             this._recommendedShows = recommended;
@@ -114,9 +115,10 @@ export class TVShowsScreen extends HTMLElement {
     async loadData() {
         try {
             // Получаем списки пользователя для рекомендаций
-            const wantList = userMoviesService.getTVShowWantList();
-            const watchedList = userMoviesService.getTVShowWatchedList();
-            const watchingList = userMoviesService.getTVShowWatchingList();
+            const allShows = await userMoviesService.getAllTVShowsWithDetails();
+            const wantList = allShows.filter(s => userMoviesService.getTVShowState(s.id) === 'want');
+            const watchedList = allShows.filter(s => userMoviesService.getTVShowState(s.id) === 'watched');
+            const watchingList = allShows.filter(s => userMoviesService.getTVShowState(s.id) === 'watching');
 
             // Загружаем данные с автоматическим кешированием
             const [trending, popular, topRated, trailers, recommended] = await Promise.all([

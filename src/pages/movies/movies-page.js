@@ -58,8 +58,9 @@ export class MoviesScreen extends HTMLElement {
 
     async _reloadRecommendations() {
         try {
-            const wantList = userMoviesService.getWantList();
-            const watchedList = userMoviesService.getWatchedList();
+            const allMovies = await userMoviesService.getAllMoviesWithDetails();
+            const wantList = allMovies.filter(m => userMoviesService.getMovieState(m.id) === 'want');
+            const watchedList = allMovies.filter(m => userMoviesService.getMovieState(m.id) === 'watched');
             
             const recommended = await TMDBCacheService.getPersonalizedRecommendations(wantList, watchedList);
             const recommendedWithRatings = recommended.map(movie => ({
@@ -102,8 +103,9 @@ export class MoviesScreen extends HTMLElement {
     async loadData() {
         try {
             // Получаем списки пользователя для рекомендаций
-            const wantList = userMoviesService.getWantList();
-            const watchedList = userMoviesService.getWatchedList();
+            const allMovies = await userMoviesService.getAllMoviesWithDetails();
+            const wantList = allMovies.filter(m => userMoviesService.getMovieState(m.id) === 'want');
+            const watchedList = allMovies.filter(m => userMoviesService.getMovieState(m.id) === 'watched');
 
             // Загружаем данные с автоматическим кешированием
             const [trending, upcoming, popular, trailers, recommended] = await Promise.all([
