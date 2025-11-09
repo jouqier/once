@@ -297,12 +297,12 @@ export class ProfileScreen extends HTMLElement {
                 
                 .tabs-container::before {
                     left: 0;
-                    background: linear-gradient(to right, var(--md-sys-color-surface), transparent);
+                    background: linear-gradient(to right, var(--md-sys-color-scrim), transparent);
                 }
                 
                 .tabs-container::after {
                     right: 0;
-                    background: linear-gradient(to left, var(--md-sys-color-surface), transparent);
+                    background: linear-gradient(to left, var(--md-sys-color-scrim), transparent);
                 }
                 
                 .tabs-list {
