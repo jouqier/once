@@ -69,23 +69,21 @@ class DataRepairUtility {
                 if (!data.tvShows.seasonReviews || typeof data.tvShows.seasonReviews !== 'object') {
                     report.issues.push('⚠️ tvShows.seasonReviews не является объектом');
                 }
-                if (!data.tvShows.reviews || typeof data.tvShows.reviews !== 'object') {
-                    report.issues.push('⚠️ tvShows.reviews не является объектом');
+                // Удаляем tvShows.reviews если он существует (больше не используется)
+                if (data.tvShows.reviews) {
+                    report.issues.push('⚠️ tvShows.reviews найден (больше не используется, будет удален)');
                 }
 
                 // Статистика
                 report.tvShowsStats = {
                     episodeKeys: data.tvShows.episodes ? Object.keys(data.tvShows.episodes).length : 'N/A',
-                    seasonReviews: data.tvShows.seasonReviews ? Object.keys(data.tvShows.seasonReviews).length : 'N/A',
-                    reviews: data.tvShows.reviews ? Object.keys(data.tvShows.reviews).length : 'N/A'
+                    seasonReviews: data.tvShows.seasonReviews ? Object.keys(data.tvShows.seasonReviews).length : 'N/A'
                 };
             }
 
-            // Проверяем activity
-            if (!Array.isArray(data.activity)) {
-                report.issues.push('⚠️ activity не является массивом');
-            } else {
-                report.activityCount = data.activity.length;
+            // Удаляем activity если он существует (больше не используется)
+            if (data.activity) {
+                report.issues.push('⚠️ activity найден (больше не используется, будет удален)');
             }
 
             // Проверяем search
@@ -116,9 +114,6 @@ class DataRepairUtility {
                 console.log(`  Reviews: ${report.tvShowsStats.reviews}`);
             }
 
-            if (report.activityCount !== undefined) {
-                console.log(`\n📝 Активность: ${report.activityCount} записей`);
-            }
 
             if (report.recentSearchCount !== undefined) {
                 console.log(`🔍 Недавние поиски: ${report.recentSearchCount} записей`);

@@ -15,7 +15,6 @@ export class MovieActionButtons extends HTMLElement {
         this.attachShadow({ mode: 'open' });
         this._movie = null;
         this._state = 'none';
-        this._activityScreen = document.createElement('activity-screen');
         this._render();
     }
 
@@ -98,7 +97,6 @@ export class MovieActionButtons extends HTMLElement {
         } else {
             // Добавить в Want
             userMoviesService.addToWant(this._movie);
-            this._activityScreen.addActivity(this._movie, 'want');
             this._state = 'want';
             this._updateUI();
         }
@@ -126,11 +124,9 @@ export class MovieActionButtons extends HTMLElement {
         menu.addEventListener('menu-action', (e) => {
             if (e.detail.action === 'move-to-watched') {
                 userMoviesService.removeFromWant(this._movie.id);
-                this._activityScreen.addActivity(this._movie, 'removed-from-want');
                 this._openReviewDialog();
             } else if (e.detail.action === 'remove-from-want') {
                 userMoviesService.removeFromWant(this._movie.id);
-                this._activityScreen.addActivity(this._movie, 'removed-from-want');
                 this._state = 'none';
                 this._updateUI();
             }
@@ -152,15 +148,12 @@ export class MovieActionButtons extends HTMLElement {
                 userMoviesService.removeFromWatched(this._movie.id);
                 userMoviesService.removeReview('movie', this._movie.id);
                 userMoviesService.addToWant(this._movie);
-                this._activityScreen.addActivity(this._movie, 'removed-from-watched');
-                this._activityScreen.addActivity(this._movie, 'want');
                 this._state = 'want';
                 this._updateUI();
                 this._dispatchEvent('review-removed', { movieId: this._movie.id, type: 'movie' });
             } else if (e.detail.action === 'remove-from-watched') {
                 userMoviesService.removeFromWatched(this._movie.id);
                 userMoviesService.removeReview('movie', this._movie.id);
-                this._activityScreen.addActivity(this._movie, 'removed-from-watched');
                 this._state = 'none';
                 this._updateUI();
                 this._dispatchEvent('review-removed', { movieId: this._movie.id, type: 'movie' });
@@ -187,8 +180,6 @@ export class MovieActionButtons extends HTMLElement {
         const handleReviewSubmitted = (e) => {
             if (e.detail.movieId === this._movie.id) {
                 userMoviesService.addToWatched(this._movie);
-                this._activityScreen.addActivity(this._movie, 'watched');
-                this._activityScreen.addActivity(this._movie, isEdit ? 'edited-review' : 'review');
                 this._state = 'watched';
                 this._updateUI();
                 document.removeEventListener('review-submitted', handleReviewSubmitted);

@@ -63,7 +63,6 @@ export class ReviewDialog extends HTMLElement {
 
     _getRatingEmoji(rating) {
         const emojis = {
-            'X': '❌',
             '10': '🤯',
             '9': '🤩',
             '8': '😍',
@@ -75,7 +74,7 @@ export class ReviewDialog extends HTMLElement {
             '2': '😫',
             '1': '🤮'
         };
-        return emojis[rating] || '❌';
+        return emojis[rating] || '🤯';
     }
 
     render() {
@@ -400,7 +399,7 @@ export class ReviewDialog extends HTMLElement {
                             ${this._getRatingEmoji(this._rating)}
                         </div>
                         <div class="rating-scroll">
-                            ${['X', '10', '9', '8', '7', '6', '5', '4', '3', '2', '1'].map(rating => `
+                            ${['10', '9', '8', '7', '6', '5', '4', '3', '2', '1'].map(rating => `
                                 <div class="rating-item ${this._rating === rating ? 'active' : ''}" 
                                      data-rating="${rating}">
                                     ${rating}
@@ -557,22 +556,27 @@ export class ReviewDialog extends HTMLElement {
         try {
             this._showLoading();
 
-            const review = {
-                rating: this._rating,
-                text: this._review,
-                createdAt: Date.now(),
-                shared: this._shareEnabled,
-                season_number: this.getAttribute('season-number'),
-                season_air_date: this.getAttribute('air-date'),
-                media_type: this._movie?.media_type || 'tv_season'
-            };
-
             // Сохраняем отзыв в зависимости от типа контента
             if (this._movie.media_type === 'tv_season') {
                 const seasonNumber = this.getAttribute('season-number');
                 const tvId = this.getAttribute('tv-id');
+                const review = {
+                    rating: this._rating,
+                    text: this._review,
+                    createdAt: Date.now(),
+                    shared: this._shareEnabled,
+                    season_number: seasonNumber,
+                    media_type: 'tv_season'
+                };
                 userMoviesService.saveReview('tv_season', tvId, review, seasonNumber);
             } else {
+                const review = {
+                    rating: this._rating,
+                    text: this._review,
+                    createdAt: Date.now(),
+                    shared: this._shareEnabled,
+                    media_type: this._movie?.media_type || 'movie'
+                };
                 userMoviesService.saveReview(this._movie.media_type, this._movie.id, review);
             }
 

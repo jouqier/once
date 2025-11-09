@@ -204,8 +204,8 @@ export class StoryGenerator {
             // Формируем строку с годом или информацией о сезоне
             let yearInfo;
             if (movieData.media_type === 'tv_season' || movieData.media_type === 'tv') {
-                const seasonNumber = movieData.season_number || review.season_number;
-                const airDate = movieData.air_date || review.season_air_date;
+                const seasonNumber = movieData.season_number || (review.media_type === 'tv_season' ? review.season_number : null);
+                const airDate = movieData.air_date;
                 const seasonYear = airDate ? airDate.substring(0, 4) : '';
 
                 console.log('TV Show data:', {

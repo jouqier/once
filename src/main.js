@@ -16,7 +16,7 @@ import './pages/movies/movies-page.js';
 import './pages/tvshows/shows-page.js';
 import TMDBService from './services/tmdb.js';
 import './pages/profile/profile-page.js';
-import './pages/activity-page.js';
+// import './pages/activity-page.js'; // Не используется
 import './services/data-repair-utility.js'; // Утилита для диагностики данных
 import './pages/tvshows/show-card.js';
 import './pages/genre/genre-page.js';
@@ -118,9 +118,9 @@ function showMainScreen(screenName) {
         case 'tv':
             screen = document.createElement('tv-shows-screen');
             break;
-        case 'activity':
-            screen = document.createElement('activity-screen');
-            break;    
+        // case 'activity':
+        //     screen = document.createElement('activity-screen');
+        //     break; // Не используется
         case 'search':
             screen = document.createElement('search-screen');
             break;

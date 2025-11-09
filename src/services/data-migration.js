@@ -115,18 +115,20 @@ class DataMigrationService {
         if (!migrated.tvShows) {
             migrated.tvShows = {
                 episodes: {},
-                seasonReviews: {},
-                reviews: {}
+                seasonReviews: {}
             };
         } else {
             if (!migrated.tvShows.episodes) migrated.tvShows.episodes = {};
             if (!migrated.tvShows.seasonReviews) migrated.tvShows.seasonReviews = {};
-            if (!migrated.tvShows.reviews) migrated.tvShows.reviews = {};
+            // Удаляем tvShows.reviews (больше не используется)
+            if (migrated.tvShows.reviews) {
+                delete migrated.tvShows.reviews;
+            }
         }
 
-        // 3. Исправляем структуру activity
-        if (!Array.isArray(migrated.activity)) {
-            migrated.activity = [];
+        // 3. Удаляем activity (больше не используется)
+        if (migrated.activity) {
+            delete migrated.activity;
         }
 
         // 4. Исправляем структуру search
@@ -238,9 +240,9 @@ class DataMigrationService {
             migrated.search.recent = migrated.search.recent.slice(0, 10);
         }
 
-        // Оптимизируем activity - оставляем только последние 50
-        if (Array.isArray(migrated.activity)) {
-            migrated.activity = migrated.activity.slice(0, 50);
+        // Удаляем activity (больше не используется)
+        if (migrated.activity) {
+            delete migrated.activity;
         }
 
         console.log('Миграция 1.2 → 1.3 завершена');
@@ -261,6 +263,17 @@ class DataMigrationService {
             if (!Array.isArray(fixed.movies.watched)) fixed.movies.watched = [];
             if (!fixed.movies.reviews || typeof fixed.movies.reviews !== 'object') {
                 fixed.movies.reviews = {};
+            } else {
+                // Удаляем неиспользуемые поля season_air_date и season_number из отзывов на фильмы
+                Object.keys(fixed.movies.reviews).forEach(id => {
+                    const review = fixed.movies.reviews[id];
+                    if (review?.season_air_date !== undefined) {
+                        delete review.season_air_date;
+                    }
+                    if (review?.season_number !== undefined) {
+                        delete review.season_number;
+                    }
+                });
             }
 
             // Удаляем watching из movies (фильмы не могут быть в watching)
@@ -280,8 +293,7 @@ class DataMigrationService {
                 watching: [], 
                 watched: [], 
                 episodes: {}, 
-                seasonReviews: {}, 
-                reviews: {} 
+                seasonReviews: {}
             };
         } else {
             if (!Array.isArray(fixed.tvShows.want)) fixed.tvShows.want = [];
@@ -292,9 +304,18 @@ class DataMigrationService {
             }
             if (!fixed.tvShows.seasonReviews || typeof fixed.tvShows.seasonReviews !== 'object') {
                 fixed.tvShows.seasonReviews = {};
+            } else {
+                // Удаляем неиспользуемое поле season_air_date из отзывов на сезоны
+                Object.keys(fixed.tvShows.seasonReviews).forEach(key => {
+                    const review = fixed.tvShows.seasonReviews[key];
+                    if (review?.season_air_date !== undefined) {
+                        delete review.season_air_date;
+                    }
+                });
             }
-            if (!fixed.tvShows.reviews || typeof fixed.tvShows.reviews !== 'object') {
-                fixed.tvShows.reviews = {};
+            // Удаляем tvShows.reviews (больше не используется)
+            if (fixed.tvShows.reviews) {
+                delete fixed.tvShows.reviews;
             }
 
             // Нормализуем к ID и удаляем дубликаты
@@ -313,14 +334,9 @@ class DataMigrationService {
             });
         }
 
-        // Проверяем activity
-        if (!Array.isArray(fixed.activity)) {
-            fixed.activity = [];
-        } else {
-            // Удаляем некорректные активности
-            fixed.activity = fixed.activity.filter(a => 
-                a && a.id && a.type && a.action && a.date
-            );
+        // Удаляем activity (больше не используется)
+        if (fixed.activity) {
+            delete fixed.activity;
         }
 
         // Проверяем search
@@ -376,13 +392,11 @@ class DataMigrationService {
                 watching: [],
                 watched: [],
                 episodes: {},
-                seasonReviews: {},
-                reviews: {}
+                seasonReviews: {}
             },
             search: {
                 recent: []
-            },
-            activity: []
+            }
         };
     }
 

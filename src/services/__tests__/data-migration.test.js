@@ -114,7 +114,8 @@ describe('DataMigrationService', () => {
             expect(result.tvShows).toBeDefined();
             expect(result.tvShows.episodes).toBeDefined();
             expect(result.tvShows.seasonReviews).toBeDefined();
-            expect(result.tvShows.reviews).toBeDefined();
+            // tvShows.reviews больше не используется
+            expect(result.tvShows.reviews).toBeUndefined();
         });
 
         test('удаляет дубликаты из списков', () => {

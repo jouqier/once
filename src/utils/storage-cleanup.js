@@ -44,7 +44,6 @@ export class StorageCleanup {
                     seasonReviews: Object.keys(parsed.tvShows?.seasonReviews || {}).length,
                     reviews: Object.keys(parsed.tvShows?.reviews || {}).length
                 },
-                activity: parsed.activity?.length || 0,
                 recentSearches: parsed.search?.recent?.length || 0
             };
         } catch (error) {
@@ -54,19 +53,18 @@ export class StorageCleanup {
     }
 
     /**
-     * Очистить старые активности (оставить только последние N)
+     * Удалить activity (больше не используется)
      */
-    static cleanupActivity(userId, keepLast = 50) {
+    static cleanupActivity(userId) {
         try {
             const data = localStorage.getItem(`user_data_${userId}`);
             if (!data) return false;
 
             const parsed = JSON.parse(data);
-            if (parsed.activity && parsed.activity.length > keepLast) {
-                const removed = parsed.activity.length - keepLast;
-                parsed.activity = parsed.activity.slice(0, keepLast);
+            if (parsed.activity) {
+                delete parsed.activity;
                 localStorage.setItem(`user_data_${userId}`, JSON.stringify(parsed));
-                console.log(`Удалено ${removed} старых активностей`);
+                console.log('Удалено поле activity (больше не используется)');
                 return true;
             }
             return false;
@@ -133,14 +131,10 @@ export class StorageCleanup {
                 ...(parsed.tvShows?.watched || [])
             ]);
 
-            // Удаляем отзывы на сериалы, которых нет в списках
+            // Удаляем tvShows.reviews если он существует (больше не используется)
             if (parsed.tvShows?.reviews) {
-                Object.keys(parsed.tvShows.reviews).forEach(id => {
-                    if (!tvIds.has(parseInt(id))) {
-                        delete parsed.tvShows.reviews[id];
-                        cleaned = true;
-                    }
-                });
+                delete parsed.tvShows.reviews;
+                cleaned = true;
             }
 
             // Удаляем отзывы на сезоны сериалов, которых нет в списках

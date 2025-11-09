@@ -84,13 +84,8 @@ export class TVShowCardDetails extends HTMLElement {
     }
 
     _setupEventListeners() {
-        this.shadowRoot.addEventListener('person-selected', (e) => {
-            const { personId } = e.detail;
-            if (personId) {
-                haptic.light();
-                navigationManager.navigateToPerson(personId);
-            }
-        });
+        // Событие person-selected обрабатывается на уровне document в main.js
+        // Не нужно обрабатывать здесь, чтобы избежать двойного вызова
     }
 
     set movie(value) {

@@ -18,10 +18,8 @@ class UserDataStore {
             movies: {},
             tvShows: {
                 episodes: {},
-                reviews: {},
                 seasonReviews: {}
             },
-            activity: [],
             search: {
                 recent: []
             }
@@ -32,98 +30,13 @@ class UserDataStore {
         localStorage.setItem('user_data', JSON.stringify(this._store));
     }
 
-    getActivities() {
-        return this._store.activity || [];
-    }
-
-    addActivity(activity) {
-        // Проверяем наличие всех необходимых полей
-        const requiredFields = ['id', 'title', 'type', 'action', 'date'];
-        if (!requiredFields.every(field => activity.hasOwnProperty(field))) {
-            console.error('Missing required fields in activity:', activity);
-            return;
-        }
-
-        // Проверяем статус контента
-        const isInWantList = this._isInWantList(activity.id, activity.type);
-        const isInWatchedList = this._isInWatchedList(activity.id, activity.type);
-
-        // Добавляем активность только если контент есть в одном из списков
-        if (isInWantList || isInWatchedList) {
-            // Получаем дополнительные данные в зависимости от типа контента
-            const enrichedActivity = this._enrichActivityData(activity);
-
-            // Добавляем активность в начало массива
-            this._store.activity = [enrichedActivity, ...this._store.activity || []];
-            
-            // Ограничиваем количество хранимых активностей (например, последние 100)
-            if (this._store.activity.length > 100) {
-                this._store.activity = this._store.activity.slice(0, 100);
-            }
-
-            this._saveToStorage();
-        }
-    }
-
-    _enrichActivityData(activity) {
-        const { id, type, action } = activity;
-        let enrichedData = { ...activity };
-
-        if (type === 'tv') {
-            // Для сериалов добавляем информацию о просмотренных эпизодах
-            const episodes = this._store.tvShows.episodes[id] || {};
-            const totalEpisodes = Object.keys(episodes).length;
-            const watchedEpisodes = Object.values(episodes).filter(e => e.watched).length;
-
-            // Получаем рейтинг сериала
-            const tvShow = this._store.tvShows;
-            const seasonReviews = tvShow.seasonReviews || {};
-            const showReview = Object.keys(seasonReviews)
-                .filter(key => key.startsWith(`${id}_`))
-                .map(key => seasonReviews[key])
-                .find(review => review?.rating);
-
-            enrichedData = {
-                ...enrichedData,
-                watchedEpisodes,
-                totalEpisodes,
-                rating: showReview?.rating
-            };
-        } else if (type === 'movie') {
-            // Для фильмов добавляем рейтинг
-            const movieReview = this._store.movies[id];
-            if (movieReview?.rating) {
-                enrichedData.rating = movieReview.rating;
-            }
-        }
-
-        return enrichedData;
-    }
-
-    clearActivities() {
-        this._store.activity = [];
-        this._saveToStorage();
-    }
-
-    removeActivitiesByContent(contentId, contentType) {
-        // Проверяем, есть ли контент в списках want/watched
-        const isInWantList = this._isInWantList(contentId, contentType);
-        const isInWatchedList = this._isInWatchedList(contentId, contentType);
-
-        // Если контент не в списках want/watched, удаляем все связанные активности
-        if (!isInWantList && !isInWatchedList) {
-            this._store.activity = this._store.activity.filter(activity => 
-                !(activity.id === contentId && activity.type === contentType)
-            );
-            this._saveToStorage();
-        }
-    }
-
     _isInWantList(contentId, contentType) {
         if (contentType === 'movie') {
             return this._store.movies[contentId]?.want || false;
         } else if (contentType === 'tv') {
-            return this._store.tvShows.reviews[contentId]?.want || false;
+            // Для сериалов проверяем наличие в списке want
+            const wantList = this._store.tvShows?.want || [];
+            return Array.isArray(wantList) ? wantList.includes(contentId) : false;
         }
         return false;
     }
@@ -146,8 +59,14 @@ class UserDataStore {
                 this._store.movies[contentId].want = false;
             }
         } else if (contentType === 'tv') {
-            if (this._store.tvShows.reviews[contentId]) {
-                this._store.tvShows.reviews[contentId].want = false;
+            // Для сериалов удаляем из списка want
+            const wantList = this._store.tvShows?.want || [];
+            if (Array.isArray(wantList)) {
+                const index = wantList.indexOf(contentId);
+                if (index > -1) {
+                    wantList.splice(index, 1);
+                    this._store.tvShows.want = wantList;
+                }
             }
         }
         this._saveToStorage();

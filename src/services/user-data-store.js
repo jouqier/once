@@ -73,13 +73,11 @@ class UserDataStore {
                 watching: [],  // Только ID сериалов
                 watched: [],   // Только ID сериалов
                 episodes: {},
-                seasonReviews: {},
-                reviews: {}
+                seasonReviews: {}
             },
             search: {
                 recent: []
-            },
-            activity: []
+            }
         };
     }
 
@@ -352,9 +350,8 @@ class UserDataStore {
             if (type === 'tv_season' && seasonNumber !== null) {
                 const key = `${id}_${seasonNumber}`;
                 return this._store.tvShows.seasonReviews?.[key] || null;
-            } else if (type === 'tv') {
-                return this._store.tvShows.reviews?.[id] || null;
             }
+            // Для фильмов и других типов
             return this._store.movies.reviews?.[id] || null;
         } catch (error) {
             console.error('Error getting review:', error);
@@ -368,13 +365,10 @@ class UserDataStore {
             this._store.movies = { reviews: {} };
         }
         if (!this._store.tvShows) {
-            this._store.tvShows = { reviews: {}, seasonReviews: {} };
+            this._store.tvShows = { seasonReviews: {} };
         }
         if (!this._store.movies.reviews) {
             this._store.movies.reviews = {};
-        }
-        if (!this._store.tvShows.reviews) {
-            this._store.tvShows.reviews = {};
         }
         if (!this._store.tvShows.seasonReviews) {
             this._store.tvShows.seasonReviews = {};
@@ -384,9 +378,8 @@ class UserDataStore {
             if (type === 'tv_season') {
                 const key = `${id}_${seasonNumber}`;
                 this._store.tvShows.seasonReviews[key] = review;
-            } else if (type === 'tv') {
-                this._store.tvShows.reviews[id] = review;
             } else {
+                // Для фильмов и других типов
                 this._store.movies.reviews[id] = review;
             }
             this._saveStore(this._store);
@@ -395,16 +388,6 @@ class UserDataStore {
         }
     }
 
-    // Методы для работы с активностью
-    addActivity(activity) {
-        this._store.activity.unshift(activity);
-        this._store.activity = this._store.activity.slice(0, 50);
-        this._saveStore(this._store);
-    }
-
-    getActivities() {
-        return this._store.activity;
-    }
 
     // Методы для работы с поиском
     addRecentSearch(item) {
@@ -435,9 +418,8 @@ class UserDataStore {
         if (type === 'tv_season') {
             const key = `${id}_${seasonNumber}`;
             delete this._store.tvShows.seasonReviews[key];
-        } else if (type === 'tv') {
-            delete this._store.tvShows.reviews[id];
         } else {
+            // Для фильмов и других типов
             delete this._store.movies.reviews[id];
         }
         this._saveStore(this._store);
