@@ -518,6 +518,10 @@ export class ProfileScreen extends HTMLElement {
             userRating = userReview?.rating;
         }
 
+        // Убеждаемся, что progress полностью разрешен
+        const watchedEpisodes = progress?.watchedEpisodes || 0;
+        const totalEpisodes = progress?.totalEpisodes || 0;
+
         return `
             <div class="movie-item" 
                  data-id="${item.id}" 
@@ -526,8 +530,8 @@ export class ProfileScreen extends HTMLElement {
                     src="${API_CONFIG.IMAGE_BASE_URL}${item.poster_path}"
                     alt="${item.title || item.name}"
                     ${progress ? `
-                        watched-episodes="${progress.watchedEpisodes}"
-                        total-episodes="${progress.totalEpisodes}"
+                        watched-episodes="${watchedEpisodes}"
+                        total-episodes="${totalEpisodes}"
                     ` : ''}
                     ${userRating ? `user-rating="${userRating}"` : ''}
                 ></media-poster>

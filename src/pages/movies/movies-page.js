@@ -4,6 +4,7 @@ import { userMoviesService } from '../../services/user-movies.js';
 import { i18n } from '../../services/i18n.js';
 import '../../components/media-poster.js';
 import '../../components/movie-trailers.js';
+import '../../components/poster-skeleton.js';
 import { API_CONFIG } from '../../config/api.js';
 
 export class MoviesScreen extends HTMLElement {
@@ -30,14 +31,18 @@ export class MoviesScreen extends HTMLElement {
         document.addEventListener('movie-list-changed', this._boundHandlers.movieListChanged);
         
         try {
+            // Рендерим структуру сразу с skeleton
+            this.render();
+            
             if (!this._dataLoaded) {
                 await this.loadData();
                 this._dataLoaded = true;
+                // Перерендериваем с реальными данными
+                this.render();
             } else {
                 // Если данные уже загружены, обновляем только рекомендации
                 await this._reloadRecommendations();
             }
-            this.render();
         } catch (error) {
             console.error(i18n.t('errorInMoviesScreen'), error);
         }
@@ -351,6 +356,13 @@ export class MoviesScreen extends HTMLElement {
     }
 
     _renderTrendingMovies(movies) {
+        if (!movies || movies.length === 0) {
+            // Показываем skeleton если данных нет
+            return Array(3).fill(0).map(() => 
+                '<poster-skeleton size="large"></poster-skeleton>'
+            ).join('');
+        }
+        
         return movies.map(movie => {
             const userReview = userMoviesService.getReview('movie', movie.id);
             const userRating = userReview?.rating;
@@ -368,6 +380,13 @@ export class MoviesScreen extends HTMLElement {
     }
 
     _renderScrollMovieCards(movies) {
+        if (!movies || movies.length === 0) {
+            // Показываем skeleton если данных нет
+            return Array(5).fill(0).map(() => 
+                '<poster-skeleton size="small"></poster-skeleton>'
+            ).join('');
+        }
+        
         return movies.map(movie => {
             const userReview = userMoviesService.getReview('movie', movie.id);
             const userRating = userReview?.rating;

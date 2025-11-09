@@ -4,6 +4,7 @@ import { userMoviesService } from '../../services/user-movies.js';
 import { i18n } from '../../services/i18n.js';
 import '../../components/media-poster.js';
 import '../../components/movie-trailers.js';
+import '../../components/poster-skeleton.js';
 import { API_CONFIG } from '../../config/api.js';
 
 export class TVShowsScreen extends HTMLElement {
@@ -25,8 +26,6 @@ export class TVShowsScreen extends HTMLElement {
             episodeStatusChanged: this._handleEpisodeStatusChanged.bind(this),
             movieListChanged: this._handleMovieListChanged.bind(this)
         };
-        
-        this.shadowRoot.innerHTML = this._getLoadingTemplate();
     }
 
     async connectedCallback() {
@@ -35,16 +34,19 @@ export class TVShowsScreen extends HTMLElement {
         document.addEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
         document.addEventListener('movie-list-changed', this._boundHandlers.movieListChanged);
         
+        // Рендерим структуру сразу с skeleton
+        await this.render();
+        
         if (!this._dataLoaded) {
             await this.loadData();
             this._dataLoaded = true;
             this._preloadShowProgress();
+            // Перерендериваем с реальными данными
+            await this.render();
         } else {
             // Если данные уже загружены, обновляем только рекомендации
             await this._reloadRecommendations();
         }
-        
-        this.render();
     }
 
     disconnectedCallback() {
@@ -160,26 +162,16 @@ export class TVShowsScreen extends HTMLElement {
         return progress;
     }
 
-    _getLoadingTemplate() {
-        return `
-            <style>
-                .loading-skeleton {
-                    background: linear-gradient(90deg, #2c2c2c 25%, #3c3c3c 50%, #2c2c2c 75%);
-                    background-size: 200% 100%;
-                    animation: loading 1.5s infinite;
-                }
-                @keyframes loading {
-                    0% { background-position: 200% 0; }
-                    100% { background-position: -200% 0; }
-                }
-            </style>
-            <div class="section">
-                <!-- Добавьте скелетон-загрузку здесь -->
-            </div>
-        `;
-    }
+
 
     async _renderTrendingShows(shows) {
+        if (!shows || shows.length === 0) {
+            // Показываем skeleton если данных нет
+            return Array(3).fill(0).map(() => 
+                '<poster-skeleton size="large"></poster-skeleton>'
+            ).join('');
+        }
+        
         const showsWithProgress = await Promise.all(shows.map(async show => {
             const progress = await userMoviesService.getShowProgress(show.id);
             
@@ -200,6 +192,13 @@ export class TVShowsScreen extends HTMLElement {
     }
 
     async _renderScrollShowCards(shows) {
+        if (!shows || shows.length === 0) {
+            // Показываем skeleton если данных нет
+            return Array(5).fill(0).map(() => 
+                '<poster-skeleton size="small"></poster-skeleton>'
+            ).join('');
+        }
+        
         const progressPromises = shows.map(show => this._getShowProgress(show));
         const progresses = await Promise.all(progressPromises);
         
@@ -221,8 +220,6 @@ export class TVShowsScreen extends HTMLElement {
     }
 
     async render() {
-        this.shadowRoot.innerHTML = `<div>${i18n.t('loading')}</div>`;
-        
         try {
             const trendingContent = await this._renderTrendingShows(this._trendingShows);
             const recommendedContent = this._recommendedShows.length > 0 

@@ -1,24 +1,29 @@
 import { trailersStore } from '../services/trailers-store.js';
 import { haptic } from '../config/telegram.js';
+import './poster-skeleton.js';
 
 export class MovieTrailers extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
+        this._trailers = [];
     }
 
     set trailers(value) {
-        this._trailers = value;
-        this._trailers.sort((a, b) => {
-            const aWatched = trailersStore.isWatched(a.trailer.key);
-            const bWatched = trailersStore.isWatched(b.trailer.key);
-            return aWatched === bWatched ? 0 : aWatched ? 1 : -1;
-        });
+        this._trailers = value || [];
+        if (this._trailers.length > 0) {
+            this._trailers.sort((a, b) => {
+                const aWatched = trailersStore.isWatched(a.trailer.key);
+                const bWatched = trailersStore.isWatched(b.trailer.key);
+                return aWatched === bWatched ? 0 : aWatched ? 1 : -1;
+            });
+        }
         this.render();
     }
 
     render() {
-        if (!this._trailers?.length) return;
+        // Всегда рендерим контейнер, даже если трейлеров нет
+        const hasTrailers = this._trailers?.length > 0;
 
         this.shadowRoot.innerHTML = `
             <style>
@@ -158,7 +163,7 @@ export class MovieTrailers extends HTMLElement {
             <div class="trailers-container">
                 <div class="trailers-wrapper">
                     <div class="trailers-list">
-                        ${this._trailers.map(movie => {
+                        ${hasTrailers ? this._trailers.map(movie => {
                             const isWatched = trailersStore.isWatched(movie.trailer.key);
                             return `
                                 <div class="trailer-item" data-trailer-id="${movie.trailer.key}">
@@ -173,14 +178,18 @@ export class MovieTrailers extends HTMLElement {
                                     </div> 
                                 </div>
                             `;
-                        }).join('')}
+                        }).join('') : Array(5).fill(0).map(() => 
+                            '<poster-skeleton size="trailer"></poster-skeleton>'
+                        ).join('')}
                         <div style="padding-right: 4px; flex-shrink: 0;"> </div>
                     </div>
                 </div>
             </div>
         `;
 
-        this._setupTrailerClicks();
+        if (hasTrailers) {
+            this._setupTrailerClicks();
+        }
     }
 
     _setupTrailerClicks() {
