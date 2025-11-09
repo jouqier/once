@@ -37,11 +37,11 @@ export class StoryGenerator {
                 FONT_WEIGHT: 'bold',
                 PADDING: 12,
                 BACKGROUND: '#E1E2EC',
-                TEXT_COLOR: '#2D3038'
+                TEXT_COLOR: '#10131B'
             },
             COLORS: {
                 WHITE: '#E1E2EC',
-                BLACK: '#2D3038',
+                BLACK: '#10131B',
                 OVERLAY: 'rgba(0, 0, 0, 0.7)'
             },
             TITLE: {
@@ -78,8 +78,8 @@ export class StoryGenerator {
 
             // Более сильное затемнение для iOS
             const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-            gradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');    // Сильнее вверху
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 1.0)');  // Полностью черный внизу
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.5)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 1.0)');
 
             this.ctx.fillStyle = gradient;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -95,8 +95,8 @@ export class StoryGenerator {
 
             // Стандартное затемнение
             const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-            gradient.addColorStop(0, 'rgba(0, 0, 0, 0.3)');    // Более темный вверху
-            gradient.addColorStop(1, 'rgba(0, 0, 0, 1.0)');    // Самый темный внизу
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 1.0)');
 
             this.ctx.fillStyle = gradient;
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -263,7 +263,7 @@ export class StoryGenerator {
         this.ctx.translate(logoX, logoY);
 
         // Рисуем логотип "once" через Path2D
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        this.ctx.fillStyle = 'rgba(66, 71, 84, 0.16)';
 
         // Буква "o"
         const path1 = new Path2D('M0 41.4029C0 45.8505 4.2065 49.0219 8.34605 47.6953L34.8273 39.2089C38.5846 38.0048 41.1429 34.4364 41.1429 30.3995V6.59709C41.1429 2.14953 36.9364 -1.02191 32.7968 0.304687L6.31553 8.7911C2.55825 9.99518 0 13.5636 0 17.6005V41.4029ZM20.5714 8.17803C19.1513 8.17803 18 9.35865 18 10.815V37.185C18 38.6414 19.1513 39.822 20.5714 39.822C21.9916 39.822 23.1429 38.6414 23.1429 37.185V10.815C23.1429 9.35865 21.9916 8.17803 20.5714 8.17803Z');
@@ -324,7 +324,7 @@ export class StoryGenerator {
 
         // Настройка шрифта для заголовка
         this.ctx.font = `bold ${this.STYLES.TITLE.FONT_SIZE}px Inter`;
-        this.ctx.fillStyle = this.STYLES.COLORS.WHITE;
+        this.ctx.fillStyle = this.STYLES.COLORS.BLACK;
         this.ctx.textAlign = 'center';
         this.ctx.textBaseline = 'top';
 
