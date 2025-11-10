@@ -557,10 +557,11 @@ export class ReviewDialog extends HTMLElement {
             this._showLoading();
 
             // Сохраняем отзыв в зависимости от типа контента
+            let review;
             if (this._movie.media_type === 'tv_season') {
                 const seasonNumber = this.getAttribute('season-number');
                 const tvId = this.getAttribute('tv-id');
-                const review = {
+                review = {
                     rating: this._rating,
                     text: this._review,
                     createdAt: Date.now(),
@@ -570,7 +571,7 @@ export class ReviewDialog extends HTMLElement {
                 };
                 userMoviesService.saveReview('tv_season', tvId, review, seasonNumber);
             } else {
-                const review = {
+                review = {
                     rating: this._rating,
                     text: this._review,
                     createdAt: Date.now(),
