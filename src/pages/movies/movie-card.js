@@ -52,8 +52,13 @@ export class MovieCardDetails extends HTMLElement {
     }
 
     _setupEventListeners() {
-        // Событие person-selected обрабатывается на уровне document в main.js
-        // Не нужно обрабатывать здесь, чтобы избежать двойного вызова
+        this.shadowRoot.addEventListener('person-selected', (e) => {
+            const { personId } = e.detail;
+            if (personId) {
+                haptic.light();
+                navigationManager.navigateToPerson(personId);
+            }
+        });
     }
 
     set movie(value) {
