@@ -102,7 +102,10 @@ class UserDataStore {
         // Собираем все старые ключи для миграции
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
-            if (key && key.startsWith(prefix)) {
+            if (!key) continue;
+            
+            // Обрабатываем ключи пользовательских данных
+            if (key.startsWith(prefix)) {
                 const suffix = key.replace(prefix, '');
                 
                 // Старые ключи отзывов на фильмы (movies_review_{id})
@@ -144,6 +147,26 @@ class UserDataStore {
                         keysToMigrate.push({ key, type: 'episodes_tv', tvId: epSuffix });
                         keysToRemove.push(key);
                     }
+                }
+            }
+            
+            // Удаляем старые ключи кеша списков из localStorage (теперь хранятся в sessionStorage)
+            // Кеш деталей фильмов/сериалов (cache_movie_${id}, cache_tv_${id}) остается в localStorage
+            if (key.startsWith('cache_')) {
+                const cacheKey = key.replace('cache_', '');
+                
+                // Удаляем кеш списков, которые теперь хранятся в sessionStorage
+                const listCacheKeys = [
+                    'movies_trending',
+                    'movies_popular',
+                    'movies_upcoming',
+                    'tv_trending',
+                    'tv_popular',
+                    'tv_top_rated'
+                ];
+                
+                if (listCacheKeys.includes(cacheKey)) {
+                    keysToRemove.push(key);
                 }
             }
         }
@@ -244,6 +267,18 @@ class UserDataStore {
         // Удаляем старые ключи
         if (keysToRemove.length > 0) {
             console.log(`🗑️ Удаление ${keysToRemove.length} старых ключей`);
+            
+            // Разделяем ключи пользовательских данных и кеша для логирования
+            const userDataKeys = keysToRemove.filter(key => key.startsWith(prefix));
+            const cacheKeys = keysToRemove.filter(key => key.startsWith('cache_'));
+            
+            if (userDataKeys.length > 0) {
+                console.log(`   Пользовательские данные: ${userDataKeys.length} ключей`);
+            }
+            if (cacheKeys.length > 0) {
+                console.log(`   Кеш списков: ${cacheKeys.length} ключей (теперь в sessionStorage)`);
+            }
+            
             keysToRemove.forEach(key => {
                 localStorage.removeItem(key);
             });
