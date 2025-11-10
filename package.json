@@ -19,6 +19,7 @@
   },
   "description": "",
   "devDependencies": {
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vite-plugin-mkcert": "^1.17.9"
   }
 }

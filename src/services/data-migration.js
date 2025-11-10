@@ -131,9 +131,19 @@ class DataMigrationService {
             delete migrated.activity;
         }
 
-        // 4. Исправляем структуру search
-        if (!migrated.search || !Array.isArray(migrated.search.recent)) {
-            migrated.search = { recent: [] };
+        // 4. Удаляем search.recent (теперь хранится в sessionStorage)
+        if (migrated.search) {
+            // Переносим недавние поиски в sessionStorage перед удалением
+            if (migrated.search.recent && Array.isArray(migrated.search.recent)) {
+                try {
+                    const userId = migrated.userId || 'guest';
+                    const key = `recent_searches_${userId}`;
+                    sessionStorage.setItem(key, JSON.stringify(migrated.search.recent.slice(0, 10)));
+                } catch (error) {
+                    console.warn('Не удалось перенести недавние поиски в sessionStorage:', error);
+                }
+            }
+            delete migrated.search;
         }
 
         return migrated;
@@ -235,9 +245,16 @@ class DataMigrationService {
             });
         }
 
-        // Оптимизируем recent searches - оставляем только последние 10
+        // Переносим recent searches в sessionStorage и удаляем из localStorage
         if (migrated.search && Array.isArray(migrated.search.recent)) {
-            migrated.search.recent = migrated.search.recent.slice(0, 10);
+            try {
+                const userId = migrated.userId || 'guest';
+                const key = `recent_searches_${userId}`;
+                sessionStorage.setItem(key, JSON.stringify(migrated.search.recent.slice(0, 10)));
+            } catch (error) {
+                console.warn('Не удалось перенести недавние поиски в sessionStorage:', error);
+            }
+            delete migrated.search;
         }
 
         // Удаляем activity (больше не используется)
@@ -339,11 +356,9 @@ class DataMigrationService {
             delete fixed.activity;
         }
 
-        // Проверяем search
-        if (!fixed.search || !Array.isArray(fixed.search.recent)) {
-            fixed.search = { recent: [] };
-        } else {
-            fixed.search.recent = fixed.search.recent.filter(s => s && s.id);
+        // Удаляем search (теперь хранится в sessionStorage)
+        if (fixed.search) {
+            delete fixed.search;
         }
 
         return fixed;
@@ -393,10 +408,8 @@ class DataMigrationService {
                 watched: [],
                 episodes: {},
                 seasonReviews: {}
-            },
-            search: {
-                recent: []
             }
+            // search.recent теперь хранится в sessionStorage
         };
     }
 

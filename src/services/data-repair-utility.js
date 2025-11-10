@@ -4,34 +4,66 @@
  */
 
 import { dataMigrationService } from './data-migration.js';
+import { StorageAdapter } from './storage-adapter.js';
 
 class DataRepairUtility {
     /**
      * Проверяет состояние данных пользователя
      */
     diagnose(userId = null) {
-        const storageKey = userId ? `user_data_${userId}` : this._findUserDataKey();
-        
-        if (!storageKey) {
-            console.error('❌ Не найдены данные пользователя в localStorage');
-            return null;
+        // Определяем userId
+        if (!userId) {
+            const storageKey = this._findUserDataKey();
+            if (storageKey) {
+                userId = storageKey.replace('user_data_', '');
+            } else {
+                userId = sessionStorage.getItem('user_id') || 
+                         window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 
+                         'guest';
+            }
         }
 
-        console.log(`🔍 Проверка данных: ${storageKey}`);
+        const storageKey = `user_data_${userId}`;
+        const oldData = localStorage.getItem(storageKey);
+        
+        // Проверяем новую структуру
+        const adapter = new StorageAdapter(userId);
+        const meta = adapter.getMeta();
+        
+        const report = {
+            userId,
+            hasOldStructure: !!oldData,
+            hasNewStructure: !!(meta && meta.version === '1.4'),
+            version: meta?.version || (oldData ? JSON.parse(oldData).version : 'не указана'),
+            needsMigration: false,
+            issues: []
+        };
+
+        console.log(`🔍 Проверка данных пользователя: ${userId}`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
         
         try {
-            const rawData = localStorage.getItem(storageKey);
-            if (!rawData) {
-                console.error('❌ Данные пусты');
-                return null;
+            // Если есть старая структура
+            if (oldData) {
+                const data = JSON.parse(oldData);
+                report.version = data.version || 'не указана';
+                report.needsMigration = data.version !== '1.4';
+                report.issues.push('⚠️ Обнаружена старая структура данных (требуется миграция в 1.4)');
+                
+                // Проверяем структуру старой версии
+                this._diagnoseOldStructure(data, report);
             }
-
-            const data = JSON.parse(rawData);
-            const report = {
-                version: data.version || 'не указана',
-                needsMigration: dataMigrationService.needsMigration(data),
-                issues: []
-            };
+            
+            // Если есть новая структура
+            if (meta && meta.version === '1.4') {
+                console.log('✅ Новая структура данных (1.4) обнаружена');
+                this._diagnoseNewStructure(adapter, report);
+            }
+            
+            // Если нет ни старой, ни новой структуры
+            if (!oldData && (!meta || meta.version !== '1.4')) {
+                report.issues.push('❌ Данные не найдены ни в старой, ни в новой структуре');
+            }
 
             // Проверяем структуру movies
             if (!data.movies) {
@@ -86,37 +118,51 @@ class DataRepairUtility {
                 report.issues.push('⚠️ activity найден (больше не используется, будет удален)');
             }
 
-            // Проверяем search
-            if (!data.search || !Array.isArray(data.search.recent)) {
-                report.issues.push('⚠️ search.recent не является массивом');
-            } else {
-                report.recentSearchCount = data.search.recent.length;
+            // Проверяем search.recent в sessionStorage (теперь хранится там)
+            try {
+                const searchUserId = userId || data.userId || 'guest';
+                const key = `recent_searches_${searchUserId}`;
+                const sessionData = sessionStorage.getItem(key);
+                if (sessionData) {
+                    const recent = JSON.parse(sessionData);
+                    if (Array.isArray(recent)) {
+                        report.recentSearchCount = recent.length;
+                    }
+                }
+            } catch (error) {
+                // Игнорируем ошибки
+            }
+            
+            // Если search.recent все еще в localStorage (старые данные), предупреждаем
+            if (data.search && data.search.recent) {
+                report.issues.push('⚠️ search.recent найден в localStorage (будет перенесен в sessionStorage)');
             }
 
             // Вывод отчета
-            console.log('\n📊 ОТЧЕТ О СОСТОЯНИИ ДАННЫХ:');
-            console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            console.log(`\n📊 ОТЧЕТ О СОСТОЯНИИ ДАННЫХ:`);
             console.log(`Версия: ${report.version}`);
-            console.log(`Требуется миграция: ${report.needsMigration ? '✅ Да' : '❌ Нет'}`);
+            console.log(`Старая структура: ${report.hasOldStructure ? '✅ Да' : '❌ Нет'}`);
+            console.log(`Новая структура: ${report.hasNewStructure ? '✅ Да' : '❌ Нет'}`);
+            console.log(`Требуется миграция: ${report.needsMigration ? '⚠️ Да' : '✅ Нет'}`);
             
             if (report.moviesStats) {
                 console.log('\n🎬 Фильмы:');
                 console.log(`  Want: ${report.moviesStats.want}`);
                 console.log(`  Watched: ${report.moviesStats.watched}`);
-                console.log(`  Watching: ${report.moviesStats.watching}`);
                 console.log(`  Reviews: ${report.moviesStats.reviews}`);
             }
 
             if (report.tvShowsStats) {
                 console.log('\n📺 Сериалы:');
-                console.log(`  Episode keys: ${report.tvShowsStats.episodeKeys}`);
-                console.log(`  Season reviews: ${report.tvShowsStats.seasonReviews}`);
-                console.log(`  Reviews: ${report.tvShowsStats.reviews}`);
+                console.log(`  Want: ${report.tvShowsStats.want || 'N/A'}`);
+                console.log(`  Watching: ${report.tvShowsStats.watching || 'N/A'}`);
+                console.log(`  Watched: ${report.tvShowsStats.watched || 'N/A'}`);
+                console.log(`  Episode keys: ${report.tvShowsStats.episodeKeys || 'N/A'}`);
+                console.log(`  Season reviews: ${report.tvShowsStats.seasonReviews || 'N/A'}`);
             }
 
-
             if (report.recentSearchCount !== undefined) {
-                console.log(`🔍 Недавние поиски: ${report.recentSearchCount} записей`);
+                console.log(`\n🔍 Недавние поиски: ${report.recentSearchCount} записей`);
             }
 
             if (report.issues.length > 0) {
@@ -136,47 +182,262 @@ class DataRepairUtility {
     }
 
     /**
-     * Исправляет данные пользователя
+     * Диагностика старой структуры данных
+     */
+    _diagnoseOldStructure(data, report) {
+        // Проверяем структуру movies
+        if (!data.movies) {
+            report.issues.push('❌ Отсутствует объект movies');
+        } else {
+            if (!Array.isArray(data.movies.want)) {
+                report.issues.push('⚠️ movies.want не является массивом');
+            }
+            if (!Array.isArray(data.movies.watched)) {
+                report.issues.push('⚠️ movies.watched не является массивом');
+            }
+            if (!data.movies.reviews || typeof data.movies.reviews !== 'object') {
+                report.issues.push('⚠️ movies.reviews не является объектом');
+            }
+
+            report.moviesStats = {
+                want: Array.isArray(data.movies.want) ? data.movies.want.length : 'N/A',
+                watched: Array.isArray(data.movies.watched) ? data.movies.watched.length : 'N/A',
+                reviews: data.movies.reviews ? Object.keys(data.movies.reviews).length : 'N/A'
+            };
+        }
+
+        // Проверяем структуру tvShows
+        if (!data.tvShows) {
+            report.issues.push('❌ Отсутствует объект tvShows');
+        } else {
+            if (!data.tvShows.episodes || typeof data.tvShows.episodes !== 'object') {
+                report.issues.push('⚠️ tvShows.episodes не является объектом');
+            }
+            if (!data.tvShows.seasonReviews || typeof data.tvShows.seasonReviews !== 'object') {
+                report.issues.push('⚠️ tvShows.seasonReviews не является объектом');
+            }
+
+            report.tvShowsStats = {
+                episodeKeys: data.tvShows.episodes ? Object.keys(data.tvShows.episodes).length : 'N/A',
+                seasonReviews: data.tvShows.seasonReviews ? Object.keys(data.tvShows.seasonReviews).length : 'N/A'
+            };
+        }
+
+        // Удаляем activity если он существует (больше не используется)
+        if (data.activity) {
+            report.issues.push('⚠️ activity найден (больше не используется, будет удален)');
+        }
+
+        // Проверяем search.recent в sessionStorage
+        try {
+            const searchUserId = data.userId || 'guest';
+            const key = `recent_searches_${searchUserId}`;
+            const sessionData = sessionStorage.getItem(key);
+            if (sessionData) {
+                const recent = JSON.parse(sessionData);
+                if (Array.isArray(recent)) {
+                    report.recentSearchCount = recent.length;
+                }
+            }
+        } catch (error) {
+            // Игнорируем ошибки
+        }
+        
+        // Если search.recent все еще в localStorage (старые данные), предупреждаем
+        if (data.search && data.search.recent) {
+            report.issues.push('⚠️ search.recent найден в localStorage (будет перенесен в sessionStorage)');
+        }
+    }
+
+    /**
+     * Диагностика новой структуры данных (1.4)
+     */
+    _diagnoseNewStructure(adapter, report) {
+        try {
+            // Проверяем фильмы
+            const moviesWant = adapter.getMoviesList('want');
+            const moviesWatched = adapter.getMoviesList('watched');
+            const moviesReviews = adapter.getAllMovieReviews();
+            
+            report.moviesStats = {
+                want: moviesWant.length,
+                watched: moviesWatched.length,
+                reviews: Object.keys(moviesReviews).length
+            };
+
+            // Проверяем сериалы
+            const tvWant = adapter.getTVShowsList('want');
+            const tvWatching = adapter.getTVShowsList('watching');
+            const tvWatched = adapter.getTVShowsList('watched');
+            const seasonReviews = adapter.getAllSeasonReviews();
+            
+            // Подсчитываем количество сериалов с эпизодами
+            // Получаем все эпизоды из новой структуры (tv_episodes)
+            let episodeKeysCount = 0;
+            const allEpisodes = adapter._getAllEpisodesData();
+            
+            // Подсчитываем количество сезонов во всех сериалах
+            Object.values(allEpisodes).forEach(tvData => {
+                if (tvData && typeof tvData === 'object') {
+                    episodeKeysCount += Object.keys(tvData).length;
+                }
+            });
+            
+            report.tvShowsStats = {
+                want: tvWant.length,
+                watching: tvWatching.length,
+                watched: tvWatched.length,
+                episodeKeys: episodeKeysCount,
+                seasonReviews: Object.keys(seasonReviews).length
+            };
+
+            // Проверяем недавние поиски
+            try {
+                const userId = adapter._userId;
+                const key = `recent_searches_${userId}`;
+                const sessionData = sessionStorage.getItem(key);
+                if (sessionData) {
+                    const recent = JSON.parse(sessionData);
+                    if (Array.isArray(recent)) {
+                        report.recentSearchCount = recent.length;
+                    }
+                }
+            } catch (error) {
+                // Игнорируем ошибки
+            }
+        } catch (error) {
+            console.error('Ошибка при диагностике новой структуры:', error);
+            report.issues.push('⚠️ Ошибка при проверке новой структуры данных');
+        }
+    }
+
+    /**
+     * Исправляет данные пользователя и мигрирует в новую структуру (1.4)
      */
     repair(userId = null, backup = true) {
-        const storageKey = userId ? `user_data_${userId}` : this._findUserDataKey();
+        // Определяем userId
+        if (!userId) {
+            const storageKey = this._findUserDataKey();
+            if (storageKey) {
+                userId = storageKey.replace('user_data_', '');
+            } else {
+                // Пытаемся получить из sessionStorage или Telegram
+                userId = sessionStorage.getItem('user_id') || 
+                         window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 
+                         'guest';
+            }
+        }
+
+        const storageKey = `user_data_${userId}`;
+        const oldData = localStorage.getItem(storageKey);
         
-        if (!storageKey) {
-            console.error('❌ Не найдены данные пользователя');
+        if (!oldData) {
+            console.log('ℹ️ Старые данные не найдены, проверяем новую структуру...');
+            // Проверяем, есть ли данные в новой структуре
+            const adapter = new StorageAdapter(userId);
+            const meta = adapter.getMeta();
+            if (meta && meta.version === '1.4') {
+                console.log('✅ Данные уже в новой структуре (1.4)');
+                return true;
+            }
+            console.error('❌ Данные не найдены ни в старой, ни в новой структуре');
             return false;
         }
 
-        console.log(`🔧 Начинаем ремонт данных: ${storageKey}`);
+        console.log(`🔧 Начинаем ремонт и миграцию данных: ${storageKey}`);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
         try {
-            const rawData = localStorage.getItem(storageKey);
-            if (!rawData) {
-                console.error('❌ Данные пусты');
-                return false;
-            }
-
             // Создаем резервную копию
             if (backup) {
                 const backupKey = `${storageKey}_backup_${Date.now()}`;
-                localStorage.setItem(backupKey, rawData);
+                localStorage.setItem(backupKey, oldData);
                 console.log(`💾 Резервная копия создана: ${backupKey}`);
             }
 
-            const data = JSON.parse(rawData);
+            const data = JSON.parse(oldData);
+            console.log(`📊 Текущая версия данных: ${data.version || 'не указана'}`);
             
-            // Применяем миграцию
-            const repairedData = dataMigrationService.migrate(data);
+            // Применяем миграции до версии 1.3
+            const migratedData = dataMigrationService.migrate(data);
+            console.log(`✅ Миграция до версии 1.3 завершена`);
             
-            // Сохраняем исправленные данные
-            localStorage.setItem(storageKey, JSON.stringify(repairedData));
+            // Мигрируем в новую разбитую структуру (1.4)
+            const adapter = new StorageAdapter(userId);
+            const migrationResult = adapter.migrateFromOldStructure(migratedData);
             
-            console.log('✅ Данные успешно исправлены!');
-            console.log('🔄 Перезагрузите страницу для применения изменений');
+            if (!migrationResult) {
+                console.error('❌ Ошибка миграции в новую структуру');
+                return false;
+            }
             
-            return true;
+            console.log(`✅ Миграция в версию 1.4 (разбитая структура) завершена`);
+            
+            // Проверяем, что миграция прошла успешно
+            const newMeta = adapter.getMeta();
+            if (newMeta && newMeta.version === '1.4') {
+                console.log('✅ Данные успешно мигрированы в новую структуру');
+                
+                // Удаляем старый ключ после успешной миграции
+                localStorage.removeItem(storageKey);
+                console.log(`🗑️ Старый ключ ${storageKey} удален`);
+                
+                // Очищаем все старые ключи (отзывы, эпизоды в старом формате)
+                this._cleanupOldKeys(userId);
+                
+                console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                console.log('✅ Данные успешно исправлены и мигрированы!');
+                console.log('🔄 Перезагрузите страницу для применения изменений');
+                
+                return true;
+            } else {
+                console.error('❌ Ошибка: данные не были мигрированы в новую структуру');
+                return false;
+            }
         } catch (error) {
             console.error('❌ Ошибка при ремонте данных:', error);
             return false;
+        }
+    }
+
+    /**
+     * Очищает старые ключи после миграции
+     */
+    _cleanupOldKeys(userId) {
+        const prefix = `user_${userId}_`;
+        const keysToRemove = [];
+        
+        // Собираем все старые ключи для удаления
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(prefix)) {
+                const suffix = key.replace(prefix, '');
+                
+                // Удаляем старые ключи отзывов (movies_review_{id}, tv_review_{id}, tv_season_review_{tvId}_{season})
+                if (suffix.startsWith('movies_review_') && suffix !== 'movies_reviews' && !suffix.startsWith('movies_reviews_g')) {
+                    keysToRemove.push(key);
+                }
+                // Удаляем tv_review_ и tv_reviews (отзывы на сериалы больше не поддерживаются)
+                if (suffix.startsWith('tv_review_') || suffix === 'tv_reviews' || suffix.startsWith('tv_reviews_g')) {
+                    keysToRemove.push(key);
+                }
+                if (suffix.startsWith('tv_season_review_') && suffix !== 'tv_season_reviews' && !suffix.startsWith('tv_season_reviews_g')) {
+                    keysToRemove.push(key);
+                }
+                
+                // Удаляем старые ключи эпизодов (tv_ep_{tvId}, tv_ep_{tvId}_{season}, tv_ep_{tvId}_g*, tv_ep_{tvId}_meta)
+                if (suffix.startsWith('tv_ep_') && suffix !== 'tv_episodes' && !suffix.startsWith('tv_episodes_g') && suffix !== 'tv_episodes_meta') {
+                    keysToRemove.push(key);
+                }
+            }
+        }
+        
+        if (keysToRemove.length > 0) {
+            console.log(`🗑️ Найдено ${keysToRemove.length} старых ключей для удаления`);
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+                console.log(`   Удален: ${key}`);
+            });
         }
     }
 

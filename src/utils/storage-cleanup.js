@@ -44,7 +44,7 @@ export class StorageCleanup {
                     seasonReviews: Object.keys(parsed.tvShows?.seasonReviews || {}).length,
                     reviews: Object.keys(parsed.tvShows?.reviews || {}).length
                 },
-                recentSearches: parsed.search?.recent?.length || 0
+                recentSearches: this._getRecentSearchesCount(userId)
             };
         } catch (error) {
             console.error('Error getting storage stats:', error);
@@ -76,18 +76,20 @@ export class StorageCleanup {
 
     /**
      * Очистить недавние поиски (оставить только последние N)
+     * Теперь работает с sessionStorage
      */
     static cleanupRecentSearches(userId, keepLast = 10) {
         try {
-            const data = localStorage.getItem(`user_data_${userId}`);
+            const key = `recent_searches_${userId}`;
+            const data = sessionStorage.getItem(key);
             if (!data) return false;
 
-            const parsed = JSON.parse(data);
-            if (parsed.search?.recent && parsed.search.recent.length > keepLast) {
-                const removed = parsed.search.recent.length - keepLast;
-                parsed.search.recent = parsed.search.recent.slice(0, keepLast);
-                localStorage.setItem(`user_data_${userId}`, JSON.stringify(parsed));
-                console.log(`Удалено ${removed} старых поисков`);
+            const recent = JSON.parse(data);
+            if (Array.isArray(recent) && recent.length > keepLast) {
+                const removed = recent.length - keepLast;
+                const trimmed = recent.slice(0, keepLast);
+                sessionStorage.setItem(key, JSON.stringify(trimmed));
+                console.log(`Удалено ${removed} старых поисков из sessionStorage`);
                 return true;
             }
             return false;
@@ -95,6 +97,23 @@ export class StorageCleanup {
             console.error('Error cleaning up recent searches:', error);
             return false;
         }
+    }
+
+    /**
+     * Получить количество недавних поисков из sessionStorage
+     */
+    static _getRecentSearchesCount(userId) {
+        try {
+            const key = `recent_searches_${userId}`;
+            const data = sessionStorage.getItem(key);
+            if (data) {
+                const recent = JSON.parse(data);
+                return Array.isArray(recent) ? recent.length : 0;
+            }
+        } catch (error) {
+            // Игнорируем ошибки
+        }
+        return 0;
     }
 
     /**

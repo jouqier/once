@@ -5,10 +5,10 @@
  * - user_data_${userId} - все пользовательские данные
  * 
  * КЕШИРУЕМЫЕ ДАННЫЕ (можно потерять и перезапросить):
- * - Метаданные из TMDB API
- * - Списки trending/popular
- * - Рекомендации
- * - Вычисленный прогресс
+ * - Метаданные из TMDB API (localStorage с TTL)
+ * - Списки trending/popular (sessionStorage, без TTL)
+ * - Рекомендации (memory only, с TTL)
+ * - Вычисленный прогресс (memory only)
  */
 
 class CacheStrategy {
@@ -26,23 +26,39 @@ class CacheStrategy {
      * @param {string} key - ключ
      * @param {object} options - опции
      * @param {boolean} options.persistent - использовать localStorage
-     * @param {number} options.ttl - время жизни в мс
+     * @param {boolean} options.session - использовать sessionStorage (вместо localStorage)
+     * @param {number} options.ttl - время жизни в мс (не используется для sessionStorage)
      */
     get(key, options = {}) {
-        const { persistent = false, ttl = null } = options;
+        const { persistent = false, session = false, ttl = null } = options;
         
         // Сначала проверяем memory cache
         if (this.memoryCache.has(key)) {
             const item = this.memoryCache.get(key);
-            if (!ttl || (Date.now() - item.timestamp < ttl)) {
+            // Для sessionStorage TTL не нужен, так как очищается при закрытии вкладки
+            if (session || !ttl || (Date.now() - item.timestamp < ttl)) {
                 return item.value;
             }
             // Устарело - удаляем
             this.memoryCache.delete(key);
         }
 
-        // Если нужен persistent cache
-        if (persistent) {
+        // Если нужен sessionStorage (приоритет над persistent)
+        if (session) {
+            try {
+                const stored = sessionStorage.getItem(this.CACHE_PREFIX + key);
+                if (stored) {
+                    const item = JSON.parse(stored);
+                    // Восстанавливаем в memory cache для быстрого доступа
+                    this.memoryCache.set(key, item);
+                    return item.value;
+                }
+            } catch (e) {
+                console.warn('Cache read error (sessionStorage):', e);
+            }
+        }
+        // Если нужен persistent cache (localStorage)
+        else if (persistent) {
             try {
                 const stored = localStorage.getItem(this.CACHE_PREFIX + key);
                 if (stored) {
@@ -65,9 +81,14 @@ class CacheStrategy {
 
     /**
      * Сохранить данные в кеш
+     * @param {string} key - ключ
+     * @param {*} value - значение
+     * @param {object} options - опции
+     * @param {boolean} options.persistent - использовать localStorage
+     * @param {boolean} options.session - использовать sessionStorage (вместо localStorage)
      */
     set(key, value, options = {}) {
-        const { persistent = false } = options;
+        const { persistent = false, session = false } = options;
         
         const item = {
             value,
@@ -77,8 +98,17 @@ class CacheStrategy {
         // Всегда сохраняем в memory cache
         this.memoryCache.set(key, item);
 
+        // Если нужен sessionStorage (приоритет над persistent)
+        if (session) {
+            try {
+                sessionStorage.setItem(this.CACHE_PREFIX + key, JSON.stringify(item));
+            } catch (e) {
+                console.warn('Cache write error (sessionStorage):', e);
+                // Если sessionStorage переполнен, ничего страшного - есть memory cache
+            }
+        }
         // Опционально в localStorage
-        if (persistent) {
+        else if (persistent) {
             try {
                 localStorage.setItem(this.CACHE_PREFIX + key, JSON.stringify(item));
             } catch (e) {
@@ -92,11 +122,13 @@ class CacheStrategy {
      * Удалить из кеша
      */
     delete(key, options = {}) {
-        const { persistent = false } = options;
+        const { persistent = false, session = false } = options;
         
         this.memoryCache.delete(key);
         
-        if (persistent) {
+        if (session) {
+            sessionStorage.removeItem(this.CACHE_PREFIX + key);
+        } else if (persistent) {
             localStorage.removeItem(this.CACHE_PREFIX + key);
         }
     }
@@ -105,7 +137,7 @@ class CacheStrategy {
      * Инвалидировать кеш по паттерну
      */
     invalidatePattern(pattern, options = {}) {
-        const { persistent = false } = options;
+        const { persistent = false, session = false } = options;
         
         // Memory cache
         for (const key of this.memoryCache.keys()) {
@@ -114,12 +146,23 @@ class CacheStrategy {
             }
         }
 
+        // sessionStorage
+        if (session) {
+            const keysToRemove = [];
+            for (let i = 0; i < sessionStorage.length; i++) {
+                const key = sessionStorage.key(i);
+                if (key && key.startsWith(this.CACHE_PREFIX) && key.includes(pattern)) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => sessionStorage.removeItem(key));
+        }
         // localStorage
-        if (persistent) {
+        else if (persistent) {
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
-                if (key.startsWith(this.CACHE_PREFIX) && key.includes(pattern)) {
+                if (key && key.startsWith(this.CACHE_PREFIX) && key.includes(pattern)) {
                     keysToRemove.push(key);
                 }
             }
@@ -170,11 +213,10 @@ class CacheStrategy {
 export const TTL = {
     MOVIE_DETAILS: 24 * 60 * 60 * 1000,      // 24 часа
     TV_DETAILS: 24 * 60 * 60 * 1000,         // 24 часа
-    TRENDING_LISTS: 30 * 60 * 1000,          // 30 минут
-    POPULAR_LISTS: 60 * 60 * 1000,           // 1 час
     RECOMMENDATIONS: 5 * 60 * 1000,          // 5 минут
-    SHOW_PROGRESS: Infinity,                 // До инвалидации по событию
-    SEARCH_RESULTS: 10 * 60 * 1000           // 10 минут
+    SHOW_PROGRESS: Infinity                  // До инвалидации по событию
+    // TRENDING_LISTS и POPULAR_LISTS удалены - теперь хранятся в sessionStorage без TTL
+    // SEARCH_RESULTS удален - результаты поиска не кешируются
 };
 
 // Ключи кеша

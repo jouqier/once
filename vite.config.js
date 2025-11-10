@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import { resolve } from 'path';
+import mkcert from 'vite-plugin-mkcert';
 
 export default defineConfig(({ mode }) => {
     // Загружаем env из корня проекта, а не из src/
@@ -9,6 +10,7 @@ export default defineConfig(({ mode }) => {
         base: process.env.GITHUB_PAGES === 'true' ? '/once/' : '/',
         root: 'src',
         envDir: '../',  // Указываем Vite искать .env в корне проекта
+        plugins: [mkcert()],
         build: {
             outDir: '../dist',
             emptyOutDir: true,
@@ -27,7 +29,9 @@ export default defineConfig(({ mode }) => {
         },
         server: {
             port: 3000,
-            host: 'localhost'
+            host: '0.0.0.0', // Слушаем на всех интерфейсах для доступа по сети
+            strictPort: false,
+            https: true // Включаем HTTPS для Telegram Mini App
         }
     };
 }); 

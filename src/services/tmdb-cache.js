@@ -8,12 +8,11 @@ import { cacheStrategy, TTL, CACHE_KEYS } from './cache-strategy.js';
 
 class TMDBCacheService {
     /**
-     * Получить trending фильмы с кешированием
+     * Получить trending фильмы с кешированием (в sessionStorage)
      */
     async getTrendingMovies() {
         const cached = cacheStrategy.get(CACHE_KEYS.MOVIES_TRENDING, {
-            persistent: true,
-            ttl: TTL.TRENDING_LISTS
+            session: true
         });
         
         if (cached) {
@@ -21,17 +20,16 @@ class TMDBCacheService {
         }
 
         const data = await TMDBService.getTrendingMovies();
-        cacheStrategy.set(CACHE_KEYS.MOVIES_TRENDING, data, { persistent: true });
+        cacheStrategy.set(CACHE_KEYS.MOVIES_TRENDING, data, { session: true });
         return data;
     }
 
     /**
-     * Получить upcoming фильмы с кешированием
+     * Получить upcoming фильмы с кешированием (в sessionStorage)
      */
     async getUpcomingMovies() {
         const cached = cacheStrategy.get(CACHE_KEYS.MOVIES_UPCOMING, {
-            persistent: true,
-            ttl: TTL.POPULAR_LISTS
+            session: true
         });
         
         if (cached) {
@@ -39,17 +37,16 @@ class TMDBCacheService {
         }
 
         const data = await TMDBService.getUpcomingMovies();
-        cacheStrategy.set(CACHE_KEYS.MOVIES_UPCOMING, data, { persistent: true });
+        cacheStrategy.set(CACHE_KEYS.MOVIES_UPCOMING, data, { session: true });
         return data;
     }
 
     /**
-     * Получить popular фильмы с кешированием
+     * Получить popular фильмы с кешированием (в sessionStorage)
      */
     async getPopularMovies() {
         const cached = cacheStrategy.get(CACHE_KEYS.MOVIES_POPULAR, {
-            persistent: true,
-            ttl: TTL.POPULAR_LISTS
+            session: true
         });
         
         if (cached) {
@@ -57,7 +54,7 @@ class TMDBCacheService {
         }
 
         const data = await TMDBService.getPopularMovies();
-        cacheStrategy.set(CACHE_KEYS.MOVIES_POPULAR, data, { persistent: true });
+        cacheStrategy.set(CACHE_KEYS.MOVIES_POPULAR, data, { session: true });
         return data;
     }
 
@@ -81,12 +78,11 @@ class TMDBCacheService {
     }
 
     /**
-     * Получить trending сериалы с кешированием
+     * Получить trending сериалы с кешированием (в sessionStorage)
      */
     async getTrendingTV() {
         const cached = cacheStrategy.get(CACHE_KEYS.TV_TRENDING, {
-            persistent: true,
-            ttl: TTL.TRENDING_LISTS
+            session: true
         });
         
         if (cached) {
@@ -94,17 +90,16 @@ class TMDBCacheService {
         }
 
         const data = await TMDBService.getTrendingTV();
-        cacheStrategy.set(CACHE_KEYS.TV_TRENDING, data, { persistent: true });
+        cacheStrategy.set(CACHE_KEYS.TV_TRENDING, data, { session: true });
         return data;
     }
 
     /**
-     * Получить popular сериалы с кешированием
+     * Получить popular сериалы с кешированием (в sessionStorage)
      */
     async getPopularTV() {
         const cached = cacheStrategy.get(CACHE_KEYS.TV_POPULAR, {
-            persistent: true,
-            ttl: TTL.POPULAR_LISTS
+            session: true
         });
         
         if (cached) {
@@ -112,17 +107,16 @@ class TMDBCacheService {
         }
 
         const data = await TMDBService.getPopularTV();
-        cacheStrategy.set(CACHE_KEYS.TV_POPULAR, data, { persistent: true });
+        cacheStrategy.set(CACHE_KEYS.TV_POPULAR, data, { session: true });
         return data;
     }
 
     /**
-     * Получить top rated сериалы с кешированием
+     * Получить top rated сериалы с кешированием (в sessionStorage)
      */
     async getTopRatedTV() {
         const cached = cacheStrategy.get(CACHE_KEYS.TV_TOP_RATED, {
-            persistent: true,
-            ttl: TTL.POPULAR_LISTS
+            session: true
         });
         
         if (cached) {
@@ -130,7 +124,7 @@ class TMDBCacheService {
         }
 
         const data = await TMDBService.getTopRatedTV();
-        cacheStrategy.set(CACHE_KEYS.TV_TOP_RATED, data, { persistent: true });
+        cacheStrategy.set(CACHE_KEYS.TV_TOP_RATED, data, { session: true });
         return data;
     }
 

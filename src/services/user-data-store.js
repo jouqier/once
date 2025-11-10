@@ -1,4 +1,5 @@
 import { dataMigrationService } from './data-migration.js';
+import { StorageAdapter } from './storage-adapter.js';
 
 class UserDataStore {
     constructor() {
@@ -18,8 +19,11 @@ class UserDataStore {
         }
         
         this._userId = userId;
-        this._version = '1.3'; // Обновлена версия - оптимизация хранения (только ID)
-        this._store = this._initStore();
+        this._version = '1.4'; // Новая версия - разбитая структура для CloudStorage
+        this._adapter = new StorageAdapter(userId);
+        
+        // Инициализация хранилища
+        this._initStore();
         
         // Добавляем обработчик обновления данных пользователя
         document.addEventListener('tg-user-data-updated', () => {
@@ -27,101 +31,233 @@ class UserDataStore {
             if (newUserId && newUserId !== this._userId) {
                 this._userId = newUserId;
                 sessionStorage.setItem('user_id', newUserId);
-                this._store = this._initStore();
+                this._adapter = new StorageAdapter(newUserId);
+                this._initStore();
             }
         });
     }
 
     _initStore() {
         try {
-            const savedData = localStorage.getItem(`user_data_${this._userId}`);
-            if (!savedData) {
-                console.log('Создание нового хранилища для пользователя:', this._userId);
-                return this._createInitialStore();
-            }
-
-            const parsedData = JSON.parse(savedData);
+            // Проверяем, есть ли старые данные (версия 1.3)
+            const oldDataKey = `user_data_${this._userId}`;
+            const oldData = localStorage.getItem(oldDataKey);
             
-            // Используем сервис миграции для обработки данных
-            const migratedData = dataMigrationService.migrate(parsedData);
-            
-            // Если данные были мигрированы, сохраняем их
-            if (migratedData.version !== parsedData.version) {
-                console.log('Данные мигрированы, сохраняем...');
-                this._saveStore(migratedData);
+            if (oldData) {
+                try {
+                    const parsedData = JSON.parse(oldData);
+                    
+                    // Если версия 1.3 или ниже, мигрируем в новую структуру
+                    if (parsedData.version && parsedData.version !== '1.4') {
+                        console.log('Обнаружены старые данные, мигрируем в новую структуру...');
+                        
+                        // Применяем миграции до версии 1.3
+                        const migratedData = dataMigrationService.migrate(parsedData);
+                        
+                        // Мигрируем в разбитую структуру (1.4)
+                        this._adapter.migrateFromOldStructure(migratedData);
+                        
+                        // Удаляем старые данные после успешной миграции
+                        localStorage.removeItem(oldDataKey);
+                        console.log('✅ Миграция в разбитую структуру завершена');
+                    } else if (parsedData.version === '1.4') {
+                        // Данные уже в новой структуре, но могут быть в старом формате
+                        // Проверяем, есть ли данные в новой структуре
+                        const meta = this._adapter.getMeta();
+                        if (!meta || meta.version !== '1.4') {
+                            // Мигрируем из старого формата
+                            this._adapter.migrateFromOldStructure(parsedData);
+                            localStorage.removeItem(oldDataKey);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Ошибка миграции данных:', error);
+                }
             }
-
-            return migratedData;
+            
+            // Проверяем и мигрируем старые ключи от предыдущей архитектуры
+            this._migrateOldKeys();
+            
+            // Инициализируем метаданные, если их нет
+            const meta = this._adapter.getMeta();
+            if (!meta || meta.version !== '1.4') {
+                this._adapter.setMeta({
+                    version: this._version,
+                    userId: this._userId
+                });
+            }
         } catch (error) {
             console.error('Ошибка инициализации хранилища:', error);
-            console.error('Создаем новое хранилище из-за ошибки');
-            return this._createInitialStore();
         }
     }
 
-    _createInitialStore() {
-        return {
-            version: this._version,
-            userId: this._userId,
-            movies: {
-                want: [],      // Только ID фильмов
-                watched: [],   // Только ID фильмов
-                reviews: {}
-            },
-            tvShows: {
-                want: [],      // Только ID сериалов
-                watching: [],  // Только ID сериалов
-                watched: [],   // Только ID сериалов
-                episodes: {},
-                seasonReviews: {}
-            },
-            search: {
-                recent: []
+    /**
+     * Мигрирует старые ключи от предыдущей архитектуры в новую структуру
+     */
+    _migrateOldKeys() {
+        const prefix = `user_${this._userId}_`;
+        const keysToMigrate = [];
+        const keysToRemove = [];
+        
+        // Собираем все старые ключи для миграции
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(prefix)) {
+                const suffix = key.replace(prefix, '');
+                
+                // Старые ключи отзывов на фильмы (movies_review_{id})
+                if (suffix.startsWith('movies_review_') && suffix !== 'movies_reviews' && !suffix.startsWith('movies_reviews_g')) {
+                    keysToMigrate.push({ key, type: 'movie_review', id: suffix.replace('movies_review_', '') });
+                    keysToRemove.push(key);
+                }
+                
+                // Старые ключи отзывов на сериалы (tv_review_{id}, tv_reviews, tv_reviews_g*) - удаляем, так как их больше нет
+                if (suffix.startsWith('tv_review_') || suffix === 'tv_reviews' || suffix.startsWith('tv_reviews_g')) {
+                    keysToRemove.push(key);
+                }
+                
+                // Старые ключи отзывов на сезоны (tv_season_review_{tvId}_{season})
+                if (suffix.startsWith('tv_season_review_') && suffix !== 'tv_season_reviews' && !suffix.startsWith('tv_season_reviews_g')) {
+                    const parts = suffix.replace('tv_season_review_', '').split('_');
+                    if (parts.length >= 2) {
+                        const tvId = parts[0];
+                        const seasonNumber = parts.slice(1).join('_');
+                        keysToMigrate.push({ key, type: 'season_review', tvId, seasonNumber });
+                        keysToRemove.push(key);
+                    }
+                }
+                
+                // Старые ключи эпизодов (tv_ep_{tvId} или tv_ep_{tvId}_{season})
+                if (suffix.startsWith('tv_ep_') && suffix !== 'tv_episodes' && !suffix.startsWith('tv_episodes_g') && suffix !== 'tv_episodes_meta') {
+                    // Это старый формат, нужно мигрировать
+                    const epSuffix = suffix.replace('tv_ep_', '');
+                    
+                    // Если это tv_ep_{tvId}_{season} - старый формат по сезонам
+                    if (epSuffix.includes('_') && !epSuffix.startsWith('g') && !epSuffix.includes('_meta')) {
+                        const parts = epSuffix.split('_');
+                        if (parts.length >= 2 && /^\d+$/.test(parts[0]) && /^\d+$/.test(parts[1])) {
+                            keysToMigrate.push({ key, type: 'episodes', tvId: parts[0], seasonNumber: parts[1] });
+                            keysToRemove.push(key);
+                        }
+                    } else if (!epSuffix.includes('_g') && !epSuffix.includes('_meta')) {
+                        // Это tv_ep_{tvId} - старый формат по сериалам
+                        keysToMigrate.push({ key, type: 'episodes_tv', tvId: epSuffix });
+                        keysToRemove.push(key);
+                    }
+                }
             }
-        };
+        }
+        
+        // Выполняем миграцию
+        if (keysToMigrate.length > 0) {
+            console.log(`🔄 Найдено ${keysToMigrate.length} старых ключей для миграции`);
+            
+            // Группируем по типам для миграции
+            const movieReviews = {};
+            const seasonReviews = {};
+            const episodesByTvId = {};
+            
+            keysToMigrate.forEach(({ key, type, id, tvId, seasonNumber }) => {
+                try {
+                    const value = localStorage.getItem(key);
+                    if (value) {
+                        const data = JSON.parse(value);
+                        
+                        if (type === 'movie_review') {
+                            movieReviews[id] = data;
+                        } else if (type === 'season_review') {
+                            const reviewKey = `${tvId}_${seasonNumber}`;
+                            seasonReviews[reviewKey] = data;
+                        } else if (type === 'episodes') {
+                            if (!episodesByTvId[tvId]) {
+                                episodesByTvId[tvId] = {};
+                            }
+                            episodesByTvId[tvId][seasonNumber] = data;
+                        } else if (type === 'episodes_tv') {
+                            // Это уже данные сериала в старом формате
+                            if (!episodesByTvId[tvId]) {
+                                episodesByTvId[tvId] = {};
+                            }
+                            // Данные уже в формате {season: episodes[]}
+                            Object.entries(data).forEach(([season, episodes]) => {
+                                episodesByTvId[tvId][season] = episodes;
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error(`Ошибка чтения ключа ${key}:`, error);
+                }
+            });
+            
+            // Сохраняем мигрированные данные
+            if (Object.keys(movieReviews).length > 0) {
+                Object.entries(movieReviews).forEach(([movieId, review]) => {
+                    this._adapter.setMovieReview(movieId, review);
+                });
+            }
+            
+            if (Object.keys(seasonReviews).length > 0) {
+                Object.entries(seasonReviews).forEach(([reviewKey, review]) => {
+                    const [tvId, seasonNumber] = reviewKey.split('_');
+                    this._adapter.setSeasonReview(tvId, seasonNumber, review);
+                });
+            }
+            
+            if (Object.keys(episodesByTvId).length > 0) {
+                // Получаем все существующие эпизоды
+                let allEpisodes = {};
+                try {
+                    // Используем приватный метод через адаптер
+                    allEpisodes = this._adapter._getAllEpisodesData();
+                } catch (error) {
+                    console.warn('Не удалось получить существующие эпизоды:', error);
+                }
+                
+                // Объединяем со старыми данными
+                Object.entries(episodesByTvId).forEach(([tvId, tvData]) => {
+                    if (!allEpisodes[tvId]) {
+                        allEpisodes[tvId] = {};
+                    }
+                    Object.entries(tvData).forEach(([season, episodes]) => {
+                        // Форматируем эпизоды в компактный формат
+                        try {
+                            allEpisodes[tvId][season] = this._adapter._formatEpisodes(episodes);
+                        } catch (error) {
+                            console.warn(`Ошибка форматирования эпизодов ${tvId}_${season}:`, error);
+                            // Сохраняем как есть, если форматирование не удалось
+                            allEpisodes[tvId][season] = episodes;
+                        }
+                    });
+                });
+                
+                // Сохраняем все эпизоды
+                try {
+                    this._adapter._saveAllEpisodesData(allEpisodes);
+                } catch (error) {
+                    console.error('Ошибка сохранения эпизодов:', error);
+                }
+            }
+            
+            console.log('✅ Миграция старых ключей завершена');
+        }
+        
+        // Удаляем старые ключи
+        if (keysToRemove.length > 0) {
+            console.log(`🗑️ Удаление ${keysToRemove.length} старых ключей`);
+            keysToRemove.forEach(key => {
+                localStorage.removeItem(key);
+            });
+        }
+    }
+
+    // Виртуальный объект _store для обратной совместимости
+    get _store() {
+        return this._adapter.loadToOldFormat();
     }
 
     // Оптимизация: сохраняем только ID вместо полных объектов
     _extractMovieId(movie) {
         return typeof movie === 'object' ? movie.id : movie;
-    }
-
-    // Старый метод миграции больше не используется
-    // Миграция теперь выполняется через dataMigrationService
-
-    _saveStore(data) {
-        try {
-            const jsonData = JSON.stringify(data);
-            const sizeKB = (jsonData.length / 1024).toFixed(2);
-            
-            localStorage.setItem(`user_data_${this._userId}`, jsonData);
-            
-            // Логируем размер данных для мониторинга
-            if (sizeKB > 1000) {
-                console.warn(`⚠️ Размер данных: ${sizeKB} KB (приближается к лимиту)`);
-            }
-        } catch (error) {
-            console.error('Ошибка сохранения данных:', error);
-            
-            if (error.name === 'QuotaExceededError') {
-                // Показываем пользователю понятное сообщение
-                const message = 'Хранилище переполнено. Пожалуйста, обновите страницу для оптимизации данных.';
-                
-                // Пытаемся показать через Telegram
-                if (window.Telegram?.WebApp?.showAlert) {
-                    window.Telegram.WebApp.showAlert(message);
-                } else {
-                    alert(message);
-                }
-                
-                // Отправляем событие для обработки в UI
-                document.dispatchEvent(new CustomEvent('storage-quota-exceeded', {
-                    detail: { error, userId: this._userId }
-                }));
-            }
-            
-            throw error;
-        }
     }
 
     // Методы для работы с фильмами (только want и watched)
@@ -132,17 +268,13 @@ class UserDataStore {
             return [];
         }
 
-        // Валидация структуры
-        if (!this._store.movies || !Array.isArray(this._store.movies[type])) {
-            console.warn(`Некорректная структура movies.${type}, инициализация...`);
-            if (!this._store.movies) this._store.movies = {};
-            this._store.movies[type] = [];
-            this._saveStore(this._store);
+        try {
+            const list = this._adapter.getMoviesList(type);
+            return list.map(item => this._extractMovieId(item));
+        } catch (error) {
+            console.error(`Ошибка получения списка фильмов ${type}:`, error);
+            return [];
         }
-        
-        // Нормализуем данные: если хранятся объекты, извлекаем ID
-        const list = this._store.movies[type] || [];
-        return list.map(item => this._extractMovieId(item));
     }
 
     addMovie(type, movie) {
@@ -164,20 +296,20 @@ class UserDataStore {
             return;
         }
 
-        // Валидация структуры
-        if (!this._store.movies || !Array.isArray(this._store.movies[type])) {
-            if (!this._store.movies) this._store.movies = {};
-            this._store.movies[type] = [];
-        }
-
-        // Сохраняем только ID для экономии места
-        const movieId = this._extractMovieId(movie);
-        if (!this._store.movies[type].includes(movieId)) {
-            this._store.movies[type].push(movieId);
-            this._saveStore(this._store);
+        try {
+            const movieId = this._extractMovieId(movie);
+            const list = this._adapter.getMoviesList(type);
             
-            // Отправляем событие об изменении списка
-            this._dispatchListChangedEvent(type, 'added', movie);
+            if (!list.includes(movieId)) {
+                list.push(movieId);
+                this._adapter.setMoviesList(type, list);
+                
+                // Отправляем событие об изменении списка
+                this._dispatchListChangedEvent(type, 'added', movie);
+            }
+        } catch (error) {
+            console.error(`Ошибка добавления фильма в ${type}:`, error);
+            this._handleStorageError(error);
         }
     }
 
@@ -188,35 +320,32 @@ class UserDataStore {
             return;
         }
 
-        // Валидация структуры
-        if (!this._store.movies || !Array.isArray(this._store.movies[type])) {
-            console.warn(`Некорректная структура movies.${type} при удалении`);
-            return;
-        }
-
-        const hadMovie = this._store.movies[type].includes(movieId);
-        this._store.movies[type] = this._store.movies[type].filter(id => id !== movieId);
-        this._saveStore(this._store);
-        
-        // Отправляем событие об изменении списка
-        if (hadMovie) {
-            this._dispatchListChangedEvent(type, 'removed', { id: movieId });
+        try {
+            const list = this._adapter.getMoviesList(type);
+            const hadMovie = list.includes(movieId);
+            
+            if (hadMovie) {
+                const newList = list.filter(id => id !== movieId);
+                this._adapter.setMoviesList(type, newList);
+                
+                // Отправляем событие об изменении списка
+                this._dispatchListChangedEvent(type, 'removed', { id: movieId });
+            }
+        } catch (error) {
+            console.error(`Ошибка удаления фильма из ${type}:`, error);
+            this._handleStorageError(error);
         }
     }
 
     // Методы для работы с сериалами (want, watching, watched)
     getTVShows(type) {
-        // Валидация структуры
-        if (!this._store.tvShows || !Array.isArray(this._store.tvShows[type])) {
-            console.warn(`Некорректная структура tvShows.${type}, инициализация...`);
-            if (!this._store.tvShows) this._store.tvShows = {};
-            this._store.tvShows[type] = [];
-            this._saveStore(this._store);
+        try {
+            const list = this._adapter.getTVShowsList(type);
+            return list.map(item => this._extractMovieId(item));
+        } catch (error) {
+            console.error(`Ошибка получения списка сериалов ${type}:`, error);
+            return [];
         }
-        
-        // Нормализуем данные: если хранятся объекты, извлекаем ID
-        const list = this._store.tvShows[type] || [];
-        return list.map(item => this._extractMovieId(item));
     }
 
     addTVShow(type, show) {
@@ -232,37 +361,38 @@ class UserDataStore {
             return;
         }
 
-        // Валидация структуры
-        if (!this._store.tvShows || !Array.isArray(this._store.tvShows[type])) {
-            if (!this._store.tvShows) this._store.tvShows = {};
-            this._store.tvShows[type] = [];
-        }
-
-        // Сохраняем только ID для экономии места
-        const showId = this._extractMovieId(show);
-        if (!this._store.tvShows[type].includes(showId)) {
-            this._store.tvShows[type].push(showId);
-            this._saveStore(this._store);
+        try {
+            const showId = this._extractMovieId(show);
+            const list = this._adapter.getTVShowsList(type);
             
-            // Отправляем событие об изменении списка
-            this._dispatchListChangedEvent(type, 'added', show);
+            if (!list.includes(showId)) {
+                list.push(showId);
+                this._adapter.setTVShowsList(type, list);
+                
+                // Отправляем событие об изменении списка
+                this._dispatchListChangedEvent(type, 'added', show);
+            }
+        } catch (error) {
+            console.error(`Ошибка добавления сериала в ${type}:`, error);
+            this._handleStorageError(error);
         }
     }
 
     removeTVShow(type, showId) {
-        // Валидация структуры
-        if (!this._store.tvShows || !Array.isArray(this._store.tvShows[type])) {
-            console.warn(`Некорректная структура tvShows.${type} при удалении`);
-            return;
-        }
-
-        const hadShow = this._store.tvShows[type].includes(showId);
-        this._store.tvShows[type] = this._store.tvShows[type].filter(id => id !== showId);
-        this._saveStore(this._store);
-        
-        // Отправляем событие об изменении списка
-        if (hadShow) {
-            this._dispatchListChangedEvent(type, 'removed', { id: showId });
+        try {
+            const list = this._adapter.getTVShowsList(type);
+            const hadShow = list.includes(showId);
+            
+            if (hadShow) {
+                const newList = list.filter(id => id !== showId);
+                this._adapter.setTVShowsList(type, newList);
+                
+                // Отправляем событие об изменении списка
+                this._dispatchListChangedEvent(type, 'removed', { id: showId });
+            }
+        } catch (error) {
+            console.error(`Ошибка удаления сериала из ${type}:`, error);
+            this._handleStorageError(error);
         }
     }
 
@@ -282,161 +412,167 @@ class UserDataStore {
 
     // Методы для работы с сериалами
     getEpisodeStatus(tvId, seasonNumber, episodeNumber) {
-        // Валидация структуры
-        if (!this._store.tvShows || !this._store.tvShows.episodes) {
-            console.warn('Некорректная структура tvShows.episodes');
-            if (!this._store.tvShows) this._store.tvShows = {};
-            this._store.tvShows.episodes = {};
-            this._saveStore(this._store);
+        try {
+            const episodes = this._adapter.getSeasonEpisodes(tvId, seasonNumber);
+            return Array.isArray(episodes) && episodes.includes(episodeNumber);
+        } catch (error) {
+            console.error('Ошибка получения статуса эпизода:', error);
             return false;
         }
-
-        const key = `${tvId}_${seasonNumber}`;
-        if (!this._store.tvShows.episodes[key]) {
-            return false;
-        }
-
-        // Проверяем что это массив
-        if (!Array.isArray(this._store.tvShows.episodes[key])) {
-            console.warn(`Некорректный формат episodes[${key}], исправление...`);
-            this._store.tvShows.episodes[key] = [];
-            this._saveStore(this._store);
-            return false;
-        }
-
-        return this._store.tvShows.episodes[key].includes(episodeNumber);
     }
 
     setEpisodeStatus(tvId, seasonNumber, episodeNumber, watched) {
-        // Валидация структуры
-        if (!this._store.tvShows || !this._store.tvShows.episodes) {
-            if (!this._store.tvShows) this._store.tvShows = {};
-            this._store.tvShows.episodes = {};
-        }
-
-        const key = `${tvId}_${seasonNumber}`;
-        
-        if (!this._store.tvShows.episodes[key]) {
-            this._store.tvShows.episodes[key] = [];
-        }
-
-        // Проверяем что это массив
-        if (!Array.isArray(this._store.tvShows.episodes[key])) {
-            console.warn(`Некорректный формат episodes[${key}], исправление...`);
-            this._store.tvShows.episodes[key] = [];
-        }
-
-        if (watched) {
-            if (!this._store.tvShows.episodes[key].includes(episodeNumber)) {
-                this._store.tvShows.episodes[key].push(episodeNumber);
+        try {
+            let episodes = this._adapter.getSeasonEpisodes(tvId, seasonNumber);
+            if (!Array.isArray(episodes)) {
+                episodes = [];
             }
-        } else {
-            this._store.tvShows.episodes[key] = this._store.tvShows.episodes[key]
-                .filter(ep => ep !== episodeNumber);
-        }
 
-        this._saveStore(this._store);
+            if (watched) {
+                if (!episodes.includes(episodeNumber)) {
+                    episodes.push(episodeNumber);
+                }
+            } else {
+                episodes = episodes.filter(ep => ep !== episodeNumber);
+            }
+
+            this._adapter.setSeasonEpisodes(tvId, seasonNumber, episodes);
+        } catch (error) {
+            console.error('Ошибка установки статуса эпизода:', error);
+            this._handleStorageError(error);
+        }
     }
 
     // Методы для работы с отзывами
     getReview(type, id, seasonNumber = null) {
-        // Проверяем существование необходимых объектов
-        if (!this._store || !this._store.tvShows || !this._store.movies) {
-            console.warn('Store structure is not properly initialized');
-            return null;
-        }
-
         try {
             if (type === 'tv_season' && seasonNumber !== null) {
-                const key = `${id}_${seasonNumber}`;
-                return this._store.tvShows.seasonReviews?.[key] || null;
+                return this._adapter.getSeasonReview(id, seasonNumber);
             }
-            // Для фильмов и других типов
-            return this._store.movies.reviews?.[id] || null;
+            // Для фильмов и других типов (tv больше не поддерживается)
+            return this._adapter.getMovieReview(id);
         } catch (error) {
-            console.error('Error getting review:', error);
+            console.error('Ошибка получения отзыва:', error);
             return null;
         }
     }
 
     saveReview(type, id, review, seasonNumber = null) {
-        // Инициализируем структуру хранилища, если её нет
-        if (!this._store.movies) {
-            this._store.movies = { reviews: {} };
-        }
-        if (!this._store.tvShows) {
-            this._store.tvShows = { seasonReviews: {} };
-        }
-        if (!this._store.movies.reviews) {
-            this._store.movies.reviews = {};
-        }
-        if (!this._store.tvShows.seasonReviews) {
-            this._store.tvShows.seasonReviews = {};
-        }
-
         try {
             if (type === 'tv_season') {
-                const key = `${id}_${seasonNumber}`;
-                this._store.tvShows.seasonReviews[key] = review;
+                this._adapter.setSeasonReview(id, seasonNumber, review);
             } else {
-                // Для фильмов и других типов
-                this._store.movies.reviews[id] = review;
+                // Для фильмов и других типов (tv больше не поддерживается)
+                this._adapter.setMovieReview(id, review);
             }
-            this._saveStore(this._store);
         } catch (error) {
-            console.error('Error saving review:', error);
+            console.error('Ошибка сохранения отзыва:', error);
+            this._handleStorageError(error);
         }
     }
 
 
-    // Методы для работы с поиском
+    // Методы для работы с поиском (хранятся в sessionStorage, не в localStorage)
     addRecentSearch(item) {
-        const exists = this._store.search.recent.find(i => i.id === item.id);
-        if (!exists) {
-            this._store.search.recent.unshift(item);
-            this._store.search.recent = this._store.search.recent.slice(0, 10);
-            this._saveStore(this._store);
+        try {
+            const key = `recent_searches_${this._userId}`;
+            let recent = this._getRecentSearchesFromSession();
+            
+            // Проверяем, не существует ли уже
+            const exists = recent.find(i => i.id === item.id);
+            if (!exists) {
+                recent.unshift(item);
+                recent = recent.slice(0, 10); // Оставляем только последние 10
+                
+                // Сохраняем в sessionStorage
+                sessionStorage.setItem(key, JSON.stringify(recent));
+            }
+        } catch (error) {
+            console.error('Ошибка сохранения недавних поисков:', error);
         }
     }
 
     getRecentSearches() {
-        return this._store.search.recent;
+        return this._getRecentSearchesFromSession();
+    }
+
+    _getRecentSearchesFromSession() {
+        try {
+            const key = `recent_searches_${this._userId}`;
+            const data = sessionStorage.getItem(key);
+            if (data) {
+                return JSON.parse(data);
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки недавних поисков:', error);
+        }
+        return [];
     }
 
     getAllEpisodes(tvId) {
-        const episodes = {};
-        Object.keys(this._store.tvShows.episodes).forEach(key => {
-            if (key.startsWith(`${tvId}_`)) {
-                const seasonNumber = key.split('_')[1];
-                episodes[seasonNumber] = this._store.tvShows.episodes[key];
-            }
-        });
-        return episodes;
+        try {
+            return this._adapter.getAllEpisodes(tvId);
+        } catch (error) {
+            console.error('Ошибка получения всех эпизодов:', error);
+            return {};
+        }
     }
 
     removeReview(type, id, seasonNumber = null) {
-        if (type === 'tv_season') {
-            const key = `${id}_${seasonNumber}`;
-            delete this._store.tvShows.seasonReviews[key];
-        } else {
-            // Для фильмов и других типов
-            delete this._store.movies.reviews[id];
+        try {
+            if (type === 'tv_season') {
+                this._adapter.removeSeasonReview(id, seasonNumber);
+            } else {
+                // Для фильмов и других типов (tv больше не поддерживается)
+                this._adapter.removeMovieReview(id);
+            }
+        } catch (error) {
+            console.error('Ошибка удаления отзыва:', error);
+            this._handleStorageError(error);
         }
-        this._saveStore(this._store);
     }
 
     removeAllSeasonReviews(tvId) {
-        Object.keys(this._store.tvShows.seasonReviews).forEach(key => {
-            if (key.startsWith(`${tvId}_`)) {
-                delete this._store.tvShows.seasonReviews[key];
-            }
-        });
-        this._saveStore(this._store);
+        try {
+            const reviews = this._adapter.getAllSeasonReviews();
+            Object.keys(reviews).forEach(key => {
+                if (key.startsWith(`${tvId}_`)) {
+                    const [showId, seasonNumber] = key.split('_');
+                    this._adapter.removeSeasonReview(showId, seasonNumber);
+                }
+            });
+        } catch (error) {
+            console.error('Ошибка удаления всех отзывов на сезоны:', error);
+            this._handleStorageError(error);
+        }
     }
 
     getSeasonEpisodes(tvId, seasonNumber) {
-        const key = `${tvId}_${seasonNumber}`;
-        return this._store.tvShows.episodes[key] || [];
+        try {
+            return this._adapter.getSeasonEpisodes(tvId, seasonNumber);
+        } catch (error) {
+            console.error('Ошибка получения эпизодов сезона:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Обработка ошибок хранилища
+     */
+    _handleStorageError(error) {
+        if (error.name === 'QuotaExceededError') {
+            const message = 'Хранилище переполнено. Пожалуйста, обновите страницу для оптимизации данных.';
+            
+            if (window.Telegram?.WebApp?.showAlert) {
+                window.Telegram.WebApp.showAlert(message);
+            } else {
+                alert(message);
+            }
+            
+            document.dispatchEvent(new CustomEvent('storage-quota-exceeded', {
+                detail: { error, userId: this._userId }
+            }));
+        }
     }
 }
 
