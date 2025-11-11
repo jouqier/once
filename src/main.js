@@ -24,6 +24,7 @@ import './pages/person/person-page.js';
 import { API_CONFIG } from './config/api.js';
 import { cacheMigration } from './services/cache-migration.js';
 import { StorageCleanup } from './utils/storage-cleanup.js'; // Утилита для очистки хранилища
+import { analytics } from './services/analytics.js'; // Google Analytics
 
 // Импортируем изображения
 import story2 from '../public/assets/stories/story2.jpg';
@@ -33,8 +34,13 @@ import story5 from '../public/assets/stories/story5.jpg';
 
 // Обработчик выбора фильма/сериала
 document.addEventListener('movie-selected', async (event) => {
-    const { movieId, type, sourceTab } = event.detail;
+    const { movieId, type, sourceTab, movie } = event.detail;
     try {
+        // Отслеживаем просмотр медиа
+        if (movie?.title || movie?.name) {
+            analytics.trackMediaView(movieId, type, movie.title || movie.name);
+        }
+        
         navigationManager.navigateToDetails(movieId, type, sourceTab);
     } catch (error) {
         console.error('Ошибка при показе деталей фильма:', error);
@@ -74,6 +80,10 @@ async function showMovieDetails(id, type = 'movie') {
 // Обработчик переключения табов
 document.addEventListener('tab-changed', (event) => {
     const { tab } = event.detail;
+    
+    // Отслеживаем переключение таба
+    analytics.trackTabChange(tab);
+    
     navigationManager.navigateToTab(tab, false); // Убираем пропуск обновления таб-бара
     
     // Обновляем активный таб в TabBar
@@ -87,6 +97,9 @@ document.addEventListener('tab-changed', (event) => {
 document.addEventListener('genre-selected', (event) => {
     const { genreId, genreName, from, type } = event.detail;
     try {
+        // Отслеживаем просмотр жанра
+        analytics.trackGenreView(genreId, genreName);
+        
         navigationManager.navigateToGenre(genreId, genreName, from, type);
     } catch (error) {
         console.error('Ошибка при показе жанра:', error);
@@ -95,8 +108,13 @@ document.addEventListener('genre-selected', (event) => {
 
 // Обработчик для события выбора персоны
 document.addEventListener('person-selected', (event) => {
-    const { personId } = event.detail;
+    const { personId, personName } = event.detail;
     try {
+        // Отслеживаем просмотр персоны
+        if (personName) {
+            analytics.trackPersonView(personId, personName);
+        }
+        
         navigationManager.navigateToPerson(personId);
     } catch (error) {
         console.error('Ошибка при показе информации о персоне:', error);
@@ -229,6 +247,11 @@ window.addEventListener('DOMContentLoaded', async () => {
         
         // Сначала инициализируем Telegram
         await initTelegram();
+        
+        // Инициализируем Google Analytics
+        await analytics.init();
+        analytics.trackAppStart();
+        analytics.trackSessionDuration();
         
         // Мониторинг размера хранилища
         try {

@@ -9,6 +9,24 @@
     <meta name="HandheldFriendly" content="True">
     
     <title>Movie App</title>
+    
+    <!-- Google Analytics 4 -->
+    <!-- Замените GA_MEASUREMENT_ID на ваш реальный ID (например, G-XXXXXXXXXX) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-0FG20YZ67N"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        
+        // Сохраняем ID для использования в коде
+        window.GA_MEASUREMENT_ID = 'G-0FG20YZ67N'; // Замените на ваш ID
+        
+        // Базовая инициализация (детальная настройка в analytics.js)
+        gtag('config', window.GA_MEASUREMENT_ID, {
+            'send_page_view': false // Отключаем автоматическую отправку pageview
+        });
+    </script>
+    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function(){
