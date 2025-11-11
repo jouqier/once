@@ -59,7 +59,7 @@ export class ProfileAvatar extends HTMLElement {
                 
                 .avatar-container {
                     display: flex;
-                    padding: 32px 16px 32px 16px;
+                    padding: 32px;
                     flex-direction: column;
                     align-items: center;
                     align-self: stretch;
@@ -68,11 +68,10 @@ export class ProfileAvatar extends HTMLElement {
                 }
                 
                 .avatar {
-                    width: 80px;
-                    height: 80px;
+                    width: 120px;
+                    height: 120px;
                     border-radius: 50%;
                     overflow: hidden;
-                    border: 4px solid var(--md-sys-color-primary-container);
                 }
                 
                 .avatar img {
@@ -98,6 +97,7 @@ export class ProfileAvatar extends HTMLElement {
                     flex-direction: column;
                     align-items: center;
                     color: white;
+                    gap: 4px;
                 }
 
                 .user-name {
@@ -108,12 +108,11 @@ export class ProfileAvatar extends HTMLElement {
                 }
 
                 .user-handle {
-                    font-size: 12px;
+                    font-size: 14px;
                     font-style: normal;
                     font-weight: 600;
-                    line-height: 16px;
-                    color: var(--md-sys-color-outline);
-                    margin-bottom: 8px;                    
+                    line-height: 20px;
+                    color: var(--md-sys-color-outline);                   
                 }
             </style>
             

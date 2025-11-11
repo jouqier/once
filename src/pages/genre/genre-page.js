@@ -272,8 +272,8 @@ export class GenreScreen extends HTMLElement {
                 .icon-genre {
                     color: var(--md-sys-color-on-surface);
                     text-align: center;
-                    font-size: 80px;
-                    line-height: 80px;
+                    font-size: 120px;
+                    line-height: 120px;
                 }
 
                 .genre-title {
