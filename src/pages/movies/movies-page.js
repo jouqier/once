@@ -152,11 +152,11 @@ export class MoviesScreen extends HTMLElement {
         this.shadowRoot.innerHTML = `
             <style>
                 :host {
-                    padding-top: 16px;
+                    padding: 8px 0;
                     display: flex;
                     flex-direction: column;
                     align-items: flex-start;
-                    gap: 16px;                    
+                    gap: 8px;                    
                 }
 
                 .section {

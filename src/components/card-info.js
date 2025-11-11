@@ -178,6 +178,8 @@ export class MovieInfo extends HTMLElement {
                     gap: 8px;
                     flex-wrap: nowrap;
                     padding: 0 16px;
+                    overflow-x: auto;
+                    scrollbar-width: none;
                 }
 
                 md-filled-tonal-button {
@@ -231,7 +233,6 @@ export class MovieInfo extends HTMLElement {
                                     data-genre-id="${TMDBService.getGenreId(genre)}"
                                 >${genre}</md-filled-tonal-button>
                             `).join('')}
-                            <div style="padding-right: 4px; flex-shrink: 0;"> </div>
                         </div>
                     </div>
                 </div>

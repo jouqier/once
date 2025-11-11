@@ -88,6 +88,8 @@ export class MovieTrailers extends HTMLElement {
                     gap: 8px;
                     flex-wrap: nowrap;
                     padding: 0 16px;
+                    overflow-x: auto;
+                    scrollbar-width: none;
                 }
 
                 .trailer-item {
@@ -104,8 +106,7 @@ export class MovieTrailers extends HTMLElement {
                     right: 0;
                     bottom: 0;
                     border-radius: 999px;
-                    background: var(--md-sys-color-primary);
-                    //background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+                    background: var(--md-sys-color-primary-container);
                     padding: 2px;
                     z-index: -1;
                 }
@@ -181,7 +182,6 @@ export class MovieTrailers extends HTMLElement {
                         }).join('') : Array(5).fill(0).map(() => 
                             '<poster-skeleton size="trailer"></poster-skeleton>'
                         ).join('')}
-                        <div style="padding-right: 4px; flex-shrink: 0;"> </div>
                     </div>
                 </div>
             </div>
