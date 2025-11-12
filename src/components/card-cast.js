@@ -11,25 +11,41 @@ export class MovieCast extends HTMLElement {
 
     set cast(value) {
         const filteredCast = value.filter(person => {
-            if (person.media_type === 'tv' && person.known_for_department === 'Acting') {
-                return true;
-            }
-            
+            // Актёры - те, у кого есть character
             if (person.character) return true;
-            if (person.job === 'Director' && person.media_type !== 'tv') return true;
+            
+            // Режиссёры - те, у кого job === 'Director'
+            if (person.job === 'Director') return true;
+            
+            // Создатели сериалов - те, у кого job === 'Creator'
+            if (person.job === 'Creator') return true;
             
             return false;
         });
 
-        const uniqueCast = filteredCast.reduce((acc, person) => {
+        // Находим всех режиссёров и создателей
+        const allDirectors = filteredCast.filter(p => p.job === 'Director');
+        const allCreators = filteredCast.filter(p => p.job === 'Creator');
+        
+        let crewToShow = [];
+        
+        // Если есть создатели (для сериалов)
+        if (allCreators.length > 0) {
+            // Берём только одного создателя (первого)
+            crewToShow = [allCreators[0]];
+        } else if (allDirectors.length > 0) {
+            // Для фильмов берём всех режиссёров
+            crewToShow = allDirectors;
+        }
+
+        // Фильтруем только актёров (без режиссёров и создателей)
+        const actors = filteredCast.filter(p => p.job !== 'Director' && p.job !== 'Creator');
+
+        const uniqueCast = actors.reduce((acc, person) => {
             if (!acc.some(p => p.id === person.id)) {
                 let role = '';
                 if (person.character) {
                     role = person.character.split('/')[0].trim();
-                } else if (person.job === 'Director') {
-                    role = 'Director';
-                } else if (person.known_for_department === 'Acting') {
-                    role = person.roles?.[0]?.character || 'Actor';
                 }
 
                 acc.push({
@@ -40,6 +56,15 @@ export class MovieCast extends HTMLElement {
             }
             return acc;
         }, []);
+
+        // Добавляем режиссёров/создателей в начало списка
+        for (const crew of crewToShow.reverse()) {
+            uniqueCast.unshift({
+                ...crew,
+                character: crew.job, // 'Director' или 'Creator'
+                job: crew.job
+            });
+        }
         
         this._cast = uniqueCast;
         this.render();

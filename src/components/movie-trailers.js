@@ -98,6 +98,10 @@ export class MovieTrailers extends HTMLElement {
                     width: 68px;
                 }
 
+                .trailer-item.hidden {
+                    display: none;
+                }
+
                 .trailer-border {
                     position: absolute;
                     height: 68px;
@@ -189,6 +193,7 @@ export class MovieTrailers extends HTMLElement {
 
         if (hasTrailers) {
             this._setupTrailerClicks();
+            this._checkImageAvailability();
         }
     }
 
@@ -206,6 +211,27 @@ export class MovieTrailers extends HTMLElement {
                 
                 window.open(`https://www.youtube.com/watch?v=${trailerId}`, '_blank');
             });
+        });
+    }
+
+    _checkImageAvailability() {
+        this.shadowRoot.querySelectorAll('.trailer-item').forEach(item => {
+            const trailerId = item.dataset.trailerId;
+            const imageUrl = `https://img.youtube.com/vi/${trailerId}/maxresdefault.jpg`;
+            
+            // Создаём временный Image объект для проверки загрузки
+            const img = new Image();
+            
+            img.onload = () => {
+                // Изображение загрузилось успешно, ничего не делаем
+            };
+            
+            img.onerror = () => {
+                // Изображение не загрузилось, скрываем трейлер
+                item.classList.add('hidden');
+            };
+            
+            img.src = imageUrl;
         });
     }
 }

@@ -88,13 +88,20 @@ class TMDBService {
                 seasons = await this.getTVSeasons(id);
             }
 
-            const directors = credits.crew.filter(person => 
-                type === 'movie' 
-                    ? person.job === 'Director'
-                    : person.job === 'Executive Producer'
-            );
+            // Для фильмов добавляем режиссёров, для сериалов - создателей
+            let crewToAdd = [];
+            if (type === 'movie') {
+                crewToAdd = credits.crew.filter(person => person.job === 'Director');
+            } else if (type === 'tv' && details.created_by) {
+                // Для сериалов берём создателей из details.created_by
+                crewToAdd = details.created_by.map(creator => ({
+                    ...creator,
+                    job: 'Creator',
+                    media_type: 'tv'
+                }));
+            }
 
-            const fullCast = [...directors, ...credits.cast];
+            const fullCast = [...crewToAdd, ...credits.cast];
 
             return {
                 ...details,
