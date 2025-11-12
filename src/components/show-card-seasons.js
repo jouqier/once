@@ -206,6 +206,7 @@ export class TVSeasons extends HTMLElement {
                 <div class="seasons-list-wrapper">
                     <div class="seasons-list">
                         ${seasonTabs}
+                        <div style="padding-right: 4px; flex-shrink: 0;">&nbsp;</div>
                     </div>
                 </div>
             </div>

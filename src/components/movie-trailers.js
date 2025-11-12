@@ -88,8 +88,6 @@ export class MovieTrailers extends HTMLElement {
                     gap: 8px;
                     flex-wrap: nowrap;
                     padding: 0 16px;
-                    overflow-x: auto;
-                    scrollbar-width: none;
                 }
 
                 .trailer-item {
@@ -186,6 +184,7 @@ export class MovieTrailers extends HTMLElement {
                         }).join('') : Array(5).fill(0).map(() => 
                             '<poster-skeleton size="trailer"></poster-skeleton>'
                         ).join('')}
+                        <div style="padding-right: 4px; flex-shrink: 0;">&nbsp;</div>
                     </div>
                 </div>
             </div>

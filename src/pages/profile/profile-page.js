@@ -438,8 +438,6 @@ export class ProfileScreen extends HTMLElement {
                     padding: 0 16px;
                     touch-action: pan-x;
                     pointer-events: auto;
-                    overflow-x: auto;
-                    scrollbar-width: none;
                 }
                 
                 .tab {
@@ -561,6 +559,7 @@ export class ProfileScreen extends HTMLElement {
                                 ${i18n.t('following')}
                                 <span class="tab-count">${this._stats.following}</span>
                             </md-filled-tonal-button>
+                            <div style="padding-right: 8px; flex-shrink: 0;">&nbsp;</div>
                         </div>
                     </div>
                 </div>
