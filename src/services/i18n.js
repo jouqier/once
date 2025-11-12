@@ -17,15 +17,21 @@ export class I18nService {
                 // Profile
                 want: 'Посмотрю',
                 watched: 'Просмотрено',
+                following: 'Подписки',
                 wantListEmpty: 'Список пуст',
                 watchedListEmpty: 'Список пуст',
                 tvShowsListEmpty: 'Список пуст',
+                followingListEmpty: 'Список пуст',
                 startAddingMovies: 'Начните добавлять фильмы',
                 startAddingToWant: 'Отмечайте фильмы которые хотите посмотреть',
                 startAddingToWatched: 'Отмечайте фильмы которые уже смотрели',
                 startAddingTVShows: 'Начните добавлять сериалы в список',
+                startAddingToFollowing: 'Подписывайтесь на любимых актеров',
                 browseMovies: 'Смотреть фильмы',
                 browseTVShows: 'Смотреть сериалы',
+                browseActors: 'Найти актеров',
+                follow: 'Подписаться',
+                followingButton: 'Подписан',
 
                 // Movies/TV Shows
                 moviesLabel: 'ФИЛЬМЫ',
@@ -116,15 +122,21 @@ export class I18nService {
                 // Profile
                 want: 'Want',
                 watched: 'Watched',
+                following: 'Following',
                 wantListEmpty: 'Want list is empty',
                 watchedListEmpty: 'Watched list is empty',
                 tvShowsListEmpty: 'TV Shows list is empty',
+                followingListEmpty: 'Following list is empty',
                 startAddingMovies: 'Start adding movies',
                 startAddingToWant: 'Start adding movies to your Want list',
                 startAddingToWatched: 'Start adding movies to your Watched list',
                 startAddingTVShows: 'Start adding TV shows to your list',
+                startAddingToFollowing: 'Follow your favorite actors',
                 browseMovies: 'Browse Movies',
                 browseTVShows: 'Browse TV Shows',
+                browseActors: 'Find Actors',
+                follow: 'Follow',
+                followingButton: 'Following',
 
                 // Movies/TV Shows
                 moviesLabel: 'MOVIES',

@@ -1,9 +1,11 @@
 import { TG, haptic } from '../../config/telegram.js';
 import { userMoviesService } from '../../services/user-movies.js';
+import { userFollowingService } from '../../services/user-following.js';
 import TMDBService from '../../services/tmdb.js';
 import '../../components/media-poster.js';
 import { navigationManager } from '../../config/navigation.js';
 import { API_CONFIG } from '../../config/api.js';
+import { i18n } from '../../services/i18n.js';
 
 export class PersonScreen extends HTMLElement {
     constructor() {
@@ -15,6 +17,7 @@ export class PersonScreen extends HTMLElement {
         this._person = null;
         this._personId = null;
         this._loading = true;
+        this._isFollowing = false;
         
         // Сохраняем bound функции для правильной очистки слушателей
         this._boundHandlers = {
@@ -118,6 +121,7 @@ export class PersonScreen extends HTMLElement {
             this._person = person;
             this._movies = credits.movie_credits?.cast || [];
             this._tvShows = credits.tv_credits?.cast || [];
+            this._isFollowing = userFollowingService.isFollowing(parseInt(this._personId));
 
             // Сортируем по дате релиза (сначала новые)
             this._movies.sort((a, b) => {
@@ -147,11 +151,46 @@ export class PersonScreen extends HTMLElement {
 
                 .header {
                     display: flex;
-                    padding: 32px;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    align-self: stretch;
+                    border-radius: 40px;
+                    position: relative;
+                    overflow: hidden;
+                }
+
+                .header::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: var(--person-background, var(--md-sys-color-surface-container));
+                    background-position: center;
+                    border-radius: 42px;
+                }
+
+                .header::after {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.60) 80%);
+                    backdrop-filter: blur(20px);
+                }
+
+                .header-content {
+                    display: flex;
+                    padding: 32px 16px 16px;
                     flex-direction: column;
                     align-items: center;
-                    gap: 16px;
                     align-self: stretch;
+                    z-index: 1;
+                    gap: 16px;
                 }
 
                 .photo-wrapper {
@@ -174,8 +213,8 @@ export class PersonScreen extends HTMLElement {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    background: var(--md-sys-color-surface-container);
-                    color: var(--md-sys-color-on-surface);
+                    background: linear-gradient(135deg, #FF6B6B, #4ECDC4);
+                    color: white;
                     font-size: 48px;
                     font-weight: 600;
                 }
@@ -185,10 +224,10 @@ export class PersonScreen extends HTMLElement {
                     flex-direction: column;
                     align-items: center;
                     gap: 4px;
+                    color: white;
                 }
 
                 .person-name {
-                    color: var(--md-sys-color-on-surface);
                     text-align: center;
                     font-size: 22px;
                     font-weight: 600;
@@ -201,6 +240,32 @@ export class PersonScreen extends HTMLElement {
                     font-size: 14px;
                     font-weight: 600;
                     line-height: 20px;
+                }
+
+                .follow-button-container {
+                    display: flex;
+                    width: 100%;
+                    padding: 0;
+                    gap: 8px;
+                }
+
+                .follow-button {
+                    flex: 1;
+                    --md-filled-tonal-button-container-shape: 1000px;
+                    --md-filled-tonal-button-label-text-font: 600 14px sans-serif;
+                    height: 48px;
+                    transition: all 0.3s ease;
+                }
+
+                .follow-button.active {
+                    --md-sys-color-secondary-container: transparent;
+                    --md-sys-color-on-secondary-container: var(--md-sys-color-on-surface);
+                    border: 2px solid var(--md-sys-color-on-surface);
+                }
+
+                .follow-button:not(.active) {
+                    --md-sys-color-secondary-container: var(--md-sys-color-primary-container);
+                    --md-sys-color-on-secondary-container: var(--md-sys-color-on-primary-container);
                 }
 
                 .content {
@@ -321,18 +386,25 @@ export class PersonScreen extends HTMLElement {
             </style>
 
             <div class="header">
-                <div class="photo-wrapper">
-                    <img class="person-photo" 
-                         src="${API_CONFIG.IMAGE_BASE_URL}${this._person?.profile_path}"
-                         alt="${this._person?.name}"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
-                    <div class="photo-placeholder" style="display: none;">
-                        ${this._person?.name?.charAt(0).toUpperCase()}
+                <div class="header-content">
+                    <div class="photo-wrapper">
+                        <img class="person-photo" 
+                             src="${API_CONFIG.IMAGE_BASE_URL}${this._person?.profile_path}"
+                             alt="${this._person?.name}"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                        <div class="photo-placeholder" style="display: none;">
+                            ${this._person?.name?.charAt(0).toUpperCase()}
+                        </div>
                     </div>
-                </div>
-                <div class="person-info">
-                    <div class="person-name">${this._person?.name}</div>
-                    <div class="person-role">${this._person?.known_for_department}</div>
+                    <div class="person-info">
+                        <div class="person-name">${this._person?.name}</div>
+                        <div class="person-role">${this._person?.known_for_department}</div>
+                    </div>
+                    <div class="follow-button-container">
+                        <md-filled-tonal-button class="follow-button ${this._isFollowing ? 'active' : ''}">
+                            ${this._isFollowing ? i18n.t('followingButton') : i18n.t('follow')}
+                        </md-filled-tonal-button>
+                    </div>
                 </div>
             </div>
 
@@ -363,10 +435,28 @@ export class PersonScreen extends HTMLElement {
 
         if (!this._loading) {
             await this._renderMediaItems();
+            this._updateHeaderBackground();
+        }
+    }
+
+    _updateHeaderBackground() {
+        const header = this.shadowRoot.querySelector('.header');
+        if (header && this._person?.profile_path) {
+            const imageUrl = `${API_CONFIG.IMAGE_BASE_URL}${this._person.profile_path}`;
+            header.style.setProperty('--person-background', `url(${imageUrl}) lightgray 50% / cover no-repeat`);
         }
     }
 
     _setupEventListeners() {
+        // Обработчик для кнопки подписки
+        const followButton = this.shadowRoot.querySelector('.follow-button');
+        if (followButton) {
+            followButton.addEventListener('click', () => {
+                haptic.light();
+                this._handleFollowClick();
+            });
+        }
+
         // Обработчики для табов
         this.shadowRoot.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
@@ -384,6 +474,36 @@ export class PersonScreen extends HTMLElement {
                 }
             });
         });
+    }
+
+    _handleFollowClick() {
+        if (!this._person || !this._personId) return;
+
+        const personId = parseInt(this._personId);
+        
+        if (this._isFollowing) {
+            userFollowingService.unfollow(personId);
+            this._isFollowing = false;
+        } else {
+            userFollowingService.follow(personId);
+            this._isFollowing = true;
+        }
+
+        // Обновляем кнопку
+        this._updateFollowButton();
+    }
+
+    _updateFollowButton() {
+        const followButton = this.shadowRoot.querySelector('.follow-button');
+        if (followButton) {
+            if (this._isFollowing) {
+                followButton.classList.add('active');
+                followButton.textContent = i18n.t('followingButton');
+            } else {
+                followButton.classList.remove('active');
+                followButton.textContent = i18n.t('follow');
+            }
+        }
     }
 
     _setupMediaItemListeners() {
