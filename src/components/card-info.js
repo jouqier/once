@@ -18,9 +18,7 @@ export class MovieInfo extends HTMLElement {
     render() {
         if (!this._info) return;
         
-        console.log('Info in MovieInfo:', this._info);
         const { type, title, rating, overview, genres } = this._info;
-        console.log('Genres extracted:', genres);
         
         // Проверяем, что genres существует, является массивом и не пустой
         const hasGenres = Array.isArray(genres) && genres.length > 0;
@@ -275,14 +273,6 @@ export class MovieInfo extends HTMLElement {
                 // Получаем ID из родительского элемента, учитывая Shadow DOM
                 const parentCard = this.getRootNode().host;
                 const currentId = parentCard?.movie?.id;
-                
-                console.log('Genre click:', {
-                    genreName,
-                    genreId,
-                    mediaType,
-                    currentId,
-                    parentCard: parentCard?.tagName
-                });
 
                 this.dispatchEvent(new CustomEvent('genre-selected', {
                     detail: { 
@@ -296,8 +286,6 @@ export class MovieInfo extends HTMLElement {
                 }));
             });
         });
-
-        console.log('Genres in MovieInfo:', genres);
     }
 
     _renderTVMeta() {

@@ -110,12 +110,6 @@ export class GenreScreen extends HTMLElement {
 
     async loadData() {
         try {
-            console.log('Loading data for genre:', {
-                genreId: this._genreId,
-                genreName: this._genreName,
-                mediaType: this._mediaType
-            });
-            
             // Загружаем первые 3 страницы для получения минимум 42 результатов
             const pages = await Promise.all([
                 this._mediaType === 'tv' 
@@ -146,7 +140,6 @@ export class GenreScreen extends HTMLElement {
             // Берем только первые 42 элемента
             this._items = filteredResults.slice(0, 42);
         } catch (error) {
-            console.error('Error loading genre data:', error);
             this._items = [];
         }
     }

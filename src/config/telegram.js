@@ -33,8 +33,7 @@ export const initTelegram = () => {
         // Обрабатываем изменение навигации только если поддерживается BackButton
         if (FEATURES_SUPPORTED.backButton) {
             window.addEventListener('navigation-changed', () => {
-                const hasHistory = navigationManager.getPreviousState() !== undefined;
-                if (hasHistory) {
+                if (navigationManager.canGoBack()) {
                     showBackButton();
                 } else {
                     hideBackButton();

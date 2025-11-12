@@ -44,13 +44,12 @@ class AnalyticsService {
                 });
 
                 this.gaInitialized = true;
-                console.log('✅ Google Analytics инициализирован для пользователя:', this.userId);
 
                 // Отправляем события из очереди
                 this._flushEventQueue();
             }
         } catch (error) {
-            console.error('Ошибка инициализации Analytics:', error);
+            // Ошибка инициализации Analytics
         }
     }
 
@@ -82,7 +81,6 @@ class AnalyticsService {
      */
     _flushEventQueue() {
         if (this.eventQueue.length > 0) {
-            console.log(`📤 Отправка ${this.eventQueue.length} событий из очереди`);
             this.eventQueue.forEach(event => {
                 this._sendEvent(event.name, event.params);
             });
@@ -117,7 +115,6 @@ class AnalyticsService {
     _sendEvent(eventName, params) {
         if (window.gtag) {
             window.gtag('event', eventName, params);
-            console.log('📊 GA Event:', eventName, params);
         }
     }
 
