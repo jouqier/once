@@ -153,17 +153,24 @@ export class SearchScreen extends HTMLElement {
 
         subheader.style.display = 'block';
         recentList.innerHTML = this._recentSearches
-            .map(item => `
-                <div class="recent-item" 
-                     data-movie-id="${item.id}"
-                     data-type="${item.media_type}">
-                    <img class="recent-poster"
-                         src="https://image.tmdb.org/t/p/w342${item.poster_path}"
-                         alt="${item.title || item.name}"
-                         onerror="this.style.backgroundColor='#272A32'">
-                    <p class="recent-title">${item.title || item.name}</p>
-                </div>
-            `)
+            .map(item => {
+                const isPerson = item.media_type === 'person';
+                const imageUrl = isPerson 
+                    ? `https://image.tmdb.org/t/p/w342${item.profile_path}`
+                    : `https://image.tmdb.org/t/p/w342${item.poster_path}`;
+                
+                return `
+                    <div class="recent-item" 
+                         data-movie-id="${item.id}"
+                         data-type="${item.media_type}">
+                        <img class="recent-poster"
+                             src="${imageUrl}"
+                             alt="${item.title || item.name}"
+                             onerror="this.style.backgroundColor='#272A32'">
+                        <p class="recent-title">${item.title || item.name}</p>
+                    </div>
+                `;
+            })
             .join('');
     }
 
@@ -193,21 +200,49 @@ export class SearchScreen extends HTMLElement {
             return;
         }
 
-        // Разделяем результаты на фильмы и сериалы
+        // Разделяем результаты на фильмы, сериалы и персон
         const movies = this._searchResults.filter(item => item.media_type === 'movie');
         const tvShows = this._searchResults.filter(item => item.media_type === 'tv');
+        const people = this._searchResults.filter(item => item.media_type === 'person');
 
         // Показываем табы только если есть результаты
-        if (movies.length > 0 || tvShows.length > 0) {
+        if (movies.length > 0 || tvShows.length > 0 || people.length > 0) {
+            // Если в текущем активном табе нет результатов, переключаемся на таб с результатами
+            if (this._activeTab === 'movies' && movies.length === 0) {
+                this._activeTab = tvShows.length > 0 ? 'tv' : 'people';
+            } else if (this._activeTab === 'tv' && tvShows.length === 0) {
+                this._activeTab = movies.length > 0 ? 'movies' : 'people';
+            } else if (this._activeTab === 'people' && people.length === 0) {
+                this._activeTab = movies.length > 0 ? 'movies' : 'tv';
+            }
+
+            // Собираем только табы с результатами
+            const tabs = [];
+            if (movies.length > 0) {
+                tabs.push(`
+                    <md-filled-tonal-button class="tab ${this._activeTab === 'movies' ? 'active' : ''}" data-type="movies">
+                        ${i18n.t('movies')} ${movies.length}
+                    </md-filled-tonal-button>
+                `);
+            }
+            if (tvShows.length > 0) {
+                tabs.push(`
+                    <md-filled-tonal-button class="tab ${this._activeTab === 'tv' ? 'active' : ''}" data-type="tv">
+                        ${i18n.t('tvShows')} ${tvShows.length}
+                    </md-filled-tonal-button>
+                `);
+            }
+            if (people.length > 0) {
+                tabs.push(`
+                    <md-filled-tonal-button class="tab ${this._activeTab === 'people' ? 'active' : ''}" data-type="people">
+                        ${i18n.t('people')} ${people.length}
+                    </md-filled-tonal-button>
+                `);
+            }
+
+            // Показываем табы, даже если остался только один (чтобы верстка не скакала)
             tabsContainer.style.display = 'flex';
-            tabsContainer.innerHTML = `
-                <md-filled-tonal-button class="tab ${this._activeTab === 'movies' ? 'active' : ''}" data-type="movies">
-                    ${i18n.t('movies')} ${movies.length}
-                </md-filled-tonal-button>
-                <md-filled-tonal-button class="tab ${this._activeTab === 'tv' ? 'active' : ''}" data-type="tv">
-                    ${i18n.t('tvShows')} ${tvShows.length}
-                </md-filled-tonal-button>
-            `;
+            tabsContainer.innerHTML = tabs.join('');
             
             // Скрываем секцию Recent
             recentSection.style.display = 'none';
@@ -216,22 +251,29 @@ export class SearchScreen extends HTMLElement {
             recentSection.style.display = 'block';
         }
 
-        // Отображае соответствующие результаты
-        const items = this._activeTab === 'movies' ? movies : tvShows;
+        // Отображаем соответствующие результаты
+        const items = this._activeTab === 'movies' ? movies : (this._activeTab === 'tv' ? tvShows : people);
         resultsContainer.innerHTML = `
             <div class="results-list">
-                ${items.map(item => `
-                    <div class="result-item" 
-                         data-id="${item.id}"
-                         data-type="${item.media_type}">
-                        <img class="result-poster"
-                             src="${API_CONFIG.IMAGE_BASE_URL}${item.poster_path}"
-                             loading="lazy"
-                             alt="${item.title || item.name}"
-                             onerror="this.style.backgroundColor='#272A32'">
-                        <p class="result-title">${item.title || item.name}</p>
-                    </div>
-                `).join('')}
+                ${items.map(item => {
+                    const isPerson = item.media_type === 'person';
+                    const imageUrl = isPerson 
+                        ? `${API_CONFIG.IMAGE_BASE_URL}${item.profile_path}`
+                        : `${API_CONFIG.IMAGE_BASE_URL}${item.poster_path}`;
+                    
+                    return `
+                        <div class="result-item" 
+                             data-id="${item.id}"
+                             data-type="${item.media_type}">
+                            <img class="result-poster"
+                                 src="${imageUrl}"
+                                 loading="lazy"
+                                 alt="${item.title || item.name}"
+                                 onerror="this.style.backgroundColor='#272A32'">
+                            <p class="result-title">${item.title || item.name}</p>
+                        </div>
+                    `;
+                }).join('')}
             </div>
         `;
     }

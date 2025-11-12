@@ -85,6 +85,7 @@ export class I18nService {
                 nothingFound: 'Ничего не найдено',
                 maybeNotFilmedYet: 'Возможно, еще не снято',
                 recent: 'Недавние',
+                people: 'Люди',
 
                 // Story Viewer
                 letsGetStarted: 'Начнем',
@@ -190,6 +191,7 @@ export class I18nService {
                 nothingFound: 'Nothing was found',
                 maybeNotFilmedYet: 'Maybe hasn\'t been filmed yet',
                 recent: 'Recent',
+                people: 'People',
 
                 // Story Viewer
                 letsGetStarted: 'Let\'s Get Started',

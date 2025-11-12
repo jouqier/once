@@ -41,7 +41,12 @@ document.addEventListener('movie-selected', async (event) => {
             analytics.trackMediaView(movieId, type, movie.title || movie.name);
         }
         
-        navigationManager.navigateToDetails(movieId, type, sourceTab);
+        // Используем специальную навигацию для персон
+        if (type === 'person') {
+            navigationManager.navigateToPerson(movieId);
+        } else {
+            navigationManager.navigateToDetails(movieId, type, sourceTab);
+        }
     } catch (error) {
         console.error('Ошибка при показе деталей фильма:', error);
     }
