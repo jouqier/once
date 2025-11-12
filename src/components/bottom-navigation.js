@@ -42,10 +42,9 @@ export class TabBar extends HTMLElement {
                     right: 0; */
                     background: var(--md-sys-color-scrim);
                     z-index: 1000;
-                    /* Фикс для iOS: создаем локальный стекинг контекст */
-                    transform: translateZ(0);
+                    /*transform: translateZ(0);
                     -webkit-transform: translateZ(0);
-                    will-change: transform;
+                    will-change: transform; */
                 }
 
                 .tab-bar {

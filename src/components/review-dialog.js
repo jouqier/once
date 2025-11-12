@@ -91,9 +91,6 @@ export class ReviewDialog extends HTMLElement {
                     background: rgba(0, 0, 0, 0.5);
                     z-index: 1000;
                     animation: fadeIn 0.2s ease-out;
-                    /* Фикс для iOS: создаем локальный стекинг контекст */
-                    transform: translateZ(0);
-                    -webkit-transform: translateZ(0);
                 }
                 
                 .dialog {
@@ -106,9 +103,6 @@ export class ReviewDialog extends HTMLElement {
                     margin: 8px;
                     z-index: 1001;
                     animation: slideUp 0.3s ease-out;
-                    /* Фикс для iOS: создаем локальный стекинг контекст */
-                    transform: translateZ(0);
-                    -webkit-transform: translateZ(0);
 
                     display: flex;
                     flex: 1 0 0;
@@ -330,9 +324,6 @@ export class ReviewDialog extends HTMLElement {
                     justify-content: center;
                     align-items: center;
                     animation: fadeIn 0.2s ease-out;
-                    /* Фикс для iOS: создаем локальный стекинг контекст */
-                    transform: translateZ(0);
-                    -webkit-transform: translateZ(0);
                 }
 
                 .loading-overlay.visible {

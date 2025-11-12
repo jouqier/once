@@ -15,25 +15,6 @@ body {
   font-family: var(--md-ref-typeface-brand);
   overflow-y: auto;
   height: 100%;
-  /* Фикс для iOS: скроллбар должен быть поверх всех элементов */
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-}
-
-/* Исправление для iOS Safari: скроллбар должен быть видим */
-@supports (-webkit-touch-callout: none) {
-  body {
-    /* Создаем композитный слой для правильной отрисовки скроллбара */
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
-  }
-  
-  /* Фиксированные элементы должны иметь transform для создания локального контекста */
-  .fixed-bottom,
-  .corner-bottom,
-  .corner-top {
-    will-change: transform;
-  }
 }
 
 button, 
@@ -135,7 +116,16 @@ main {
   z-index: 1000;
   padding-bottom: env(safe-area-inset-bottom);
   background-color: var(--background);
-  /* Фикс для iOS: создаем локальный стекинг контекст */
   transform: translateZ(0);
   -webkit-transform: translateZ(0);
+}
+
+/* Скрываем скроллбар на всех платформах */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE и Edge */
+}
+
+*::-webkit-scrollbar {
+  display: none; /* WebKit браузеры (Chrome, Safari, iOS) */
 }
