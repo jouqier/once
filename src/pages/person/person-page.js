@@ -270,7 +270,7 @@ export class PersonScreen extends HTMLElement {
 
                 .content {
                     display: flex;
-                    padding: 8px 0px;
+                    /* padding: 8px 0px; */
                     flex-direction: column;
                     align-items: flex-start;
                     align-self: stretch;
