@@ -7,12 +7,6 @@ export class NavigationManager {
         this._modalStack = [];
         
         window.addEventListener('popstate', (event) => {
-            if (this._modalStack.length > 0) {
-                const modal = this._modalStack.pop();
-                modal.remove();
-                return;
-            }
-            
             if (event.state) {
                 // При popstate браузер уже вернулся к определенному состоянию
                 // Нужно синхронизировать _navigationStack с browser history
@@ -87,14 +81,15 @@ export class NavigationManager {
     }
 
     goBack() {
-        // Обрабатываем модальные окна отдельно (они не в browser history)
+        // Модальные окна имеют приоритет - закрываем их первыми
+        // Они не в browser history, поэтому обрабатываем напрямую
         if (this._modalStack.length > 0) {
             const modal = this._modalStack.pop();
             modal.remove();
             return true;
         }
 
-        // Проверяем, можем ли вернуться назад
+        // Проверяем, можем ли вернуться назад по истории
         if (this._navigationStack.length <= 1) {
             return false;
         }
@@ -201,8 +196,9 @@ export class NavigationManager {
     }
 
     pushModal(element) {
+        // Модальные окна не добавляются в browser history
+        // Они управляются только через _modalStack
         this._modalStack.push(element);
-        window.history.pushState(null, '', window.location.href);
     }
 
     removeModal(element) {
