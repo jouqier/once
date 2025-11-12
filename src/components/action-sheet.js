@@ -55,6 +55,9 @@ export class ContextMenu extends HTMLElement {
                     background: rgba(0, 0, 0, 0.5);
                     z-index: 1000;
                     animation: fadeIn 0.2s ease-out;
+                    /* Фикс для iOS: создаем локальный стекинг контекст */
+                    transform: translateZ(0);
+                    -webkit-transform: translateZ(0);
                 }
                 
                 .menu {
@@ -67,7 +70,10 @@ export class ContextMenu extends HTMLElement {
                     padding: 8px;
                     margin: 8px;
                     z-index: 1001;
-                    animation: slideUp 0.3s ease-out;                  
+                    animation: slideUp 0.3s ease-out;
+                    /* Фикс для iOS: создаем локальный стекинг контекст */
+                    transform: translateZ(0);
+                    -webkit-transform: translateZ(0);                  
                 }
                 
                 .menu-item {

@@ -56,6 +56,9 @@ export class StoryViewer extends HTMLElement {
                     background: var(--md-sys-color-scrim);
                     display: flex;
                     flex-direction: column;
+                    /* Фикс для iOS: создаем локальный стекинг контекст */
+                    transform: translateZ(0);
+                    -webkit-transform: translateZ(0);
                 }
 
                 .progress-container {
