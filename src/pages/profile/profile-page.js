@@ -46,6 +46,14 @@ export class ProfileScreen extends HTMLElement {
         
         this._initialized = true;
         
+        // Восстанавливаем сохраненную вкладку профиля (если есть)
+        const savedTab = sessionStorage.getItem('profile_active_tab');
+        if (savedTab && ['want', 'watched', 'tvshows', 'following'].includes(savedTab)) {
+            this._activeTab = savedTab;
+            // Очищаем сохраненное значение после восстановления
+            sessionStorage.removeItem('profile_active_tab');
+        }
+        
         // Добавляем слушатели при подключении
         document.addEventListener('review-submitted', this._boundHandlers.reviewSubmitted);
         document.addEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
@@ -217,6 +225,9 @@ export class ProfileScreen extends HTMLElement {
                 const id = item.dataset.id;
                 const type = item.dataset.type;
                 
+                // Сохраняем текущую вкладку профиля перед переходом
+                sessionStorage.setItem('profile_active_tab', this._activeTab);
+                
                 // Диспатчим событие для навигации
                 this.dispatchEvent(new CustomEvent('movie-selected', {
                     detail: { 
@@ -251,6 +262,9 @@ export class ProfileScreen extends HTMLElement {
                 haptic.light();
                 
                 const personId = item.dataset.personId;
+                
+                // Сохраняем текущую вкладку профиля перед переходом
+                sessionStorage.setItem('profile_active_tab', this._activeTab);
                 
                 // Диспатчим событие для навигации к персоне
                 this.dispatchEvent(new CustomEvent('person-selected', {
