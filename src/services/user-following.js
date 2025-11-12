@@ -1,18 +1,22 @@
 import TMDBService from './tmdb.js';
+import { StorageAdapter } from './storage-adapter.js';
 
 /**
  * Сервис для управления подписками на персон
- * Хранит только ID персон в localStorage
+ * Использует StorageAdapter для синхронизации через CloudStorage
  */
 class UserFollowingService {
     constructor() {
-        this._storageKey = 'user_following';
         this._userId = null;
+        this._adapter = null;
+        this._initialized = false;
         this._initUserId();
         
         // Добавляем обработчик обновления данных пользователя
-        document.addEventListener('tg-user-data-updated', () => {
+        document.addEventListener('tg-user-data-updated', async () => {
             this._initUserId();
+            this._initialized = false;
+            await this.init();
         });
     }
 
@@ -30,11 +34,33 @@ class UserFollowingService {
             }
         }
         
-        this._userId = userId;
+        if (this._userId !== userId) {
+            this._userId = userId;
+            this._adapter = new StorageAdapter(userId);
+            this._initialized = false;
+        }
+    }
+
+    /**
+     * Инициализировать адаптер (загрузить данные в кеш)
+     */
+    async init() {
+        if (this._initialized || !this._adapter) {
+            return;
+        }
+
+        try {
+            await this._adapter.init();
+            this._initialized = true;
+        } catch (error) {
+            console.error('Ошибка инициализации UserFollowingService:', error);
+            this._initialized = true; // Помечаем как инициализированное, чтобы не блокировать работу
+        }
     }
 
     _getStorageKey() {
-        return `${this._storageKey}_${this._userId}`;
+        // Используем формат ключа StorageAdapter: user_{userId}_following
+        return `following`;
     }
 
     /**
@@ -42,11 +68,18 @@ class UserFollowingService {
      * @returns {number[]} Массив ID персон
      */
     getFollowingList() {
+        if (!this._adapter) {
+            this._initUserId();
+            if (!this._adapter) {
+                return [];
+            }
+        }
+
         try {
-            const data = localStorage.getItem(this._getStorageKey());
-            if (data) {
-                const parsed = JSON.parse(data);
-                return Array.isArray(parsed) ? parsed : [];
+            const value = this._adapter.getValue(this._getStorageKey());
+            
+            if (value) {
+                return Array.isArray(value) ? value : [];
             }
         } catch (error) {
             console.error('Ошибка получения списка подписок:', error);
@@ -59,8 +92,16 @@ class UserFollowingService {
      * @param {number[]} list - Массив ID персон
      */
     _saveFollowingList(list) {
+        if (!this._adapter) {
+            this._initUserId();
+            if (!this._adapter) {
+                return;
+            }
+        }
+
         try {
-            localStorage.setItem(this._getStorageKey(), JSON.stringify(list));
+            // Используем публичный метод StorageAdapter для синхронизации через CloudStorage
+            this._adapter.setValue(this._getStorageKey(), list);
             
             // Отправляем событие об изменении списка
             document.dispatchEvent(new CustomEvent('following-list-changed', {

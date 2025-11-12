@@ -25,6 +25,8 @@ import { API_CONFIG } from './config/api.js';
 import { cacheMigration } from './services/cache-migration.js';
 import { StorageCleanup } from './utils/storage-cleanup.js'; // Утилита для очистки хранилища
 import { analytics } from './services/analytics.js'; // Google Analytics
+import { userDataStore } from './services/user-data-store.js';
+import { userFollowingService } from './services/user-following.js';
 
 // Импортируем изображения
 import story2 from '../public/assets/stories/story2.jpg';
@@ -213,6 +215,46 @@ window.addEventListener('navigation-changed', async (event) => {
 });
 
 // Добавляем моковые данные для локальной разработки
+/**
+ * Мигрирует старые данные подписок из localStorage в CloudStorage
+ */
+async function migrateFollowingData() {
+    try {
+        const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'guest';
+        const oldKey = `user_following_${userId}`;
+        const oldData = localStorage.getItem(oldKey);
+        
+        if (!oldData) {
+            return; // Нет старых данных для миграции
+        }
+        
+        try {
+            const parsedData = JSON.parse(oldData);
+            if (Array.isArray(parsedData) && parsedData.length > 0) {
+                // Получаем текущий список из нового хранилища
+                const currentList = userFollowingService.getFollowingList();
+                
+                // Объединяем старые и новые данные (убираем дубликаты)
+                const mergedList = [...new Set([...parsedData, ...currentList])];
+                
+                // Сохраняем в новое хранилище (через CloudStorage)
+                if (mergedList.length > currentList.length) {
+                    // Используем приватный метод для сохранения
+                    userFollowingService._saveFollowingList(mergedList);
+                    console.log(`✅ Мигрировано ${parsedData.length} подписок на персон`);
+                    
+                    // Удаляем старые данные после успешной миграции
+                    localStorage.removeItem(oldKey);
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка миграции данных подписок:', error);
+        }
+    } catch (error) {
+        console.error('Ошибка миграции подписок:', error);
+    }
+}
+
 function mockTelegramData() {
     if (!window.Telegram) {
         window.Telegram = {
@@ -252,6 +294,15 @@ window.addEventListener('DOMContentLoaded', async () => {
         
         // Сначала инициализируем Telegram
         await initTelegram();
+        
+        // Инициализируем хранилище данных пользователя (CloudStorage или localStorage)
+        await userDataStore.init();
+        
+        // Инициализируем сервис подписок на персон
+        await userFollowingService.init();
+        
+        // Мигрируем старые данные подписок из localStorage в CloudStorage
+        await migrateFollowingData();
         
         // Инициализируем Google Analytics
         await analytics.init();
