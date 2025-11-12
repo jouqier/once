@@ -37,6 +37,21 @@ class CloudStorageMigration {
                     localStorageKeys.push(key);
                 }
             }
+            
+            // Также добавляем старый формат подписок (user_following_{userId})
+            const oldFollowingKey = `user_following_${userId}`;
+            if (localStorage.getItem(oldFollowingKey) && !localStorageKeys.includes(oldFollowingKey)) {
+                // Конвертируем в новый формат ключа
+                const newFollowingKey = `${prefix}following`;
+                if (!localStorageKeys.includes(newFollowingKey)) {
+                    // Временно добавляем старый ключ для миграции
+                    const oldData = localStorage.getItem(oldFollowingKey);
+                    if (oldData) {
+                        localStorage.setItem(newFollowingKey, oldData);
+                        localStorageKeys.push(newFollowingKey);
+                    }
+                }
+            }
 
             if (localStorageKeys.length === 0) {
                 console.log('Нет данных для миграции');

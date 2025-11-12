@@ -1077,6 +1077,37 @@ class StorageAdapter {
         
         return keys.length;
     }
+
+    // ========== ПРОИЗВОЛЬНЫЕ КЛЮЧИ (для расширений) ==========
+
+    /**
+     * Получить значение по ключу (синхронно, использует кеш)
+     * @param {string} key - Ключ без префикса пользователя
+     * @returns {any} Значение или null
+     */
+    getValue(key) {
+        const fullKey = this._getKey(key);
+        return this._getFromCache(fullKey);
+    }
+
+    /**
+     * Сохранить значение по ключу (синхронно, обновляет кеш и синхронизирует в фоне)
+     * @param {string} key - Ключ без префикса пользователя
+     * @param {any} value - Значение для сохранения
+     */
+    setValue(key, value) {
+        const fullKey = this._getKey(key);
+        this._setToCache(fullKey, value);
+    }
+
+    /**
+     * Удалить значение по ключу (синхронно, обновляет кеш)
+     * @param {string} key - Ключ без префикса пользователя
+     */
+    removeValue(key) {
+        const fullKey = this._getKey(key);
+        this._removeFromCache(fullKey);
+    }
 }
 
 export { StorageAdapter };
