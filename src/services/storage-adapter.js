@@ -1,6 +1,6 @@
 /**
  * StorageAdapter - адаптер для работы с разбитой структурой данных
- * Подготовлен для будущего перехода на CloudStorage
+ * Поддерживает localStorage и Telegram CloudStorage с автоматическим выбором
  * 
  * Структура ключей (оптимизированная):
  * - meta - метаданные (version, userId)
@@ -18,13 +18,107 @@
  * - tv_episodes_meta - метаданные для эпизодов (groups)
  */
 
+import { CloudStorageAdapter } from './cloud-storage-adapter.js';
+
 const MAX_VALUE_SIZE = 4096; // Лимит CloudStorage
 const GROUP_SIZE_LIMIT = 3500; // Запас для группировки
 
 class StorageAdapter {
-    constructor(userId) {
+    constructor(userId, storageType = 'auto') {
         this._userId = userId;
         this._prefix = `user_${userId}_`;
+        this._storageType = storageType;
+        
+        // Определяем тип хранилища
+        if (storageType === 'auto') {
+            this._useCloudStorage = CloudStorageAdapter.isAvailable();
+        } else {
+            this._useCloudStorage = storageType === 'cloudStorage';
+        }
+        
+        // Инициализируем адаптер хранилища
+        if (this._useCloudStorage) {
+            this._cloudAdapter = new CloudStorageAdapter();
+        }
+        
+        // Внутренний кеш для синхронного доступа
+        this._cache = {};
+        this._cacheInitialized = false;
+    }
+    
+    /**
+     * Инициализировать кеш (загрузить все данные)
+     * Должен быть вызван перед использованием синхронных методов
+     */
+    async init() {
+        if (this._cacheInitialized) {
+            return;
+        }
+        
+        try {
+            await this._loadCache();
+            this._cacheInitialized = true;
+        } catch (error) {
+            console.error('Ошибка инициализации кеша StorageAdapter:', error);
+            // Fallback на пустой кеш
+            this._cache = {};
+            this._cacheInitialized = true;
+        }
+    }
+    
+    /**
+     * Загрузить все данные в кеш
+     */
+    async _loadCache() {
+        const keys = await this._getAllKeys();
+        const cache = {};
+        
+        // Загружаем все ключи параллельно
+        const loadPromises = keys.map(async (key) => {
+            try {
+                const value = await this._getItem(key);
+                if (value !== null) {
+                    cache[key] = value;
+                }
+            } catch (error) {
+                console.warn(`Не удалось загрузить ключ ${key} в кеш:`, error);
+            }
+        });
+        
+        await Promise.all(loadPromises);
+        this._cache = cache;
+    }
+    
+    /**
+     * Получить значение из кеша или хранилища
+     */
+    _getFromCache(key) {
+        if (key in this._cache) {
+            return this._cache[key];
+        }
+        return null;
+    }
+    
+    /**
+     * Сохранить значение в кеш и синхронизировать в фоне
+     */
+    _setToCache(key, value) {
+        this._cache[key] = value;
+        // Сохраняем асинхронно в фоне (не блокируем UI)
+        this._setItem(key, value).catch(error => {
+            console.error(`Ошибка фоновой синхронизации ключа ${key}:`, error);
+        });
+    }
+    
+    /**
+     * Удалить значение из кеша и синхронизировать в фоне
+     */
+    _removeFromCache(key) {
+        delete this._cache[key];
+        // Удаляем асинхронно в фоне
+        this._removeItem(key).catch(error => {
+            console.error(`Ошибка фонового удаления ключа ${key}:`, error);
+        });
     }
 
     /**
@@ -42,32 +136,72 @@ class StorageAdapter {
     }
 
     /**
-     * Получить значение из localStorage
+     * Получить значение из хранилища (асинхронно)
      */
-    _getItem(key) {
+    async _getItem(key) {
         try {
-            const value = localStorage.getItem(key);
-            return value ? JSON.parse(value) : null;
+            if (this._useCloudStorage) {
+                // Используем CloudStorage
+                try {
+                    const value = await this._cloudAdapter.getItem(key);
+                    if (value === null) {
+                        return null;
+                    }
+                    return JSON.parse(value);
+                } catch (error) {
+                    console.warn(`Ошибка чтения из CloudStorage, fallback на localStorage:`, error);
+                    // Fallback на localStorage
+                    return this._getItemFromLocalStorage(key);
+                }
+            } else {
+                // Используем localStorage
+                return this._getItemFromLocalStorage(key);
+            }
         } catch (error) {
             console.error(`Ошибка чтения ключа ${key}:`, error);
             return null;
         }
     }
+    
+    /**
+     * Получить значение из localStorage (синхронно)
+     */
+    _getItemFromLocalStorage(key) {
+        try {
+            const value = localStorage.getItem(key);
+            return value ? JSON.parse(value) : null;
+        } catch (error) {
+            console.error(`Ошибка чтения ключа ${key} из localStorage:`, error);
+            return null;
+        }
+    }
 
     /**
-     * Сохранить значение в localStorage
+     * Сохранить значение в хранилище (асинхронно)
      */
-    _setItem(key, value) {
+    async _setItem(key, value) {
         try {
             const json = JSON.stringify(value);
             
-            // Проверяем размер (для будущего CloudStorage)
+            // Проверяем размер
             if (json.length > MAX_VALUE_SIZE) {
                 console.warn(`⚠️ Значение ключа ${key} превышает лимит: ${json.length} > ${MAX_VALUE_SIZE}`);
             }
             
-            localStorage.setItem(key, json);
-            return true;
+            if (this._useCloudStorage) {
+                // Используем CloudStorage
+                try {
+                    await this._cloudAdapter.setItem(key, json);
+                    return true;
+                } catch (error) {
+                    console.warn(`Ошибка записи в CloudStorage, fallback на localStorage:`, error);
+                    // Fallback на localStorage
+                    return this._setItemToLocalStorage(key, json);
+                }
+            } else {
+                // Используем localStorage
+                return this._setItemToLocalStorage(key, json);
+            }
         } catch (error) {
             console.error(`Ошибка записи ключа ${key}:`, error);
             if (error.name === 'QuotaExceededError') {
@@ -76,25 +210,92 @@ class StorageAdapter {
             return false;
         }
     }
-
+    
     /**
-     * Удалить ключ из localStorage
+     * Сохранить значение в localStorage (синхронно)
      */
-    _removeItem(key) {
+    _setItemToLocalStorage(key, json) {
         try {
-            localStorage.removeItem(key);
+            localStorage.setItem(key, json);
             return true;
         } catch (error) {
-            console.error(`Ошибка удаления ключа ${key}:`, error);
+            console.error(`Ошибка записи ключа ${key} в localStorage:`, error);
+            if (error.name === 'QuotaExceededError') {
+                throw error;
+            }
             return false;
         }
     }
 
     /**
-     * Получить все ключи с префиксом пользователя
+     * Удалить ключ из хранилища (асинхронно)
      */
-    _getAllKeys() {
+    async _removeItem(key) {
+        try {
+            if (this._useCloudStorage) {
+                // Используем CloudStorage
+                try {
+                    await this._cloudAdapter.removeItem(key);
+                    return true;
+                } catch (error) {
+                    console.warn(`Ошибка удаления из CloudStorage, fallback на localStorage:`, error);
+                    // Fallback на localStorage
+                    return this._removeItemFromLocalStorage(key);
+                }
+            } else {
+                // Используем localStorage
+                return this._removeItemFromLocalStorage(key);
+            }
+        } catch (error) {
+            console.error(`Ошибка удаления ключа ${key}:`, error);
+            return false;
+        }
+    }
+    
+    /**
+     * Удалить ключ из localStorage (синхронно)
+     */
+    _removeItemFromLocalStorage(key) {
+        try {
+            localStorage.removeItem(key);
+            return true;
+        } catch (error) {
+            console.error(`Ошибка удаления ключа ${key} из localStorage:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Получить все ключи с префиксом пользователя (асинхронно)
+     */
+    async _getAllKeys() {
         const prefix = this._prefix;
+        
+        try {
+            if (this._useCloudStorage) {
+                // Используем CloudStorage
+                try {
+                    const allKeys = await this._cloudAdapter.getKeys();
+                    return allKeys.filter(key => key.startsWith(prefix));
+                } catch (error) {
+                    console.warn(`Ошибка получения ключей из CloudStorage, fallback на localStorage:`, error);
+                    // Fallback на localStorage
+                    return this._getAllKeysFromLocalStorage(prefix);
+                }
+            } else {
+                // Используем localStorage
+                return this._getAllKeysFromLocalStorage(prefix);
+            }
+        } catch (error) {
+            console.error('Ошибка получения ключей:', error);
+            return [];
+        }
+    }
+    
+    /**
+     * Получить все ключи из localStorage (синхронно)
+     */
+    _getAllKeysFromLocalStorage(prefix) {
         const keys = [];
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
@@ -108,46 +309,50 @@ class StorageAdapter {
     // ========== МЕТАДАННЫЕ ==========
 
     /**
-     * Получить метаданные
+     * Получить метаданные (синхронно, использует кеш)
      */
     getMeta() {
         const key = this._getKey('meta');
-        return this._getItem(key) || { version: '1.4', userId: this._userId };
+        const value = this._getFromCache(key);
+        return value || { version: '1.4', userId: this._userId };
     }
 
     /**
-     * Сохранить метаданные
+     * Сохранить метаданные (синхронно, обновляет кеш и синхронизирует в фоне)
      */
     setMeta(meta) {
         const key = this._getKey('meta');
-        return this._setItem(key, { ...meta, userId: this._userId });
+        const value = { ...meta, userId: this._userId };
+        this._setToCache(key, value);
+        return true;
     }
 
     // ========== ФИЛЬМЫ ==========
 
     /**
-     * Получить список фильмов (want или watched)
+     * Получить список фильмов (want или watched) (синхронно, использует кеш)
      */
     getMoviesList(type) {
         const key = this._getKey(`movies_${type}`);
-        const value = this._getItem(key);
+        const value = this._getFromCache(key);
         return Array.isArray(value) ? value : [];
     }
 
     /**
-     * Сохранить список фильмов
+     * Сохранить список фильмов (синхронно, обновляет кеш и синхронизирует в фоне)
      */
     setMoviesList(type, ids) {
         const key = this._getKey(`movies_${type}`);
-        return this._setItem(key, ids);
+        this._setToCache(key, ids);
+        return true;
     }
 
     /**
-     * Получить все отзывы на фильмы (группированные)
+     * Получить все отзывы на фильмы (группированные) (синхронно, использует кеш)
      */
     _getAllMovieReviewsData() {
         const mainKey = this._getKey('movies_reviews');
-        const mainData = this._getItem(mainKey);
+        const mainData = this._getFromCache(mainKey);
         
         if (mainData) {
             return mainData;
@@ -159,7 +364,7 @@ class StorageAdapter {
         
         while (true) {
             const groupKey = this._getKey(`movies_reviews_g${groupIndex}`);
-            const groupData = this._getItem(groupKey);
+            const groupData = this._getFromCache(groupKey);
             
             if (!groupData) {
                 break;
@@ -179,18 +384,19 @@ class StorageAdapter {
 
     /**
      * Сохранить все отзывы на фильмы (с автоматическим разбиением на группы)
+     * Синхронно обновляет кеш и синхронизирует в фоне
      */
     _saveAllMovieReviewsData(reviews) {
         const json = JSON.stringify(reviews);
         
         if (json.length <= MAX_VALUE_SIZE) {
             const mainKey = this._getKey('movies_reviews');
-            const result = this._setItem(mainKey, reviews);
+            this._setToCache(mainKey, reviews);
             
             // Удаляем группы, если они были
             this._removeMovieReviewsGroups();
             
-            return result;
+            return true;
         }
         
         // Разбиваем на группы
@@ -198,7 +404,7 @@ class StorageAdapter {
     }
 
     /**
-     * Сохранить отзывы на фильмы в группах
+     * Сохранить отзывы на фильмы в группах (синхронно обновляет кеш)
      */
     _saveMovieReviewsInGroups(reviews) {
         const groups = [];
@@ -220,7 +426,7 @@ class StorageAdapter {
                 // Сохраняем текущую группу
                 if (Object.keys(currentGroup).length > 0) {
                     const groupKey = this._getKey(`movies_reviews_g${groups.length}`);
-                    this._setItem(groupKey, currentGroup);
+                    this._setToCache(groupKey, currentGroup);
                     groups.push(groupKey);
                 }
                 
@@ -233,28 +439,27 @@ class StorageAdapter {
         // Сохраняем последнюю группу
         if (Object.keys(currentGroup).length > 0) {
             const groupKey = this._getKey(`movies_reviews_g${groups.length}`);
-            this._setItem(groupKey, currentGroup);
+            this._setToCache(groupKey, currentGroup);
             groups.push(groupKey);
         }
         
         // Удаляем основной ключ, если он был
         const mainKey = this._getKey('movies_reviews');
-        this._removeItem(mainKey);
+        this._removeFromCache(mainKey);
         
         return true;
     }
 
     /**
-     * Удалить группы отзывов на фильмы
+     * Удалить группы отзывов на фильмы (синхронно обновляет кеш)
      */
     _removeMovieReviewsGroups() {
         const prefix = this._getKey('movies_reviews_g');
-        const keys = this._getAllKeys();
+        // Получаем ключи из кеша
+        const keys = Object.keys(this._cache).filter(key => key.startsWith(prefix));
         
         keys.forEach(key => {
-            if (key.startsWith(prefix)) {
-                this._removeItem(key);
-            }
+            this._removeFromCache(key);
         });
     }
 
@@ -294,30 +499,31 @@ class StorageAdapter {
     // ========== СЕРИАЛЫ ==========
 
     /**
-     * Получить список сериалов (want, watching или watched)
+     * Получить список сериалов (want, watching или watched) (синхронно, использует кеш)
      */
     getTVShowsList(type) {
         const key = this._getKey(`tv_${type}`);
-        const value = this._getItem(key);
+        const value = this._getFromCache(key);
         return Array.isArray(value) ? value : [];
     }
 
     /**
-     * Сохранить список сериалов
+     * Сохранить список сериалов (синхронно, обновляет кеш и синхронизирует в фоне)
      */
     setTVShowsList(type, ids) {
         const key = this._getKey(`tv_${type}`);
-        return this._setItem(key, ids);
+        this._setToCache(key, ids);
+        return true;
     }
 
     // ========== ОТЗЫВЫ НА СЕЗОНЫ ==========
 
     /**
-     * Получить все отзывы на сезоны (группированные)
+     * Получить все отзывы на сезоны (группированные) (синхронно, использует кеш)
      */
     _getAllSeasonReviewsData() {
         const mainKey = this._getKey('tv_season_reviews');
-        const mainData = this._getItem(mainKey);
+        const mainData = this._getFromCache(mainKey);
         
         if (mainData) {
             return mainData;
@@ -329,7 +535,7 @@ class StorageAdapter {
         
         while (true) {
             const groupKey = this._getKey(`tv_season_reviews_g${groupIndex}`);
-            const groupData = this._getItem(groupKey);
+            const groupData = this._getFromCache(groupKey);
             
             if (!groupData) {
                 break;
@@ -349,18 +555,19 @@ class StorageAdapter {
 
     /**
      * Сохранить все отзывы на сезоны (с автоматическим разбиением на группы)
+     * Синхронно обновляет кеш и синхронизирует в фоне
      */
     _saveAllSeasonReviewsData(reviews) {
         const json = JSON.stringify(reviews);
         
         if (json.length <= MAX_VALUE_SIZE) {
             const mainKey = this._getKey('tv_season_reviews');
-            const result = this._setItem(mainKey, reviews);
+            this._setToCache(mainKey, reviews);
             
             // Удаляем группы, если они были
             this._removeSeasonReviewsGroups();
             
-            return result;
+            return true;
         }
         
         // Разбиваем на группы
@@ -368,7 +575,7 @@ class StorageAdapter {
     }
 
     /**
-     * Сохранить отзывы на сезоны в группах
+     * Сохранить отзывы на сезоны в группах (синхронно обновляет кеш)
      */
     _saveSeasonReviewsInGroups(reviews) {
         const groups = [];
@@ -389,7 +596,7 @@ class StorageAdapter {
             } else {
                 if (Object.keys(currentGroup).length > 0) {
                     const groupKey = this._getKey(`tv_season_reviews_g${groups.length}`);
-                    this._setItem(groupKey, currentGroup);
+                    this._setToCache(groupKey, currentGroup);
                     groups.push(groupKey);
                 }
                 
@@ -400,27 +607,26 @@ class StorageAdapter {
         
         if (Object.keys(currentGroup).length > 0) {
             const groupKey = this._getKey(`tv_season_reviews_g${groups.length}`);
-            this._setItem(groupKey, currentGroup);
+            this._setToCache(groupKey, currentGroup);
             groups.push(groupKey);
         }
         
         const mainKey = this._getKey('tv_season_reviews');
-        this._removeItem(mainKey);
+        this._removeFromCache(mainKey);
         
         return true;
     }
 
     /**
-     * Удалить группы отзывов на сезоны
+     * Удалить группы отзывов на сезоны (синхронно обновляет кеш)
      */
     _removeSeasonReviewsGroups() {
         const prefix = this._getKey('tv_season_reviews_g');
-        const keys = this._getAllKeys();
+        // Получаем ключи из кеша
+        const keys = Object.keys(this._cache).filter(key => key.startsWith(prefix));
         
         keys.forEach(key => {
-            if (key.startsWith(prefix)) {
-                this._removeItem(key);
-            }
+            this._removeFromCache(key);
         });
     }
 
@@ -504,11 +710,11 @@ class StorageAdapter {
     }
 
     /**
-     * Получить все эпизоды всех сериалов (группированные)
+     * Получить все эпизоды всех сериалов (группированные) (синхронно, использует кеш)
      */
     _getAllEpisodesData() {
         const mainKey = this._getKey('tv_episodes');
-        const mainData = this._getItem(mainKey);
+        const mainData = this._getFromCache(mainKey);
         
         if (mainData) {
             return mainData;
@@ -520,7 +726,7 @@ class StorageAdapter {
         
         while (true) {
             const groupKey = this._getKey(`tv_episodes_g${groupIndex}`);
-            const groupData = this._getItem(groupKey);
+            const groupData = this._getFromCache(groupKey);
             
             if (!groupData) {
                 break;
@@ -593,6 +799,7 @@ class StorageAdapter {
 
     /**
      * Сохранить все эпизоды всех сериалов (с автоматическим разбиением на группы)
+     * Синхронно обновляет кеш и синхронизирует в фоне
      */
     _saveAllEpisodesData(allEpisodes) {
         const json = JSON.stringify(allEpisodes);
@@ -600,12 +807,12 @@ class StorageAdapter {
         // Если размер влезает в лимит, сохраняем одним ключом
         if (json.length <= MAX_VALUE_SIZE) {
             const mainKey = this._getKey('tv_episodes');
-            const result = this._setItem(mainKey, allEpisodes);
+            this._setToCache(mainKey, allEpisodes);
             
             // Удаляем группы, если они были
             this._removeEpisodesGroups();
             
-            return result;
+            return true;
         }
         
         // Если не влезает, разбиваем на группы
@@ -613,7 +820,7 @@ class StorageAdapter {
     }
 
     /**
-     * Сохранить эпизоды в группах (при превышении лимита)
+     * Сохранить эпизоды в группах (при превышении лимита) (синхронно обновляет кеш)
      */
     _saveEpisodesInGroups(allEpisodes) {
         const groups = [];
@@ -636,7 +843,7 @@ class StorageAdapter {
                 // Сохраняем текущую группу
                 if (Object.keys(currentGroup).length > 0) {
                     const groupKey = this._getKey(`tv_episodes_g${groups.length}`);
-                    this._setItem(groupKey, currentGroup);
+                    this._setToCache(groupKey, currentGroup);
                     groups.push(groupKey);
                 }
                 
@@ -649,17 +856,17 @@ class StorageAdapter {
         // Сохраняем последнюю группу
         if (Object.keys(currentGroup).length > 0) {
             const groupKey = this._getKey(`tv_episodes_g${groups.length}`);
-            this._setItem(groupKey, currentGroup);
+            this._setToCache(groupKey, currentGroup);
             groups.push(groupKey);
         }
         
         // Удаляем основной ключ, если он был
         const mainKey = this._getKey('tv_episodes');
-        this._removeItem(mainKey);
+        this._removeFromCache(mainKey);
         
         // Сохраняем метаданные (опционально)
         const metaKey = this._getKey('tv_episodes_meta');
-        this._setItem(metaKey, {
+        this._setToCache(metaKey, {
             totalShows: tvIds.length,
             groups: groups.length
         });
@@ -668,20 +875,19 @@ class StorageAdapter {
     }
 
     /**
-     * Удалить группы эпизодов
+     * Удалить группы эпизодов (синхронно обновляет кеш)
      */
     _removeEpisodesGroups() {
         const prefix = this._getKey('tv_episodes_g');
         const metaKey = this._getKey('tv_episodes_meta');
-        const keys = this._getAllKeys();
+        // Получаем ключи из кеша
+        const keys = Object.keys(this._cache).filter(key => key.startsWith(prefix));
         
         keys.forEach(key => {
-            if (key.startsWith(prefix)) {
-                this._removeItem(key);
-            }
+            this._removeFromCache(key);
         });
         
-        this._removeItem(metaKey);
+        this._removeFromCache(metaKey);
     }
 
     /**
@@ -858,13 +1064,17 @@ class StorageAdapter {
     }
 
     /**
-     * Очистить все данные пользователя
+     * Очистить все данные пользователя (синхронно обновляет кеш)
      */
     clearAll() {
-        const keys = this._getAllKeys();
+        // Получаем ключи из кеша
+        const prefix = this._prefix;
+        const keys = Object.keys(this._cache).filter(key => key.startsWith(prefix));
+        
         keys.forEach(key => {
-            this._removeItem(key);
+            this._removeFromCache(key);
         });
+        
         return keys.length;
     }
 }

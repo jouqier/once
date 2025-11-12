@@ -25,6 +25,7 @@ import { API_CONFIG } from './config/api.js';
 import { cacheMigration } from './services/cache-migration.js';
 import { StorageCleanup } from './utils/storage-cleanup.js'; // Утилита для очистки хранилища
 import { analytics } from './services/analytics.js'; // Google Analytics
+import { userDataStore } from './services/user-data-store.js';
 
 // Импортируем изображения
 import story2 from '../public/assets/stories/story2.jpg';
@@ -252,6 +253,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         
         // Сначала инициализируем Telegram
         await initTelegram();
+        
+        // Инициализируем хранилище данных пользователя (CloudStorage или localStorage)
+        await userDataStore.init();
         
         // Инициализируем Google Analytics
         await analytics.init();

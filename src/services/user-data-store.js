@@ -1,5 +1,6 @@
 import { dataMigrationService } from './data-migration.js';
 import { StorageAdapter } from './storage-adapter.js';
+import { cloudStorageMigration } from './cloud-storage-migration.js';
 
 class UserDataStore {
     constructor() {
@@ -21,23 +22,45 @@ class UserDataStore {
         this._userId = userId;
         this._version = '1.4'; // Новая версия - разбитая структура для CloudStorage
         this._adapter = new StorageAdapter(userId);
-        
-        // Инициализация хранилища
-        this._initStore();
+        this._initialized = false;
         
         // Добавляем обработчик обновления данных пользователя
-        document.addEventListener('tg-user-data-updated', () => {
+        document.addEventListener('tg-user-data-updated', async () => {
             const newUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
             if (newUserId && newUserId !== this._userId) {
                 this._userId = newUserId;
                 sessionStorage.setItem('user_id', newUserId);
                 this._adapter = new StorageAdapter(newUserId);
-                this._initStore();
+                this._initialized = false;
+                await this.init();
             }
         });
     }
 
-    _initStore() {
+    /**
+     * Инициализировать хранилище (асинхронно)
+     * Должен быть вызван перед использованием методов
+     */
+    async init() {
+        if (this._initialized) {
+            return;
+        }
+
+        try {
+            // Инициализируем адаптер (загружает данные в кеш)
+            await this._adapter.init();
+            
+            // Инициализируем хранилище (миграции и проверки)
+            await this._initStore();
+            
+            this._initialized = true;
+        } catch (error) {
+            console.error('Ошибка инициализации UserDataStore:', error);
+            this._initialized = true; // Помечаем как инициализированное, чтобы не блокировать работу
+        }
+    }
+
+    async _initStore() {
         try {
             // Проверяем, есть ли старые данные (версия 1.3)
             const oldDataKey = `user_data_${this._userId}`;
@@ -77,6 +100,19 @@ class UserDataStore {
             
             // Проверяем и мигрируем старые ключи от предыдущей архитектуры
             this._migrateOldKeys();
+            
+            // Миграция из localStorage в CloudStorage (если доступен)
+            try {
+                const isMigrated = await cloudStorageMigration.isMigrated(this._userId);
+                if (!isMigrated) {
+                    console.log('Выполняем миграцию данных в CloudStorage...');
+                    await cloudStorageMigration.migrateToCloudStorage(this._userId);
+                    // После миграции перезагружаем кеш адаптера
+                    await this._adapter.init();
+                }
+            } catch (error) {
+                console.error('Ошибка миграции в CloudStorage:', error);
+            }
             
             // Инициализируем метаданные, если их нет
             const meta = this._adapter.getMeta();
