@@ -164,10 +164,28 @@ document.addEventListener('person-selected', (event) => {
 // Функция для немедленного восстановления позиции скролла (без задержек)
 function restoreScrollPositionImmediate(scrollPosition) {
     if (scrollPosition !== undefined && scrollPosition !== null && scrollPosition > 0) {
+        // Убеждаемся, что body не заблокирован (на случай если остался scrollLock)
+        if (document.body.style.position === 'fixed') {
+            document.body.style.position = '';
+            document.body.style.overflow = '';
+            document.body.style.width = '';
+            document.body.style.top = '';
+        }
+        
+        // Принудительно завершаем любую активную прокрутку на iOS
+        if (document.body.style.overflow === 'hidden') {
+            document.body.style.overflow = '';
+        }
+        
         // Восстанавливаем скролл немедленно, без задержек и без анимации
         // Используем только прямое присваивание, чтобы не блокировать события на iOS
         document.body.scrollTop = scrollPosition;
         document.documentElement.scrollTop = scrollPosition;
+        
+        // На iOS после программного изменения скролла может оставаться активное состояние прокрутки
+        // Принудительно снимаем блокировку touch-событий
+        document.body.style.touchAction = '';
+        document.documentElement.style.touchAction = '';
     }
 }
 
@@ -179,10 +197,29 @@ function restoreScrollPosition(scrollPosition) {
         // Используем минимальную задержку чтобы не блокировать события на iOS
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
+                // Убеждаемся, что body не заблокирован (на случай если остался scrollLock)
+                if (document.body.style.position === 'fixed') {
+                    document.body.style.position = '';
+                    document.body.style.overflow = '';
+                    document.body.style.width = '';
+                    document.body.style.top = '';
+                }
+                
+                // Принудительно завершаем любую активную прокрутку на iOS
+                // Это помогает избежать блокировки событий касания
+                if (document.body.style.overflow === 'hidden') {
+                    document.body.style.overflow = '';
+                }
+                
                 // Восстанавливаем скролл БЕЗ анимации (instant) чтобы не блокировать события на iOS
                 // Используем только прямое присваивание для избежания блокировки событий
                 document.body.scrollTop = scrollPosition;
                 document.documentElement.scrollTop = scrollPosition;
+                
+                // На iOS после программного изменения скролла может оставаться активное состояние прокрутки
+                // Принудительно снимаем блокировку touch-событий
+                document.body.style.touchAction = '';
+                document.documentElement.style.touchAction = '';
                 
                 console.log('[Navigation] Позиция скролла восстановлена:', scrollPosition, 
                     'текущая body.scrollTop:', document.body.scrollTop,
