@@ -164,36 +164,30 @@ document.addEventListener('person-selected', (event) => {
 // Функция для немедленного восстановления позиции скролла (без задержек)
 function restoreScrollPositionImmediate(scrollPosition) {
     if (scrollPosition !== undefined && scrollPosition !== null && scrollPosition > 0) {
-        // Восстанавливаем скролл немедленно, без задержек
+        // Восстанавливаем скролл немедленно, без задержек и без анимации
+        // Используем только прямое присваивание, чтобы не блокировать события на iOS
         document.body.scrollTop = scrollPosition;
         document.documentElement.scrollTop = scrollPosition;
-        window.scrollTo(0, scrollPosition);
     }
 }
 
-// Функция для восстановления позиции скролла с плавной анимацией
+// Функция для восстановления позиции скролла
 function restoreScrollPosition(scrollPosition) {
     if (scrollPosition !== undefined && scrollPosition !== null && scrollPosition > 0) {
         console.log('[Navigation] Восстанавливаем позицию скролла:', scrollPosition);
-        // Используем плавную анимацию для более приятного UX
+        // Используем requestAnimationFrame для восстановления после рендеринга
+        // Используем минимальную задержку чтобы не блокировать события на iOS
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-                // Дополнительная задержка для асинхронной загрузки контента
-                setTimeout(() => {
-                    // Восстанавливаем скролл с плавной анимацией
-                    window.scrollTo({
-                        top: scrollPosition,
-                        behavior: 'smooth'
-                    });
-                    // Также устанавливаем напрямую для body и documentElement (для совместимости)
-                    document.body.scrollTop = scrollPosition;
-                    document.documentElement.scrollTop = scrollPosition;
-                    
-                    console.log('[Navigation] Позиция скролла восстановлена:', scrollPosition, 
-                        'текущая body.scrollTop:', document.body.scrollTop,
-                        'documentElement.scrollTop:', document.documentElement.scrollTop,
-                        'window.scrollY:', window.scrollY);
-                }, 50);
+                // Восстанавливаем скролл БЕЗ анимации (instant) чтобы не блокировать события на iOS
+                // Используем только прямое присваивание для избежания блокировки событий
+                document.body.scrollTop = scrollPosition;
+                document.documentElement.scrollTop = scrollPosition;
+                
+                console.log('[Navigation] Позиция скролла восстановлена:', scrollPosition, 
+                    'текущая body.scrollTop:', document.body.scrollTop,
+                    'documentElement.scrollTop:', document.documentElement.scrollTop,
+                    'window.scrollY:', window.scrollY);
             });
         });
     }
@@ -246,14 +240,13 @@ async function showMainScreen(screenName, savedScrollPosition) {
         // Если возвращаемся назад, уточняем позицию после загрузки контента
         if (savedScrollPosition !== undefined && savedScrollPosition !== null && savedScrollPosition > 0) {
             // Ждем загрузки контента и уточняем позицию скролла
+            // Используем минимальную задержку чтобы не блокировать события на iOS
             await new Promise(resolve => {
-                setTimeout(() => {
+                requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            resolve();
-                        });
+                        resolve();
                     });
-                }, 100);
+                });
             });
             // Уточняем позицию после рендеринга (на случай если высота контента изменилась)
             restoreScrollPosition(savedScrollPosition);
@@ -323,14 +316,13 @@ window.addEventListener('navigation-changed', async (event) => {
             container.appendChild(personScreen);
             // Уточняем позицию после загрузки контента
             if (isGoingBack) {
+                // Используем минимальную задержку чтобы не блокировать события на iOS
                 await new Promise(resolve => {
-                    setTimeout(() => {
+                    requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
-                            requestAnimationFrame(() => {
-                                resolve();
-                            });
+                            resolve();
                         });
-                    }, 100);
+                    });
                 });
                 restoreScrollPosition(scrollPosition);
             }
@@ -346,14 +338,13 @@ window.addEventListener('navigation-changed', async (event) => {
             container.appendChild(genreScreen);
             // Уточняем позицию после загрузки контента
             if (isGoingBack) {
+                // Используем минимальную задержку чтобы не блокировать события на iOS
                 await new Promise(resolve => {
-                    setTimeout(() => {
+                    requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
-                            requestAnimationFrame(() => {
-                                resolve();
-                            });
+                            resolve();
                         });
-                    }, 100);
+                    });
                 });
                 restoreScrollPosition(scrollPosition);
             }

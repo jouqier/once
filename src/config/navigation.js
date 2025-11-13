@@ -182,22 +182,21 @@ export class NavigationManager {
     _restorePersonActiveTab(state) {
         // Восстанавливаем активный таб для экрана персоны
         if (state.type === 'person' && state.activeTab) {
+            // Используем минимальную задержку чтобы не блокировать события на iOS
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        const screenElement = document.querySelector('person-screen');
-                        if (screenElement && state.activeTab) {
-                            screenElement._activeTab = state.activeTab;
-                            // Обновляем UI табов
-                            const tabs = screenElement.shadowRoot.querySelectorAll('.tab');
-                            tabs.forEach(tab => {
-                                tab.classList.toggle('active', tab.dataset.tab === state.activeTab);
-                            });
-                            // Перерисовываем контент
-                            screenElement._renderMediaItems();
-                            console.log('[Navigation] Восстановлен активный таб персоны:', state.activeTab);
-                        }
-                    }, 150);
+                    const screenElement = document.querySelector('person-screen');
+                    if (screenElement && state.activeTab) {
+                        screenElement._activeTab = state.activeTab;
+                        // Обновляем UI табов
+                        const tabs = screenElement.shadowRoot.querySelectorAll('.tab');
+                        tabs.forEach(tab => {
+                            tab.classList.toggle('active', tab.dataset.tab === state.activeTab);
+                        });
+                        // Перерисовываем контент
+                        screenElement._renderMediaItems();
+                        console.log('[Navigation] Восстановлен активный таб персоны:', state.activeTab);
+                    }
                 });
             });
         }
@@ -206,23 +205,22 @@ export class NavigationManager {
     _restoreGenreActiveTab(state) {
         // Восстанавливаем активный таб (mediaType) для экрана жанра
         if (state.type === 'genre' && state.activeTab) {
+            // Используем минимальную задержку чтобы не блокировать события на iOS
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        const screenElement = document.querySelector('genre-screen');
-                        if (screenElement && state.activeTab) {
-                            screenElement._mediaType = state.activeTab;
-                            // Обновляем URL параметр
-                            const url = new URL(window.location);
-                            url.searchParams.set('type', state.activeTab);
-                            window.history.replaceState(state, '', url);
-                            // Перезагружаем данные и перерисовываем
-                            screenElement.loadData().then(() => {
-                                screenElement.render();
-                            });
-                            console.log('[Navigation] Восстановлен активный таб жанра:', state.activeTab);
-                        }
-                    }, 150);
+                    const screenElement = document.querySelector('genre-screen');
+                    if (screenElement && state.activeTab) {
+                        screenElement._mediaType = state.activeTab;
+                        // Обновляем URL параметр
+                        const url = new URL(window.location);
+                        url.searchParams.set('type', state.activeTab);
+                        window.history.replaceState(state, '', url);
+                        // Перезагружаем данные и перерисовываем
+                        screenElement.loadData().then(() => {
+                            screenElement.render();
+                        });
+                        console.log('[Navigation] Восстановлен активный таб жанра:', state.activeTab);
+                    }
                 });
             });
         }
@@ -252,20 +250,19 @@ export class NavigationManager {
         // Восстанавливаем позицию скролла табов для профиля
         if (state.type === 'tab' && state.name === 'profile' && state.profileScrollPositions) {
             // Используем requestAnimationFrame для восстановления после рендеринга
+            // Используем минимальную задержку чтобы не блокировать события на iOS
             requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        const screenElement = document.querySelector('profile-screen');
-                        if (!screenElement) return;
+                    const screenElement = document.querySelector('profile-screen');
+                    if (!screenElement) return;
 
-                        // Восстанавливаем позицию скролла табов
-                        const tabsWrapper = screenElement.shadowRoot.querySelector('.tabs-list-wrapper');
-                        if (tabsWrapper && state.profileScrollPositions.tabsScroll !== undefined) {
-                            tabsWrapper.scrollLeft = state.profileScrollPositions.tabsScroll;
-                        }
+                    // Восстанавливаем позицию скролла табов
+                    const tabsWrapper = screenElement.shadowRoot.querySelector('.tabs-list-wrapper');
+                    if (tabsWrapper && state.profileScrollPositions.tabsScroll !== undefined) {
+                        tabsWrapper.scrollLeft = state.profileScrollPositions.tabsScroll;
+                    }
 
-                        console.log('[Navigation] Восстановлена позиция скролла табов профиля:', state.profileScrollPositions.tabsScroll);
-                    }, 150);
+                    console.log('[Navigation] Восстановлена позиция скролла табов профиля:', state.profileScrollPositions.tabsScroll);
                 });
             });
         }
