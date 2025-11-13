@@ -27,6 +27,9 @@ export class NavigationManager {
                 if (stateIndex !== -1) {
                     // Обрезаем стек до найденного состояния (включительно)
                     this._navigationStack = this._navigationStack.slice(0, stateIndex + 1);
+                    // Обновляем последнее состояние в стеке данными из event.state
+                    // (чтобы сохранить обновленные поля, например activeTab)
+                    this._navigationStack[stateIndex] = event.state;
                 } else {
                     // Состояние не найдено в стеке - удаляем последний элемент
                     if (this._navigationStack.length > 0) {
@@ -72,6 +75,10 @@ export class NavigationManager {
         return this._navigationStack[this._navigationStack.length - 2];
     }
 
+    getCurrentState() {
+        return this._navigationStack[this._navigationStack.length - 1];
+    }
+
     canGoBack() {
         // Можем вернуться назад если:
         // 1. Есть модальные окна
@@ -111,6 +118,20 @@ export class NavigationManager {
             name: tab
         };
         
+        // Если переходим на профиль, проверяем есть ли сохраненное состояние в текущем стеке
+        if (tab === 'profile') {
+            const lastState = this._navigationStack[this._navigationStack.length - 1];
+            if (lastState?.type === 'tab' && lastState.name === 'profile') {
+                // Сохраняем состояние профиля из предыдущего состояния (возврат назад)
+                state.activeTab = lastState.activeTab || 'want';
+                state.tabsScrollPosition = lastState.tabsScrollPosition || 0;
+            } else {
+                // Новый заход на профиль через нижнюю навигацию - значения по умолчанию
+                state.activeTab = 'want';
+                state.tabsScrollPosition = 0;
+            }
+        }
+        
         window.history.pushState(state, '', url);
 
         while (this._modalStack.length > 0) {
@@ -119,9 +140,21 @@ export class NavigationManager {
         }
 
         // Очищаем стек и добавляем только tab state
+        // (при переключении табов через нижнюю навигацию состояние не сохраняется)
         this._navigationStack = [state];
         
         this._dispatchNavigationEvent(state);
+    }
+
+    updateProfileState(activeTab, tabsScrollPosition) {
+        // Обновляем состояние профиля в текущем состоянии стека
+        const currentState = this._navigationStack[this._navigationStack.length - 1];
+        if (currentState?.type === 'tab' && currentState.name === 'profile') {
+            currentState.activeTab = activeTab;
+            currentState.tabsScrollPosition = tabsScrollPosition;
+            // Обновляем состояние в browser history
+            window.history.replaceState(currentState, '', window.location);
+        }
     }
 
     navigateToDetails(mediaId, mediaType, sourceTab) {
@@ -178,7 +211,8 @@ export class NavigationManager {
     navigateToPerson(personId) {
         const state = {
             type: 'person',
-            personId
+            personId,
+            activeTab: 'movies' // По умолчанию активный таб - Movies
         };
         
         // Проверяем дубликат ПЕРЕД добавлением в browser history
@@ -193,6 +227,16 @@ export class NavigationManager {
         
         this._pushState(state);
         this._dispatchNavigationEvent(state);
+    }
+
+    updatePersonActiveTab(personId, activeTab) {
+        // Обновляем активный таб в текущем состоянии стека
+        const currentState = this._navigationStack[this._navigationStack.length - 1];
+        if (currentState?.type === 'person' && currentState.personId === personId) {
+            currentState.activeTab = activeTab;
+            // Обновляем состояние в browser history
+            window.history.replaceState(currentState, '', window.location);
+        }
     }
 
     pushModal(element) {

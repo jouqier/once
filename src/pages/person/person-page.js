@@ -35,6 +35,12 @@ export class PersonScreen extends HTMLElement {
         
         this._personId = new URLSearchParams(window.location.search).get('id');
         
+        // Восстанавливаем активный таб из состояния навигации
+        const activeTabAttr = this.getAttribute('active-tab');
+        if (activeTabAttr === 'movies' || activeTabAttr === 'tv') {
+            this._activeTab = activeTabAttr;
+        }
+        
         this.render(); // Показываем начальное состояние загрузки
         await this.loadData(); // Дожидаемся загрузки данных
         this._loading = false;
@@ -464,6 +470,11 @@ export class PersonScreen extends HTMLElement {
                 if (this._activeTab !== newTab) {
                     haptic.light();
                     this._activeTab = newTab;
+                    
+                    // Обновляем активный таб в стеке навигации
+                    if (this._personId) {
+                        navigationManager.updatePersonActiveTab(this._personId, newTab);
+                    }
                     
                     // Обновляем классы активности на табах
                     this.shadowRoot.querySelectorAll('.tab').forEach(t => {

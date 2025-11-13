@@ -3,12 +3,17 @@ import { TG, haptic } from '../../config/telegram.js';
 import { userMoviesService } from '../../services/user-movies.js';
 import { userFollowingService } from '../../services/user-following.js';
 import { i18n } from '../../services/i18n.js';
+import { navigationManager } from '../../config/navigation.js';
 import './profile-avatar.js';
 import './profile-stats.js';
 import './profile-page.js';
 import '../../components/media-poster.js';
 
 export class ProfileScreen extends HTMLElement {
+    static get observedAttributes() {
+        return ['active-tab', 'tabs-scroll-position'];
+    }
+
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
@@ -41,17 +46,32 @@ export class ProfileScreen extends HTMLElement {
         };
     }
 
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (name === 'active-tab' && newValue && ['want', 'watched', 'tvshows', 'following'].includes(newValue)) {
+            if (this._activeTab !== newValue) {
+                this._activeTab = newValue;
+                // Если компонент уже инициализирован, обновляем UI
+                if (this._initialized) {
+                    this._updateActiveTab();
+                }
+            }
+        } else if (name === 'tabs-scroll-position' && newValue !== null) {
+            // Восстанавливаем позицию скролла если компонент уже инициализирован
+            if (this._initialized) {
+                this._restoreTabsScrollPosition();
+            }
+        }
+    }
+
     async connectedCallback() {
         if (this._initialized) return;
         
         this._initialized = true;
         
-        // Восстанавливаем сохраненную вкладку профиля (если есть)
-        const savedTab = sessionStorage.getItem('profile_active_tab');
-        if (savedTab && ['want', 'watched', 'tvshows', 'following'].includes(savedTab)) {
-            this._activeTab = savedTab;
-            // Очищаем сохраненное значение после восстановления
-            sessionStorage.removeItem('profile_active_tab');
+        // Восстанавливаем состояние из атрибутов (переданных из навигации)
+        const activeTabAttr = this.getAttribute('active-tab');
+        if (activeTabAttr && ['want', 'watched', 'tvshows', 'following'].includes(activeTabAttr)) {
+            this._activeTab = activeTabAttr;
         }
         
         // Добавляем слушатели при подключении
@@ -192,10 +212,19 @@ export class ProfileScreen extends HTMLElement {
                     tabs.forEach(t => {
                         t.classList.toggle('active', t.dataset.tab === newTab);
                     });
+                    this._saveProfileState();
                     this._initializeContent();
                 }
             });
         });
+        
+        // Сохраняем позицию скролла табов при прокрутке
+        const tabsListWrapper = this.shadowRoot.querySelector('.tabs-list-wrapper');
+        if (tabsListWrapper) {
+            tabsListWrapper.addEventListener('scroll', () => {
+                this._saveProfileState();
+            });
+        }
 
         // Делегирование событий только для кнопок действий
         this.shadowRoot.addEventListener('click', (e) => {
@@ -225,8 +254,8 @@ export class ProfileScreen extends HTMLElement {
                 const id = item.dataset.id;
                 const type = item.dataset.type;
                 
-                // Сохраняем текущую вкладку профиля перед переходом
-                sessionStorage.setItem('profile_active_tab', this._activeTab);
+                // Сохраняем состояние профиля перед переходом
+                this._saveProfileState();
                 
                 // Диспатчим событие для навигации
                 this.dispatchEvent(new CustomEvent('movie-selected', {
@@ -263,8 +292,8 @@ export class ProfileScreen extends HTMLElement {
                 
                 const personId = item.dataset.personId;
                 
-                // Сохраняем текущую вкладку профиля перед переходом
-                sessionStorage.setItem('profile_active_tab', this._activeTab);
+                // Сохраняем состояние профиля перед переходом
+                this._saveProfileState();
                 
                 // Диспатчим событие для навигации к персоне
                 this.dispatchEvent(new CustomEvent('person-selected', {
@@ -574,6 +603,14 @@ export class ProfileScreen extends HTMLElement {
 
         this._initializeContent();
         this._setupEventListeners();
+        
+        // Восстанавливаем позицию скролла табов после полного рендера
+        // Используем двойной requestAnimationFrame для гарантии полного рендера
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                this._restoreTabsScrollPosition();
+            });
+        });
     }
 
     async _initializeContent() {
@@ -762,6 +799,38 @@ export class ProfileScreen extends HTMLElement {
                 count.textContent = value;
             }
         });
+    }
+
+    _saveProfileState() {
+        const tabsListWrapper = this.shadowRoot.querySelector('.tabs-list-wrapper');
+        const tabsScrollPosition = tabsListWrapper ? tabsListWrapper.scrollLeft : 0;
+        navigationManager.updateProfileState(this._activeTab, tabsScrollPosition);
+    }
+
+    _updateActiveTab() {
+        // Обновляем классы активности на табах
+        const tabs = this.shadowRoot.querySelectorAll('.tab');
+        tabs.forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.tab === this._activeTab);
+        });
+        // Обновляем контент
+        this._initializeContent();
+    }
+
+    _restoreTabsScrollPosition() {
+        const tabsScrollPositionAttr = this.getAttribute('tabs-scroll-position');
+        if (tabsScrollPositionAttr !== null) {
+            const scrollPosition = parseInt(tabsScrollPositionAttr, 10);
+            if (!isNaN(scrollPosition)) {
+                // Используем requestAnimationFrame для гарантии, что DOM полностью отрисован
+                requestAnimationFrame(() => {
+                    const tabsListWrapper = this.shadowRoot.querySelector('.tabs-list-wrapper');
+                    if (tabsListWrapper) {
+                        tabsListWrapper.scrollLeft = scrollPosition;
+                    }
+                });
+            }
+        }
     }
 }
 

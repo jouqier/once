@@ -157,13 +157,15 @@ function showMainScreen(screenName) {
             break;
         default:
             console.error('Unknown screen:', screenName);
-            return;
+            return null;
     }
      
     if (screen) {
         container.appendChild(screen);
         window.scrollTo(0, 0);
     }
+    
+    return screen;
 }
 
 // Обработик изменения навигации
@@ -175,18 +177,32 @@ window.addEventListener('navigation-changed', async (event) => {
         if (!state) {
             // Возврат на предыдущий экран
             const currentTab = navigationManager.currentTab;
-            const previousState = navigationManager.getPreviousState();
+            const currentState = navigationManager.getCurrentState();
             
-            if (previousState) {
-                if (previousState.type === 'details') {
-                    // Если возвращаемся из деталей фильма
-                    const sourceTab = previousState.sourceTab || currentTab;
-                    showMainScreen(sourceTab);
+            if (currentState && currentState.type === 'tab' && currentState.name === 'profile') {
+                // Возвращаемся на профиль - используем текущее состояние из стека
+                const screen = showMainScreen('profile');
+                if (screen) {
+                    if (currentState.activeTab) {
+                        screen.setAttribute('active-tab', currentState.activeTab);
+                    }
+                    if (currentState.tabsScrollPosition !== undefined) {
+                        screen.setAttribute('tabs-scroll-position', currentState.tabsScrollPosition);
+                    }
+                }
+            } else {
+                const previousState = navigationManager.getPreviousState();
+                if (previousState) {
+                    if (previousState.type === 'details') {
+                        // Если возвращаемся из деталей фильма
+                        const sourceTab = previousState.sourceTab || currentTab;
+                        showMainScreen(sourceTab);
+                    } else {
+                        showMainScreen(currentTab);
+                    }
                 } else {
                     showMainScreen(currentTab);
                 }
-            } else {
-                showMainScreen(currentTab);
             }
             return;
         }
@@ -199,10 +215,22 @@ window.addEventListener('navigation-changed', async (event) => {
             await showMovieDetails(state.mediaId, state.mediaType);
         } else if (state.type === 'tab') {
             // Показываем экран таба
-            showMainScreen(state.name);
+            const screen = showMainScreen(state.name);
+            // Если это профиль, передаем состояние
+            if (state.name === 'profile' && screen) {
+                if (state.activeTab) {
+                    screen.setAttribute('active-tab', state.activeTab);
+                }
+                if (state.tabsScrollPosition !== undefined) {
+                    screen.setAttribute('tabs-scroll-position', state.tabsScrollPosition);
+                }
+            }
         } else if (state.type === 'person') {
             // Показываем экран персоны
             const personScreen = document.createElement('person-screen');
+            if (state.activeTab) {
+                personScreen.setAttribute('active-tab', state.activeTab);
+            }
             container.appendChild(personScreen);
         } else if (state.type === 'genre') {
             // Показываем экран жанра
