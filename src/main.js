@@ -38,6 +38,9 @@ import story5 from '../public/assets/stories/story5.jpg';
 document.addEventListener('movie-selected', async (event) => {
     const { movieId, type, sourceTab, movie } = event.detail;
     try {
+        // Сохраняем позицию скролла ПЕРЕД навигацией
+        navigationManager.saveScrollPositionBeforeNavigation();
+        
         // Отслеживаем просмотр медиа
         if (movie?.title || movie?.name) {
             analytics.trackMediaView(movieId, type, movie.title || movie.name);
@@ -54,11 +57,19 @@ document.addEventListener('movie-selected', async (event) => {
     }
 });
 
-async function showMovieDetails(id, type = 'movie') {
+async function showMovieDetails(id, type = 'movie', savedScrollPosition) {
     const container = document.querySelector('#movies-container');
     
-    // Очищаем контейнер от всех экранов
-    container.innerHTML = '';
+    // Если возвращаемся назад, восстанавливаем позицию скролла СРАЗУ после очистки
+    // Это предотвращает видимость контента с нулевой позиции
+    if (savedScrollPosition !== undefined && savedScrollPosition !== null && savedScrollPosition > 0) {
+        container.innerHTML = '';
+        // Восстанавливаем позицию сразу, чтобы избежать видимости с нулевой позиции
+        restoreScrollPositionImmediate(savedScrollPosition);
+    } else {
+        // Очищаем контейнер от всех экранов
+        container.innerHTML = '';
+    }
     
     try {
         const data = await TMDBService.getFullMovieInfo(id, type);
@@ -78,7 +89,20 @@ async function showMovieDetails(id, type = 'movie') {
         cardElement.movie = movieData;
         container.appendChild(cardElement);
         
-        window.scrollTo(0, 0);
+        // Если возвращаемся назад, уточняем позицию после загрузки контента
+        if (savedScrollPosition !== undefined && savedScrollPosition !== null && savedScrollPosition > 0) {
+            // Уточняем позицию после рендеринга (на случай если высота контента изменилась)
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    restoreScrollPosition(savedScrollPosition);
+                });
+            });
+        } else {
+            // При новом переходе сбрасываем скролл в начало
+            document.body.scrollTop = 0;
+            document.documentElement.scrollTop = 0;
+            window.scrollTo(0, 0);
+        }
     } catch (error) {
         console.error('Ошибка при показе деталей:', error);
     }
@@ -87,6 +111,9 @@ async function showMovieDetails(id, type = 'movie') {
 // Обработчик переключения табов
 document.addEventListener('tab-changed', (event) => {
     const { tab } = event.detail;
+    
+    // Сохраняем позицию скролла ПЕРЕД навигацией
+    navigationManager.saveScrollPositionBeforeNavigation();
     
     // Отслеживаем переключение таба
     analytics.trackTabChange(tab);
@@ -104,6 +131,9 @@ document.addEventListener('tab-changed', (event) => {
 document.addEventListener('genre-selected', (event) => {
     const { genreId, genreName, from, type } = event.detail;
     try {
+        // Сохраняем позицию скролла ПЕРЕД навигацией
+        navigationManager.saveScrollPositionBeforeNavigation();
+        
         // Отслеживаем просмотр жанра
         analytics.trackGenreView(genreId, genreName);
         
@@ -117,6 +147,9 @@ document.addEventListener('genre-selected', (event) => {
 document.addEventListener('person-selected', (event) => {
     const { personId, personName } = event.detail;
     try {
+        // Сохраняем позицию скролла ПЕРЕД навигацией
+        navigationManager.saveScrollPositionBeforeNavigation();
+        
         // Отслеживаем просмотр персоны
         if (personName) {
             analytics.trackPersonView(personId, personName);
@@ -128,9 +161,56 @@ document.addEventListener('person-selected', (event) => {
     }
 });
 
-function showMainScreen(screenName) {
+// Функция для немедленного восстановления позиции скролла (без задержек)
+function restoreScrollPositionImmediate(scrollPosition) {
+    if (scrollPosition !== undefined && scrollPosition !== null && scrollPosition > 0) {
+        // Восстанавливаем скролл немедленно, без задержек
+        document.body.scrollTop = scrollPosition;
+        document.documentElement.scrollTop = scrollPosition;
+        window.scrollTo(0, scrollPosition);
+    }
+}
+
+// Функция для восстановления позиции скролла с плавной анимацией
+function restoreScrollPosition(scrollPosition) {
+    if (scrollPosition !== undefined && scrollPosition !== null && scrollPosition > 0) {
+        console.log('[Navigation] Восстанавливаем позицию скролла:', scrollPosition);
+        // Используем плавную анимацию для более приятного UX
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                // Дополнительная задержка для асинхронной загрузки контента
+                setTimeout(() => {
+                    // Восстанавливаем скролл с плавной анимацией
+                    window.scrollTo({
+                        top: scrollPosition,
+                        behavior: 'smooth'
+                    });
+                    // Также устанавливаем напрямую для body и documentElement (для совместимости)
+                    document.body.scrollTop = scrollPosition;
+                    document.documentElement.scrollTop = scrollPosition;
+                    
+                    console.log('[Navigation] Позиция скролла восстановлена:', scrollPosition, 
+                        'текущая body.scrollTop:', document.body.scrollTop,
+                        'documentElement.scrollTop:', document.documentElement.scrollTop,
+                        'window.scrollY:', window.scrollY);
+                }, 50);
+            });
+        });
+    }
+}
+
+async function showMainScreen(screenName, savedScrollPosition) {
     const container = document.querySelector('#movies-container');
-    container.innerHTML = '';
+    
+    // Если возвращаемся назад, восстанавливаем позицию скролла СРАЗУ после очистки
+    // Это предотвращает видимость контента с нулевой позиции
+    if (savedScrollPosition !== undefined && savedScrollPosition !== null && savedScrollPosition > 0) {
+        container.innerHTML = '';
+        // Восстанавливаем позицию сразу, чтобы избежать видимости с нулевой позиции
+        restoreScrollPositionImmediate(savedScrollPosition);
+    } else {
+        container.innerHTML = '';
+    }
     
     let screen;
     switch (screenName) {
@@ -162,13 +242,33 @@ function showMainScreen(screenName) {
      
     if (screen) {
         container.appendChild(screen);
-        window.scrollTo(0, 0);
+        
+        // Если возвращаемся назад, уточняем позицию после загрузки контента
+        if (savedScrollPosition !== undefined && savedScrollPosition !== null && savedScrollPosition > 0) {
+            // Ждем загрузки контента и уточняем позицию скролла
+            await new Promise(resolve => {
+                setTimeout(() => {
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            resolve();
+                        });
+                    });
+                }, 100);
+            });
+            // Уточняем позицию после рендеринга (на случай если высота контента изменилась)
+            restoreScrollPosition(savedScrollPosition);
+        } else {
+            // При новом переходе сбрасываем скролл в начало
+            document.body.scrollTop = 0;
+            document.documentElement.scrollTop = 0;
+            window.scrollTo(0, 0);
+        }
     }
 }
 
 // Обработик изменения навигации
 window.addEventListener('navigation-changed', async (event) => {
-    const { state } = event.detail;
+    const { state, scrollPosition } = event.detail;
     const container = document.querySelector('#movies-container');
     
     try {
@@ -181,33 +281,82 @@ window.addEventListener('navigation-changed', async (event) => {
                 if (previousState.type === 'details') {
                     // Если возвращаемся из деталей фильма
                     const sourceTab = previousState.sourceTab || currentTab;
-                    showMainScreen(sourceTab);
+                    await showMainScreen(sourceTab, previousState.scrollPosition);
                 } else {
-                    showMainScreen(currentTab);
+                    await showMainScreen(currentTab, previousState.scrollPosition);
                 }
             } else {
-                showMainScreen(currentTab);
+                await showMainScreen(currentTab);
             }
             return;
         }
         
-        // Очищаем контейнер перед показом нового экрана
-        container.innerHTML = '';
+        // Определяем, возвращаемся ли мы назад (есть сохраненная позиция скролла)
+        // ВАЖНО: проверяем только наличие scrollPosition в состоянии, не его значение
+        // При переходе вперед scrollPosition будет undefined, при возврате назад - будет значение
+        const isGoingBack = scrollPosition !== undefined && scrollPosition !== null;
+        
+        console.log('[Navigation] navigation-changed:', { 
+            stateType: state.type, 
+            isGoingBack, 
+            scrollPosition,
+            bodyScrollTop: document.body.scrollTop,
+            documentElementScrollTop: document.documentElement.scrollTop,
+            windowScrollY: window.scrollY
+        });
         
         if (state.type === 'details') {
             // Показываем детали фильма/сериала
-            await showMovieDetails(state.mediaId, state.mediaType);
+            await showMovieDetails(state.mediaId, state.mediaType, isGoingBack ? scrollPosition : undefined);
         } else if (state.type === 'tab') {
             // Показываем экран таба
-            showMainScreen(state.name);
+            await showMainScreen(state.name, isGoingBack ? scrollPosition : undefined);
         } else if (state.type === 'person') {
+            // Очищаем контейнер перед показом нового экрана
+            container.innerHTML = '';
+            // Если возвращаемся назад, восстанавливаем позицию СРАЗУ после очистки
+            if (isGoingBack) {
+                restoreScrollPositionImmediate(scrollPosition);
+            }
             // Показываем экран персоны
             const personScreen = document.createElement('person-screen');
             container.appendChild(personScreen);
+            // Уточняем позицию после загрузки контента
+            if (isGoingBack) {
+                await new Promise(resolve => {
+                    setTimeout(() => {
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                resolve();
+                            });
+                        });
+                    }, 100);
+                });
+                restoreScrollPosition(scrollPosition);
+            }
         } else if (state.type === 'genre') {
+            // Очищаем контейнер перед показом нового экрана
+            container.innerHTML = '';
+            // Если возвращаемся назад, восстанавливаем позицию СРАЗУ после очистки
+            if (isGoingBack) {
+                restoreScrollPositionImmediate(scrollPosition);
+            }
             // Показываем экран жанра
             const genreScreen = document.createElement('genre-screen');
             container.appendChild(genreScreen);
+            // Уточняем позицию после загрузки контента
+            if (isGoingBack) {
+                await new Promise(resolve => {
+                    setTimeout(() => {
+                        requestAnimationFrame(() => {
+                            requestAnimationFrame(() => {
+                                resolve();
+                            });
+                        });
+                    }, 100);
+                });
+                restoreScrollPosition(scrollPosition);
+            }
         }
     } catch (error) {
         console.error('Ошибка при обработке навигации:', error);

@@ -10,7 +10,9 @@ export default defineConfig(({ mode }) => {
         base: process.env.GITHUB_PAGES === 'true' ? '/once/' : '/',
         root: 'src',
         envDir: '../',  // Указываем Vite искать .env в корне проекта
-        plugins: [mkcert()],
+        plugins: [mkcert({
+            hosts: ['localhost', '127.0.0.1', '192.168.10.58']
+        })],
         build: {
             outDir: '../dist',
             emptyOutDir: true,
