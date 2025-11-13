@@ -8,6 +8,24 @@ class AnalyticsService {
         this.userId = null;
         this.gaInitialized = false;
         this.eventQueue = []; // Очередь событий до инициализации GA
+        this.isDevelopment = import.meta.env.DEV;
+    }
+
+    /**
+     * Проверка, можно ли отправлять данные в аналитику
+     */
+    _canSendAnalytics() {
+        // Не отправляем данные из локальной разработки
+        if (this.isDevelopment) {
+            return false;
+        }
+        
+        // Не отправляем данные, если нет реального ID пользователя
+        if (!this.userId || this.userId === 'guest') {
+            return false;
+        }
+        
+        return true;
     }
 
     /**
@@ -16,7 +34,13 @@ class AnalyticsService {
     async init() {
         try {
             // Получаем ID пользователя из Telegram
-            this.userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'guest';
+            this.userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || null;
+            
+            // Проверяем, можно ли отправлять данные в аналитику
+            if (!this._canSendAnalytics()) {
+                console.log('📊 Google Analytics отключен: режим разработки или отсутствует ID пользователя');
+                return;
+            }
             
             // Получаем дополнительные данные пользователя
             const user = window.Telegram?.WebApp?.initDataUnsafe?.user;
@@ -80,6 +104,12 @@ class AnalyticsService {
      * Отправка событий из очереди
      */
     _flushEventQueue() {
+        // Не отправляем события из очереди, если аналитика отключена
+        if (!this._canSendAnalytics()) {
+            this.eventQueue = [];
+            return;
+        }
+        
         if (this.eventQueue.length > 0) {
             this.eventQueue.forEach(event => {
                 this._sendEvent(event.name, event.params);
@@ -92,6 +122,11 @@ class AnalyticsService {
      * Отслеживание события
      */
     trackEvent(eventName, params = {}) {
+        // Не отправляем события, если аналитика отключена
+        if (!this._canSendAnalytics()) {
+            return;
+        }
+
         const event = {
             name: eventName,
             params: {
@@ -113,6 +148,11 @@ class AnalyticsService {
      * Внутренний метод отправки события
      */
     _sendEvent(eventName, params) {
+        // Дополнительная проверка перед отправкой
+        if (!this._canSendAnalytics()) {
+            return;
+        }
+        
         if (window.gtag) {
             window.gtag('event', eventName, params);
         }

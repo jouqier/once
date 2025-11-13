@@ -243,7 +243,7 @@ export class MovieCast extends HTMLElement {
                     width: 100%;
                     height: 100%;
                     object-fit: cover;
-                    filter: grayscale(100%);
+                    /* filter: grayscale(100%); */
                 }
                 
                 .cast-photo-placeholder {

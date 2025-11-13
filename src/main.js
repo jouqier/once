@@ -25,6 +25,8 @@ import { API_CONFIG } from './config/api.js';
 import { cacheMigration } from './services/cache-migration.js';
 import { StorageCleanup } from './utils/storage-cleanup.js'; // Утилита для очистки хранилища
 import { analytics } from './services/analytics.js'; // Google Analytics
+import { telegramAnalytics } from './services/telegram-analytics.js'; // Telegram Analytics SDK
+import { TELEGRAM_ANALYTICS_CONFIG } from './config/bot.js';
 import { userDataStore } from './services/user-data-store.js';
 import { userFollowingService } from './services/user-following.js';
 
@@ -283,6 +285,31 @@ async function migrateFollowingData() {
     }
 }
 
+/**
+ * Ожидание загрузки Telegram Analytics SDK
+ */
+function waitForTelegramAnalyticsSDK() {
+    return new Promise((resolve) => {
+        // Если SDK уже загружен
+        if (window.telegramAnalytics) {
+            resolve();
+            return;
+        }
+
+        // Ждем загрузки SDK (максимум 10 секунд)
+        let attempts = 0;
+        const maxAttempts = 100; // 10 секунд
+        
+        const checkSDK = setInterval(() => {
+            attempts++;
+            if (window.telegramAnalytics || attempts >= maxAttempts) {
+                clearInterval(checkSDK);
+                resolve();
+            }
+        }, 100);
+    });
+}
+
 function mockTelegramData() {
     if (!window.Telegram) {
         window.Telegram = {
@@ -336,6 +363,19 @@ window.addEventListener('DOMContentLoaded', async () => {
         await analytics.init();
         analytics.trackAppStart();
         analytics.trackSessionDuration();
+        
+        // Инициализируем Telegram Analytics SDK
+        // Ждем загрузки SDK (так как скрипт загружается асинхронно)
+        await waitForTelegramAnalyticsSDK();
+        if (TELEGRAM_ANALYTICS_CONFIG.TOKEN) {
+            await telegramAnalytics.init(
+                TELEGRAM_ANALYTICS_CONFIG.TOKEN,
+                TELEGRAM_ANALYTICS_CONFIG.APP_NAME
+            );
+            telegramAnalytics.trackAppStart();
+        } else {
+            console.warn('⚠️ Telegram Analytics токен не настроен. Получите токен через @DataChief_bot и добавьте VITE_TELEGRAM_ANALYTICS_TOKEN в .env');
+        }
         
         // Мониторинг размера хранилища
         try {
