@@ -44,6 +44,9 @@ export class ProfileScreen extends HTMLElement {
             episodeStatusChanged: this._handleEpisodeStatusChanged.bind(this),
             followingListChanged: this._handleFollowingListChanged.bind(this)
         };
+        
+        // Дебаунсинг для сохранения состояния профиля
+        this._saveProfileStateDebounceTimer = null;
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -95,6 +98,12 @@ export class ProfileScreen extends HTMLElement {
         document.removeEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
         document.removeEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
         document.removeEventListener('following-list-changed', this._boundHandlers.followingListChanged);
+        
+        // Очищаем таймер дебаунсинга при отключении компонента
+        if (this._saveProfileStateDebounceTimer) {
+            clearTimeout(this._saveProfileStateDebounceTimer);
+            this._saveProfileStateDebounceTimer = null;
+        }
     }
 
     async _handleReviewSubmitted(event) {
@@ -218,11 +227,19 @@ export class ProfileScreen extends HTMLElement {
             });
         });
         
-        // Сохраняем позицию скролла табов при прокрутке
+        // Сохраняем позицию скролла табов при прокрутке (с дебаунсингом)
         const tabsListWrapper = this.shadowRoot.querySelector('.tabs-list-wrapper');
         if (tabsListWrapper) {
             tabsListWrapper.addEventListener('scroll', () => {
-                this._saveProfileState();
+                // Очищаем предыдущий таймер
+                if (this._saveProfileStateDebounceTimer) {
+                    clearTimeout(this._saveProfileStateDebounceTimer);
+                }
+                // Устанавливаем новый таймер (200мс - достаточно для плавного скролла)
+                this._saveProfileStateDebounceTimer = setTimeout(() => {
+                    this._saveProfileState();
+                    this._saveProfileStateDebounceTimer = null;
+                }, 200);
             });
         }
 
