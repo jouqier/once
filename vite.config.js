@@ -31,7 +31,16 @@ export default defineConfig(({ mode }) => {
             port: 3000,
             host: '0.0.0.0', // Слушаем на всех интерфейсах для доступа по сети
             strictPort: false,
-            https: true // Включаем HTTPS для Telegram Mini App
+            https: true, // Включаем HTTPS для Telegram Mini App
+            cors: true, // Включаем CORS для мобильных устройств
+            headers: {
+                // Добавляем заголовки безопасности
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                // Отключаем X-Frame-Options для работы в Telegram WebView
+                'X-Frame-Options': 'ALLOWALL'
+            }
         }
     };
 }); 

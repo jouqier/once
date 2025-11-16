@@ -21,6 +21,7 @@ import './services/data-repair-utility.js'; // Утилита для диагн�
 import './pages/tvshows/show-card.js';
 import './pages/genre/genre-page.js';
 import './pages/person/person-page.js';
+import './pages/profile/followers-following-page.js';
 import { API_CONFIG } from './config/api.js';
 import { cacheMigration } from './services/cache-migration.js';
 import { StorageCleanup } from './utils/storage-cleanup.js'; // Утилита для очистки хранилища
@@ -29,6 +30,10 @@ import { telegramAnalytics } from './services/telegram-analytics.js'; // Telegra
 import { TELEGRAM_ANALYTICS_CONFIG } from './config/bot.js';
 import { userDataStore } from './services/user-data-store.js';
 import { userFollowingService } from './services/user-following.js';
+import { supabaseProfileService } from './services/supabase-profile-service.js';
+import { viewContextService } from './services/view-context-service.js';
+import { dataSyncService } from './services/data-sync-service.js';
+import { supabaseMigration } from './services/supabase-migration.js';
 
 // Импортируем изображения
 import story2 from '../public/assets/stories/story2.jpg';
@@ -185,6 +190,8 @@ window.addEventListener('navigation-changed', async (event) => {
                 // Возвращаемся на профиль - используем текущее состояние из стека
                 const screen = showMainScreen('profile');
                 if (screen) {
+                    // Удаляем viewing-user-id для своего профиля
+                    screen.removeAttribute('viewing-user-id');
                     if (currentState.activeTab) {
                         screen.setAttribute('active-tab', currentState.activeTab);
                     }
@@ -220,6 +227,8 @@ window.addEventListener('navigation-changed', async (event) => {
             const screen = showMainScreen(state.name);
             // Если это профиль, передаем состояние
             if (state.name === 'profile' && screen) {
+                // Удаляем viewing-user-id для своего профиля
+                screen.removeAttribute('viewing-user-id');
                 if (state.activeTab) {
                     screen.setAttribute('active-tab', state.activeTab);
                 }
@@ -238,6 +247,22 @@ window.addEventListener('navigation-changed', async (event) => {
             // Показываем экран жанра
             const genreScreen = document.createElement('genre-screen');
             container.appendChild(genreScreen);
+        } else if (state.type === 'user_profile') {
+            // Показываем профиль пользователя
+            const profileScreen = document.createElement('profile-screen');
+            profileScreen.setAttribute('viewing-user-id', state.userId);
+            if (state.activeTab) {
+                profileScreen.setAttribute('active-tab', state.activeTab);
+            }
+            container.appendChild(profileScreen);
+        } else if (state.type === 'followers_following') {
+            // Показываем список подписок/подписчиков
+            const followersFollowingPage = document.createElement('followers-following-page');
+            followersFollowingPage.setAttribute('user-id', state.userId);
+            if (state.activeTab) {
+                followersFollowingPage.setAttribute('active-tab', state.activeTab);
+            }
+            container.appendChild(followersFollowingPage);
         }
     } catch (error) {
         console.error('Ошибка при обработке навигации:', error);
@@ -338,43 +363,149 @@ function mockTelegramData() {
 
 // Инициализация приложения
 window.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Начало инициализации приложения...');
+    console.log('📍 URL:', window.location.href);
+    console.log('🌐 Telegram SDK доступен:', !!window.Telegram?.WebApp);
+    console.log('🔒 Протокол:', window.location.protocol);
+    console.log('📱 Платформа:', navigator.platform);
+    console.log('🌐 User Agent:', navigator.userAgent);
+    
+    // Очищаем индикатор загрузки сразу
+    try {
+        const container = document.querySelector('#movies-container');
+        if (container && container.innerHTML.includes('Загрузка приложения')) {
+            container.innerHTML = '';
+        }
+    } catch (e) {
+        console.warn('Не удалось очистить индикатор загрузки:', e);
+    }
+    
+    // Проверка HTTPS
+    if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        console.error('❌ Приложение должно работать по HTTPS для Telegram Mini App');
+        const container = document.querySelector('#movies-container');
+        if (container) {
+            container.innerHTML = `
+                <div style="padding: 20px; text-align: center; color: #fff;">
+                    <h2>Ошибка безопасности</h2>
+                    <p>Приложение должно работать по HTTPS</p>
+                    <p style="font-size: 12px; opacity: 0.7;">Текущий протокол: ${window.location.protocol}</p>
+                </div>
+            `;
+            return;
+        }
+    }
+    
     try {
         // Запускаем миграцию кеша (если нужна)
-        cacheMigration.migrate();
+        try {
+            cacheMigration.migrate();
+        } catch (error) {
+            console.error('Ошибка миграции кеша:', error);
+        }
         
         // В режиме разработки добавляем моковые данные
         if (import.meta.env.DEV) {
-            mockTelegramData();
+            try {
+                mockTelegramData();
+            } catch (error) {
+                console.error('Ошибка создания моковых данных:', error);
+            }
         }
         
         // Сначала инициализируем Telegram
-        await initTelegram();
+        try {
+            await initTelegram();
+        } catch (error) {
+            console.error('Ошибка инициализации Telegram:', error);
+        }
         
         // Инициализируем хранилище данных пользователя (CloudStorage или localStorage)
-        await userDataStore.init();
+        try {
+            await userDataStore.init();
+        } catch (error) {
+            console.error('Ошибка инициализации хранилища:', error);
+        }
         
         // Инициализируем сервис подписок на персон
-        await userFollowingService.init();
+        try {
+            await userFollowingService.init();
+        } catch (error) {
+            console.error('Ошибка инициализации сервиса подписок:', error);
+        }
+        
+        // Инициализируем Supabase сервисы
+        try {
+            const currentUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 
+                                 sessionStorage.getItem('user_id');
+            
+            if (currentUserId && currentUserId !== 'guest') {
+                // Инициализируем сервисы с текущим ID пользователя
+                supabaseProfileService.init(currentUserId);
+                viewContextService.init(currentUserId);
+                
+                // Выполняем однократную миграцию данных (если нужно)
+                // Проверяем, была ли уже выполнена миграция
+                const migrationKey = `supabase_migrated_${currentUserId}`;
+                const alreadyMigrated = sessionStorage.getItem(migrationKey);
+                
+                if (!alreadyMigrated && supabaseProfileService.isEnabled()) {
+                    // Выполняем миграцию в фоне (не блокируем запуск приложения)
+                    supabaseMigration.migrateAllData().then(success => {
+                        if (success) {
+                            sessionStorage.setItem(migrationKey, 'true');
+                            console.log('✅ Миграция данных в Supabase завершена');
+                        }
+                    }).catch(error => {
+                        console.error('Ошибка миграции данных:', error);
+                    });
+                }
+                
+                // Выполняем начальную синхронизацию данных
+                if (supabaseProfileService.isEnabled()) {
+                    // Синхронизируем в фоне после небольшой задержки
+                    setTimeout(() => {
+                        dataSyncService.syncAllPublicData().catch(error => {
+                            console.warn('Ошибка начальной синхронизации:', error);
+                        });
+                    }, 2000);
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка инициализации Supabase сервисов:', error);
+        }
         
         // Мигрируем старые данные подписок из localStorage в CloudStorage
-        await migrateFollowingData();
+        try {
+            await migrateFollowingData();
+        } catch (error) {
+            console.error('Ошибка миграции подписок:', error);
+        }
         
         // Инициализируем Google Analytics
-        await analytics.init();
-        analytics.trackAppStart();
-        analytics.trackSessionDuration();
+        try {
+            await analytics.init();
+            analytics.trackAppStart();
+            analytics.trackSessionDuration();
+        } catch (error) {
+            console.error('Ошибка инициализации Google Analytics:', error);
+        }
         
         // Инициализируем Telegram Analytics SDK
         // Ждем загрузки SDK (так как скрипт загружается асинхронно)
-        await waitForTelegramAnalyticsSDK();
-        if (TELEGRAM_ANALYTICS_CONFIG.TOKEN) {
-            await telegramAnalytics.init(
-                TELEGRAM_ANALYTICS_CONFIG.TOKEN,
-                TELEGRAM_ANALYTICS_CONFIG.APP_NAME
-            );
-            telegramAnalytics.trackAppStart();
-        } else {
-            console.warn('⚠️ Telegram Analytics токен не настроен. Получите токен через @DataChief_bot и добавьте VITE_TELEGRAM_ANALYTICS_TOKEN в .env');
+        try {
+            await waitForTelegramAnalyticsSDK();
+            if (TELEGRAM_ANALYTICS_CONFIG.TOKEN) {
+                await telegramAnalytics.init(
+                    TELEGRAM_ANALYTICS_CONFIG.TOKEN,
+                    TELEGRAM_ANALYTICS_CONFIG.APP_NAME
+                );
+                telegramAnalytics.trackAppStart();
+            } else {
+                console.warn('⚠️ Telegram Analytics токен не настроен. Получите токен через @DataChief_bot и добавьте VITE_TELEGRAM_ANALYTICS_TOKEN в .env');
+            }
+        } catch (error) {
+            console.error('Ошибка инициализации Telegram Analytics:', error);
         }
         
         // Мониторинг размера хранилища
@@ -403,10 +534,12 @@ window.addEventListener('DOMContentLoaded', async () => {
         const urlParams = new URLSearchParams(window.location.search);
         let mediaId = urlParams.get('id');
         let mediaType = urlParams.get('type');
+        const profileUserId = urlParams.get('profile');
         
         // Проверяем startapp параметр для Direct Link (t.me/bot/app?startapp=movie_123)
         // Также проверяем start_param из initDataUnsafe
-        const startApp = urlParams.get('startapp') || TG?.initDataUnsafe?.start_param;
+        const tg = window.Telegram?.WebApp;
+        const startApp = urlParams.get('startapp') || tg?.initDataUnsafe?.start_param;
         if (startApp && !mediaId) {
             // Формат: movie_123 или tv_456
             const parts = startApp.split('_');
@@ -428,6 +561,14 @@ window.addEventListener('DOMContentLoaded', async () => {
                     console.log('Telegram start param detected:', { mediaId, mediaType, startParam });
                 }
             }
+        }
+        
+        // Если есть параметр профиля, открываем профиль пользователя
+        if (profileUserId) {
+            console.log('Profile deep link detected:', { profileUserId });
+            localStorage.setItem('app_launched', 'true'); // Пропускаем сторис
+            navigationManager.navigateToUserProfile(profileUserId);
+            return;
         }
         
         // Если есть параметры медиа, открываем детали напрямую
@@ -466,9 +607,27 @@ window.addEventListener('DOMContentLoaded', async () => {
             navigationManager.navigateToTab('movies');
         }
         
+        console.log('✅ Инициализация приложения завершена успешно');
+        
     } catch (error) {
-        console.error('Ошибка инициализации приложения:', error);
+        console.error('❌ Критическая ошибка инициализации приложения:', error);
+        console.error('Stack trace:', error.stack);
         // Если произошла ошибка, все равно показываем основной экран
-        navigationManager.navigateToTab('movies');
+        try {
+            navigationManager.navigateToTab('movies');
+        } catch (navError) {
+            console.error('❌ Ошибка при показе основного экрана:', navError);
+            // Последняя попытка - показываем сообщение об ошибке
+            const container = document.querySelector('#movies-container');
+            if (container) {
+                container.innerHTML = `
+                    <div style="padding: 20px; text-align: center; color: var(--md-sys-color-on-surface);">
+                        <h2>Ошибка загрузки приложения</h2>
+                        <p>Пожалуйста, перезагрузите страницу</p>
+                        <p style="font-size: 12px; opacity: 0.7;">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
     }
 });

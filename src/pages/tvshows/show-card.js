@@ -33,9 +33,13 @@ export class TVShowCardDetails extends HTMLElement {
             <movie-recommendations></movie-recommendations>
         `;
 
-        document.addEventListener('review-removed', () => {
-            const reviewElement = this.shadowRoot.querySelector('movie-review');
-            reviewElement.style.display = 'none';
+        document.addEventListener('review-removed', (event) => {
+            // Не скрываем компонент автоматически - он сам управляет отображением
+            // на основе наличия отзывов (своих и подписок)
+            if (this._movie && event.detail.tvId === this._movie.id) {
+                const reviewElement = this.shadowRoot.querySelector('movie-review');
+                // Компонент сам обновит отображение через _mergeReviews()
+            }
         });
 
         document.addEventListener('review-submitted', (event) => {

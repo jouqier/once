@@ -23,10 +23,16 @@
         });
     </script>
     
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js" onerror="console.warn('⚠️ Не удалось загрузить Telegram WebApp SDK')"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function(){
-            Telegram.WebApp.disableVerticalSwipes()
+            if (window.Telegram?.WebApp) {
+                try {
+                    Telegram.WebApp.disableVerticalSwipes();
+                } catch (error) {
+                    console.warn('Ошибка при инициализации Telegram WebApp:', error);
+                }
+            }
         });
     </script>
     
@@ -38,16 +44,110 @@
     ></script>
     <link rel="stylesheet" href="./theme.css">
     <link rel="stylesheet" href="./styles.css">
+    
+    <!-- Диагностика загрузки -->
+    <script>
+        // Логируем начало загрузки страницы
+        console.log('📄 HTML загружен');
+        console.log('🌐 User Agent:', navigator.userAgent);
+        console.log('🔒 Протокол:', window.location.protocol);
+        console.log('📍 URL:', window.location.href);
+        
+        // Проверяем поддержку модулей
+        const supportsModules = 'noModule' in HTMLScriptElement.prototype;
+        console.log('📦 Поддержка ES модулей:', supportsModules);
+        
+        // Обработка ошибок загрузки модулей
+        window.addEventListener('error', function(event) {
+            console.error('❌ Ошибка загрузки:', {
+                filename: event.filename,
+                message: event.message,
+                lineno: event.lineno,
+                colno: event.colno,
+                error: event.error
+            });
+            
+            // Показываем сообщение об ошибке если модуль не загрузился
+            if (event.filename && (event.filename.includes('main.js') || event.filename.includes('.js'))) {
+                setTimeout(() => {
+                    const container = document.querySelector('#movies-container');
+                    if (container && (container.innerHTML.trim() === '' || container.innerHTML.includes('Загрузка приложения'))) {
+                        let errorMessage = 'Не удалось загрузить модули приложения';
+                        if (event.message.includes('Failed to fetch') || event.message.includes('network')) {
+                            errorMessage = 'Ошибка сети. Проверьте подключение и HTTPS сертификат';
+                        } else if (event.message.includes('CORS')) {
+                            errorMessage = 'Ошибка CORS. Проверьте настройки сервера';
+                        }
+                        
+                        container.innerHTML = `
+                            <div style="padding: 20px; text-align: center; color: #fff;">
+                                <h2>Ошибка загрузки приложения</h2>
+                                <p>${errorMessage}</p>
+                                <p style="font-size: 12px; opacity: 0.7;">${event.message}</p>
+                                <p style="font-size: 12px; opacity: 0.7;">Файл: ${event.filename || 'неизвестно'}</p>
+                                <p style="font-size: 12px; opacity: 0.7;">Проверьте консоль для деталей</p>
+                            </div>
+                        `;
+                    }
+                }, 2000);
+            }
+        }, true);
+        
+        // Обработка необработанных промисов
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('❌ Необработанная ошибка промиса:', event.reason);
+        });
+    </script>
+    
     <script type="module" src="./main.js"></script>
+    
+    <!-- Fallback для браузеров без поддержки модулей -->
+    <script nomodule>
+        console.error('❌ Браузер не поддерживает ES модули');
+        document.querySelector('#movies-container').innerHTML = `
+            <div style="padding: 20px; text-align: center; color: #fff;">
+                <h2>Браузер не поддерживается</h2>
+                <p>Для работы приложения требуется современный браузер с поддержкой ES модулей</p>
+            </div>
+        `;
+    </script>
 </head>
 <body>
     <div id="app">
         <div class="corner-top"></div>
         <div class="corner-bottom"></div>
         <main>
-            <div id="movies-container"></div>
+            <div id="movies-container">
+                <!-- Индикатор загрузки -->
+                <div style="padding: 20px; text-align: center; color: #fff;">
+                    <p>Загрузка приложения...</p>
+                </div>
+            </div>
         </main>
         <tab-bar></tab-bar>
     </div>
+    
+    <!-- Дополнительная диагностика после загрузки DOM -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('✅ DOM загружен');
+            console.log('📦 Контейнер найден:', !!document.querySelector('#movies-container'));
+            console.log('📦 Tab bar найден:', !!document.querySelector('tab-bar'));
+            
+            // Проверяем загрузку скриптов
+            setTimeout(() => {
+                console.log('⏱️ Проверка через 3 секунды после DOMContentLoaded:');
+                console.log('  - Telegram SDK:', !!window.Telegram?.WebApp);
+                console.log('  - Google Analytics:', !!window.gtag);
+                console.log('  - Telegram Analytics:', !!window.telegramAnalytics);
+                
+                // Если контейнер все еще пустой или показывает загрузку, значит main.js не выполнился
+                const container = document.querySelector('#movies-container');
+                if (container && container.innerHTML.includes('Загрузка приложения')) {
+                    console.error('⚠️ main.js не выполнился за 3 секунды');
+                }
+            }, 3000);
+        });
+    </script>
 </body>
 </html> 

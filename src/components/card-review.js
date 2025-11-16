@@ -2,6 +2,9 @@ import { userMoviesService } from '../services/user-movies.js';
 import { haptic } from '../config/telegram.js';
 import { TG } from '../config/telegram.js';
 import { i18n } from '../services/i18n.js';
+import { supabaseProfileService } from '../services/supabase-profile-service.js';
+import { navigationManager } from '../config/navigation.js';
+import '../components/review-view-dialog.js';
 
 export class MovieReview extends HTMLElement {
     constructor() {
@@ -11,6 +14,9 @@ export class MovieReview extends HTMLElement {
         this._reviews = [];
         this._review = null;
         this._user = null;
+        this._followingReviews = []; // Отзывы подписок
+        this._allReviews = []; // Объединенный список для отображения
+        this._followingReviewsLoaded = false;
         this._initUser();
 
         document.addEventListener('season-review-submitted', (e) => {
@@ -30,14 +36,26 @@ export class MovieReview extends HTMLElement {
         document.addEventListener('review-submitted', (e) => {
             if (this._movie && e.detail.movieId === this._movie.id) {
                 this._review = e.detail.review;
-                this.render();
+                this._mergeReviews();
+            }
+        });
+        
+        // Обновление отзывов при изменении подписок
+        document.addEventListener('user-follows-changed', () => {
+            if (this._movie) {
+                if (this._movie.media_type === 'tv') {
+                    this._loadFollowingSeasonReviews();
+                } else {
+                    this._loadFollowingMovieReviews();
+                }
             }
         });
 
         document.addEventListener('review-removed', (e) => {
             if (this._movie && e.detail.movieId === this._movie.id) {
                 this._review = null;
-                this.render();
+                // Объединяем отзывы заново (чтобы показать отзывы подписок, даже если свой отзыв удален)
+                this._mergeReviews();
             }
         });
     }
@@ -55,8 +73,15 @@ export class MovieReview extends HTMLElement {
 
     set movie(value) {
         this._movie = value;
-        if (value && value.media_type === 'tv') {
-            this._loadAllSeasonReviews();
+        if (value) {
+            if (value.media_type === 'tv') {
+                this._loadAllSeasonReviews();
+                this._loadFollowingSeasonReviews();
+            } else {
+                // Для фильмов загружаем свой отзыв и отзывы подписок
+                this._review = userMoviesService.getReview('movie', value.id);
+                this._loadFollowingMovieReviews();
+            }
         }
         this.render();
     }
@@ -81,7 +106,8 @@ export class MovieReview extends HTMLElement {
                 if (review) {
                     return {
                         ...review,
-                        seasonNumber: season.season_number
+                        seasonNumber: season.season_number,
+                        isMyReview: true
                     };
                 }
                 return null;
@@ -93,7 +119,128 @@ export class MovieReview extends HTMLElement {
             display: this._reviews.length > 0 ? 'flex' : 'none'
         });
 
-        this.style.display = this._reviews.length > 0 ? 'flex' : 'none';
+        this._mergeReviews();
+    }
+    
+    /**
+     * Загрузить отзывы подписок на фильм
+     */
+    async _loadFollowingMovieReviews() {
+        if (!supabaseProfileService.isEnabled() || !this._movie) return;
+        
+        try {
+            const reviews = await supabaseProfileService.getFollowingReviewsForMovie(this._movie.id);
+            
+            this._followingReviews = reviews.map(review => ({
+                ...review,
+                // Нормализуем поле текста отзыва: из Supabase приходит 'review', локально используется 'text'
+                text: review.review || review.text || '',
+                isMyReview: false,
+                user: review.users || {
+                    user_id: review.user_id,
+                    username: null,
+                    first_name: null,
+                    last_name: null,
+                    avatar_url: null
+                }
+            }));
+            
+            this._mergeReviews();
+        } catch (error) {
+            console.error('Ошибка загрузки отзывов подписок на фильм:', error);
+        }
+    }
+    
+    /**
+     * Загрузить отзывы подписок на сезоны
+     */
+    async _loadFollowingSeasonReviews() {
+        if (!supabaseProfileService.isEnabled() || !this._movie) return;
+        
+        try {
+            const followingReviews = await supabaseProfileService.getFollowingReviewsForAllSeasons(this._movie.id);
+            
+            // Преобразуем в формат для отображения
+            this._followingReviews = [];
+            Object.entries(followingReviews).forEach(([seasonNumber, reviews]) => {
+                reviews.forEach(review => {
+                    this._followingReviews.push({
+                        ...review,
+                        // Нормализуем поле текста отзыва: из Supabase приходит 'review', локально используется 'text'
+                        text: review.review || review.text || '',
+                        seasonNumber: parseInt(seasonNumber),
+                        isMyReview: false,
+                        user: review.users || {
+                            user_id: review.user_id,
+                            username: null,
+                            first_name: null,
+                            last_name: null,
+                            avatar_url: null
+                        }
+                    });
+                });
+            });
+            
+            this._mergeReviews();
+        } catch (error) {
+            console.error('Ошибка загрузки отзывов подписок на сезоны:', error);
+        }
+    }
+    
+    /**
+     * Объединить мои отзывы и отзывы подписок
+     */
+    _mergeReviews() {
+        if (this._movie.media_type === 'tv') {
+            // Для сериалов группируем по сезонам
+            const reviewsBySeason = {};
+            
+            // Добавляем мои отзывы
+            this._reviews.forEach(review => {
+                const seasonNum = review.seasonNumber;
+                if (!reviewsBySeason[seasonNum]) {
+                    reviewsBySeason[seasonNum] = [];
+                }
+                reviewsBySeason[seasonNum].push(review);
+            });
+            
+            // Добавляем отзывы подписок
+            this._followingReviews.forEach(review => {
+                const seasonNum = review.seasonNumber;
+                if (!reviewsBySeason[seasonNum]) {
+                    reviewsBySeason[seasonNum] = [];
+                }
+                reviewsBySeason[seasonNum].push(review);
+            });
+            
+            // Сортируем: сначала мой отзыв, потом отзывы подписок
+            Object.keys(reviewsBySeason).forEach(seasonNum => {
+                reviewsBySeason[seasonNum].sort((a, b) => {
+                    if (a.isMyReview && !b.isMyReview) return -1;
+                    if (!a.isMyReview && b.isMyReview) return 1;
+                    return 0;
+                });
+            });
+            
+            // Преобразуем обратно в плоский массив для рендеринга
+            this._allReviews = [];
+            Object.entries(reviewsBySeason).forEach(([seasonNum, reviews]) => {
+                this._allReviews.push(...reviews);
+            });
+        } else {
+            // Для фильмов просто объединяем
+            this._allReviews = [];
+            if (this._review) {
+                this._allReviews.push({
+                    ...this._review,
+                    isMyReview: true
+                });
+            }
+            this._allReviews.push(...this._followingReviews);
+        }
+        
+        // Обновляем отображение
+        this.style.display = this._allReviews.length > 0 ? 'flex' : 'none';
         this.render();
     }
 
@@ -136,7 +283,7 @@ export class MovieReview extends HTMLElement {
             .filter(Boolean)
             .join(' ') || i18n.t('user');
 
-        if (this._movie.media_type === 'tv' && this._reviews?.length > 0) {
+        if (this._movie.media_type === 'tv' && this._allReviews?.length > 0) {
             this.shadowRoot.innerHTML = `
                 <style>
                     :host {
@@ -169,21 +316,69 @@ export class MovieReview extends HTMLElement {
                         align-self: stretch;
                     }
 
+                    .reviews-scroll {
+                        display: flex;
+                        overflow-x: auto;
+                        overflow-y: hidden;
+                        gap: 12px;
+                        padding: 0 16px 16px 16px;
+                        scrollbar-width: none;
+                        -ms-overflow-style: none;
+                        touch-action: pan-x;
+                        width: 100%;
+                        min-width: 0;
+                        max-width: 100%;
+                        -webkit-overflow-scrolling: touch;
+                        align-items: stretch;
+                    }
+
+                    .reviews-scroll::-webkit-scrollbar {
+                        display: none;
+                    }
+
+                    .reviews-scroll.single-review {
+                        overflow-x: visible;
+                        padding: 0 16px 16px 16px;
+                    }
+
                     .review-container {
                         display: flex;
                         padding: 16px;
                         flex-direction: column;
                         gap: 8px;
-                        align-self: stretch;
+                        width: 288px;
+                        min-width: 288px;
+                        height: 140px;
+                        flex-shrink: 0;
                         background: var(--md-sys-color-surface-container);
-                        margin: 8px 16px;
                         border-radius: 32px;
+                        box-sizing: border-box;
+                    }
+
+                    .reviews-scroll.single-review .review-container {
+                        width: calc(100% - 32px);
+                        min-width: auto;
+                        flex-shrink: 1;
+                        flex-grow: 1;
+                    }
+                    
+                    .review-container.my-review {
+                        border: 2px solid var(--md-sys-color-primary);
+                    }
+
+                    .review-container.clickable {
+                        cursor: pointer;
+                        transition: opacity 0.2s ease;
+                    }
+
+                    .review-container.clickable:active {
+                        opacity: 0.7;
                     }
 
                     .review-header {
                         display: flex;
                         align-items: center;
-                        gap: 16px;
+                        gap: 12px;
                     }
 
                     .avatar {
@@ -191,6 +386,18 @@ export class MovieReview extends HTMLElement {
                         height: 40px;
                         border-radius: 999px;
                         overflow: hidden;
+                        flex-shrink: 0;
+                    }
+                    
+                    .username {
+                        color: var(--md-sys-color-outline);
+                        font-size: 14px;
+                        font-style: normal;
+                        font-weight: 600;
+                        line-height: 20px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
                     }
 
                     .avatar img {
@@ -215,6 +422,7 @@ export class MovieReview extends HTMLElement {
                         display: flex;
                         flex-direction: column;
                         flex: 1;
+                        min-width: 0;
                     }
 
                     .username {
@@ -223,10 +431,14 @@ export class MovieReview extends HTMLElement {
                         font-style: normal;
                         font-weight: 600;
                         line-height: 20px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
                     }
 
                     .rating-stars {
                         font-size: 14px;
+                        letter-spacing: -2px;
                     }
 
                     .review-text {
@@ -236,20 +448,44 @@ export class MovieReview extends HTMLElement {
                         font-weight: 600;
                         line-height: 20px;
                         margin: 0;
-                        padding: 0 0 0 56px;
+                        padding: 0;
+                        display: -webkit-box;
+                        -webkit-line-clamp: 3;
+                        -webkit-box-orient: vertical;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        flex: 1;
                     }
 
-                    .edit-button {
-                        background: none;
-                        border: none;
-                        padding: 8px;
-                        cursor: pointer;
-                        color: var(--md-sys-color-outline);
-                    }
 
                     .bottom-container {
                         display: flex;
-                        margin: 8px 16px 0px 16px;
+                        overflow-x: auto;
+                        gap: 12px;
+                        padding: 8px 16px 16px 16px;
+                        scrollbar-width: none;
+                        -ms-overflow-style: none;
+                        touch-action: pan-x;
+                    }
+
+                    .bottom-container::-webkit-scrollbar {
+                        display: none;
+                    }
+            
+                    .bottom-wrapper {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        flex-shrink: 0;
+                        position: relative;
+                    }
+
+                    .bottom-wrapper.clickable {
+                        cursor: pointer;
+                    }
+
+                    .bottom-wrapper.clickable-profile {
+                        cursor: pointer;
                     }
 
                     .bottom-avatar-wrapper {
@@ -298,26 +534,45 @@ export class MovieReview extends HTMLElement {
                     <div class="title">${i18n.t('reviews')}</div>
                 </div>
 
-                ${this._reviews.map(review => `
-                    <div class="review-container">
-                        <div class="review-header">
-                            <div class="avatar">
-                                ${userPhoto 
-                                    ? `<img src="${userPhoto}" alt="${userName}">`
-                                    : `<div class="avatar-placeholder">${userName.charAt(0)}</div>`
-                                }
+                <div class="reviews-scroll ${this._allReviews.length === 1 ? 'single-review' : ''}">
+                    ${this._allReviews.map((review, index) => {
+                        const isMyReview = review.isMyReview;
+                        const reviewUser = review.user || {};
+                        const reviewUserName = isMyReview 
+                            ? userName 
+                            : (reviewUser.first_name || reviewUser.username || i18n.t('user'));
+                        const reviewUserPhoto = isMyReview 
+                            ? userPhoto 
+                            : (reviewUser.avatar_url || null);
+                        const reviewUserInitial = reviewUserName.charAt(0).toUpperCase();
+                        
+                        const userId = isMyReview ? null : reviewUser.user_id;
+                        const canNavigateToProfile = !isMyReview && userId;
+                        
+                        return `
+                        <div class="review-container ${isMyReview ? 'my-review clickable' : 'clickable'}" 
+                             data-is-my-review="${isMyReview}" 
+                             data-review-index="${index}"
+                             ${review.seasonNumber ? `data-season="${review.seasonNumber}"` : ''}>
+                            <div class="review-header">
+                                <div class="avatar">
+                                    ${reviewUserPhoto 
+                                        ? `<img src="${reviewUserPhoto}" alt="${reviewUserName}">`
+                                        : `<div class="avatar-placeholder">${reviewUserInitial}</div>`
+                                    }
+                                </div>
+                                <div class="user-info">
+                                    <div class="username">${reviewUserName}${review.seasonNumber ? ` • ${i18n.t('season')} ${review.seasonNumber}` : ''}</div>
+                                    <div class="rating-stars">${this._getRatingStars(review.rating)}</div>
+                                </div>
                             </div>
-                            <div class="user-info">
-                                <div class="username">${userName} • ${i18n.t('season')} ${review.seasonNumber}</div>
-                                <div class="rating-stars">${this._getRatingStars(review.rating)}</div>
-                            </div>
-                            <button class="edit-button" data-season="${review.seasonNumber}">✏️</button>
+                            ${review.review || review.text ? `<p class="review-text">${review.review || review.text}</p>` : ''}
                         </div>
-                        ${review.text ? `<p class="review-text">${review.text}</p>` : ''}
-                    </div>
-                `).join('')}
+                    `;
+                    }).join('')}
+                </div>
             `;
-        } else if (this._review) {
+        } else if (this._allReviews?.length > 0) {
             this.shadowRoot.innerHTML = `
                 <style>
                     :host {
@@ -350,21 +605,69 @@ export class MovieReview extends HTMLElement {
                         align-self: stretch;
                     }
 
+                    .reviews-scroll {
+                        display: flex;
+                        overflow-x: auto;
+                        overflow-y: hidden;
+                        gap: 12px;
+                        padding: 0 16px 16px 16px;
+                        scrollbar-width: none;
+                        -ms-overflow-style: none;
+                        touch-action: pan-x;
+                        width: 100%;
+                        min-width: 0;
+                        max-width: 100%;
+                        -webkit-overflow-scrolling: touch;
+                        align-items: stretch;
+                    }
+
+                    .reviews-scroll::-webkit-scrollbar {
+                        display: none;
+                    }
+
+                    .reviews-scroll.single-review {
+                        overflow-x: visible;
+                        padding: 0 16px 16px 16px;
+                    }
+
                     .review-container {
                         display: flex;
                         padding: 16px;
                         flex-direction: column;
                         gap: 8px;
-                        align-self: stretch;
+                        width: 288px;
+                        min-width: 288px;
+                        height: 140px;
+                        flex-shrink: 0;
                         background: var(--md-sys-color-surface-container);
-                        margin: 8px 16px;
                         border-radius: 32px;
+                        box-sizing: border-box;
+                    }
+
+                    .reviews-scroll.single-review .review-container {
+                        width: calc(100% - 32px);
+                        min-width: auto;
+                        flex-shrink: 1;
+                        flex-grow: 1;
+                    }
+                    
+                    .review-container.my-review {
+                        border: 2px solid var(--md-sys-color-primary);
+                    }
+
+                    .review-container.clickable {
+                        cursor: pointer;
+                        transition: opacity 0.2s ease;
+                    }
+
+                    .review-container.clickable:active {
+                        opacity: 0.7;
                     }
 
                     .review-header {
                         display: flex;
                         align-items: center;
-                        gap: 16px;
+                        gap: 12px;
                     }
 
                     .avatar {
@@ -372,6 +675,18 @@ export class MovieReview extends HTMLElement {
                         height: 40px;
                         border-radius: 999px;
                         overflow: hidden;
+                        flex-shrink: 0;
+                    }
+                    
+                    .username {
+                        color: var(--md-sys-color-outline);
+                        font-size: 14px;
+                        font-style: normal;
+                        font-weight: 600;
+                        line-height: 20px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
                     }
 
                     .avatar img {
@@ -396,6 +711,7 @@ export class MovieReview extends HTMLElement {
                         display: flex;
                         flex-direction: column;
                         flex: 1;
+                        min-width: 0;
                     }
 
                     .username {
@@ -404,10 +720,14 @@ export class MovieReview extends HTMLElement {
                         font-style: normal;
                         font-weight: 600;
                         line-height: 20px;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
                     }
 
                     .rating-stars {
                         font-size: 14px;
+                        letter-spacing: -2px;
                     }
 
                     .review-text {
@@ -417,29 +737,44 @@ export class MovieReview extends HTMLElement {
                         font-weight: 600;
                         line-height: 20px;
                         margin: 0;
-                        padding: 0 0 0 56px;
+                        padding: 0;
+                        display: -webkit-box;
+                        -webkit-line-clamp: 3;
+                        -webkit-box-orient: vertical;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        flex: 1;
                     }
 
-                    .edit-button {
-                        background: none;
-                        border: none;
-                        padding: 8px;
-                        cursor: pointer;
-                        color: var(--md-sys-color-outline);
-                    }
 
                     .bottom-container {
                         display: flex;
-                        padding: 8px 16px 0px 16px;
-                        align-items: center;
-                        gap: 8px;
-                        align-self: stretch;
+                        overflow-x: auto;
+                        gap: 12px;
+                        padding: 8px 16px 16px 16px;
+                        scrollbar-width: none;
+                        -ms-overflow-style: none;
+                        touch-action: pan-x;
+                    }
+
+                    .bottom-container::-webkit-scrollbar {
+                        display: none;
                     }
             
                     .bottom-wrapper {
                         display: flex;
                         flex-direction: column;
                         align-items: center;
+                        flex-shrink: 0;
+                        position: relative;
+                    }
+
+                    .bottom-wrapper.clickable {
+                        cursor: pointer;
+                    }
+
+                    .bottom-wrapper.clickable-profile {
+                        cursor: pointer;
                     }
 
                     .bottom-avatar-wrapper {
@@ -469,8 +804,8 @@ export class MovieReview extends HTMLElement {
                     }
 
                     .rating-badge {
-                        position: relative;
-                        bottom: 12px;
+                        position: absolute;
+                        bottom: -8px;
                         background: var(--md-sys-color-primary-container);
                         color: var(--md-sys-color-on-primary-container);
                         border-radius: 999px;
@@ -488,39 +823,77 @@ export class MovieReview extends HTMLElement {
                     <div class="title">${i18n.t('reviews')}</div>
                 </div>
 
-                ${this._review.text ? `
-                    <div class="review-container">
-                        <div class="review-header">
-                            <div class="avatar">
-                                ${userPhoto 
-                                    ? `<img src="${userPhoto}" alt="${userName}">`
-                                    : `<div class="avatar-placeholder">${userName.charAt(0)}</div>`
+                <div class="reviews-scroll ${this._allReviews.length === 1 ? 'single-review' : ''}">
+                    ${this._allReviews.map((review, index) => {
+                        const isMyReview = review.isMyReview;
+                        const reviewUser = review.user || {};
+                        const reviewUserName = isMyReview 
+                            ? userName 
+                            : (reviewUser.first_name || reviewUser.username || i18n.t('user'));
+                        const reviewUserPhoto = isMyReview 
+                            ? userPhoto 
+                            : (reviewUser.avatar_url || null);
+                        const reviewUserInitial = reviewUserName.charAt(0).toUpperCase();
+                        const userId = isMyReview ? null : reviewUser.user_id;
+                        const canNavigateToProfile = !isMyReview && userId;
+                        
+                        return `
+                        <div class="review-container ${isMyReview ? 'my-review clickable' : 'clickable'}" 
+                             data-is-my-review="${isMyReview}" 
+                             data-review-index="${index}">
+                            <div class="review-header">
+                                <div class="avatar">
+                                    ${reviewUserPhoto 
+                                        ? `<img src="${reviewUserPhoto}" alt="${reviewUserName}">`
+                                        : `<div class="avatar-placeholder">${reviewUserInitial}</div>`
+                                    }
+                                </div>
+                                <div class="user-info">
+                                    <div class="username">${reviewUserName}</div>
+                                    <div class="rating-stars">${this._getRatingStars(review.rating)}</div>
+                                </div>
+                            </div>
+                            ${review.review || review.text ? `<p class="review-text">${review.review || review.text}</p>` : ''}
+                        </div>
+                    `;
+                    }).join('')}
+                </div>
+
+                ${this._allReviews.length > 0 ? `
+                <div class="bottom-container">
+                    ${this._allReviews.map(review => {
+                        const isMyReview = review.isMyReview;
+                        const reviewUser = review.user || {};
+                        const reviewUserName = isMyReview 
+                            ? userName 
+                            : (reviewUser.first_name || reviewUser.username || i18n.t('user'));
+                        const reviewUserPhoto = isMyReview 
+                            ? userPhoto 
+                            : (reviewUser.avatar_url || null);
+                        const reviewUserInitial = reviewUserName.charAt(0).toUpperCase();
+                        
+                        const userId = isMyReview ? null : reviewUser.user_id;
+                        const canNavigateToProfile = !isMyReview && userId;
+                        
+                        return `
+                        <div class="bottom-wrapper ${isMyReview ? 'clickable' : (canNavigateToProfile ? 'clickable-profile' : '')}" 
+                             ${isMyReview ? 'data-is-my-review="true"' : ''}
+                             ${canNavigateToProfile ? `data-user-id="${userId}"` : ''}>
+                            <div class="bottom-avatar-wrapper">
+                                ${reviewUserPhoto 
+                                    ? `<img class="bottom-avatar" src="${reviewUserPhoto}" alt="${reviewUserName}">`
+                                    : `<div class="bottom-avatar-placeholder">${reviewUserInitial}</div>`
                                 }
                             </div>
-                            <div class="user-info">
-                                <div class="username">${userName}</div>
-                                <div class="rating-stars">${this._getRatingStars(this._review.rating)}</div>
+                            <div class="rating-badge">
+                                <span>★</span>
+                                <span>${review.rating}</span>
                             </div>
-                            <button class="edit-button">✏️</button>
                         </div>
-                        <p class="review-text">${this._review.text}</p>
-                    </div>
-                ` : ''}
-
-                <div class="bottom-container">
-                    <div class="bottom-wrapper">
-                        <div class="bottom-avatar-wrapper">
-                            ${userPhoto 
-                                ? `<img class="bottom-avatar" src="${userPhoto}" alt="${userName}">`
-                                : `<div class="bottom-avatar-placeholder">${userName.charAt(0)}</div>`
-                            }
-                        </div>
-                        <div class="rating-badge">
-                            <span>★</span>
-                            <span>${this._review.rating}</span>
-                        </div>
-                    </div>
+                        `;
+                    }).join('')}
                 </div>
+                ` : ''}
             `;
         } else {
             this.shadowRoot.innerHTML = '';
@@ -530,21 +903,52 @@ export class MovieReview extends HTMLElement {
     }
 
     _setupEventListeners() {
-        const bottomWrapper = this.shadowRoot.querySelector('.bottom-wrapper');
-        if (bottomWrapper) {
-            bottomWrapper.addEventListener('click', () => {
+        // Обработчик клика на bottom-wrapper для открытия диалога редактирования (только для моего отзыва)
+        this.shadowRoot.querySelectorAll('.bottom-wrapper.clickable').forEach(wrapper => {
+            wrapper.addEventListener('click', () => {
                 haptic.light();
                 this._openReviewDialog();
             });
-            bottomWrapper.style.cursor = 'pointer';
-        }
+        });
 
-        this.shadowRoot.querySelectorAll('.edit-button').forEach(button => {
-            button.addEventListener('click', () => {
-                haptic.light();
-                this._openReviewDialog(button.dataset.season);
+        // Обработчик клика на bottom-wrapper для перехода к профилю пользователя (для чужих отзывов)
+        this.shadowRoot.querySelectorAll('.bottom-wrapper.clickable-profile').forEach(wrapper => {
+            wrapper.addEventListener('click', (e) => {
+                e.stopPropagation(); // Останавливаем всплытие
+                const userId = wrapper.dataset.userId;
+                if (userId) {
+                    haptic.light();
+                    navigationManager.navigateToUserProfile(userId);
+                }
             });
         });
+
+        // Обработчик клика на review-container
+        this.shadowRoot.querySelectorAll('.review-container.clickable').forEach(container => {
+            container.addEventListener('click', (e) => {
+                const isMyReview = container.dataset.isMyReview === 'true';
+                const reviewIndex = parseInt(container.dataset.reviewIndex);
+                const review = this._allReviews[reviewIndex];
+                const seasonNumber = container.dataset.season;
+
+                haptic.light();
+
+                if (isMyReview) {
+                    // Открываем диалог редактирования для своего отзыва
+                    this._openReviewDialog(seasonNumber);
+                } else {
+                    // Открываем диалог просмотра для отзыва другого пользователя
+                    this._openReviewViewDialog(review);
+                }
+            });
+        });
+    }
+
+    _openReviewViewDialog(review) {
+        const viewDialog = document.createElement('review-view-dialog');
+        viewDialog.review = review;
+        viewDialog.movie = this._movie;
+        document.body.appendChild(viewDialog);
     }
 
     _openReviewDialog(seasonNumber = null) {

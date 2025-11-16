@@ -18,7 +18,8 @@ export class NavigationManager {
                         (s.name === event.state.name || 
                          s.mediaId === event.state.mediaId || 
                          s.personId === event.state.personId || 
-                         s.genreId === event.state.genreId)) {
+                         s.genreId === event.state.genreId ||
+                         s.userId === event.state.userId)) {
                         stateIndex = i;
                         break;
                     }
@@ -182,6 +183,22 @@ export class NavigationManager {
         this._dispatchNavigationEvent(state);
     }
 
+    navigateToUserProfile(userId, sourceTab = null) {
+        const state = {
+            type: 'user_profile',
+            userId,
+            sourceTab: sourceTab || this._currentTab,
+            activeTab: 'want'
+        };
+        
+        const url = new URL(window.location);
+        url.searchParams.set('profile', userId);
+        window.history.pushState(state, '', url);
+        
+        this._pushState(state);
+        this._dispatchNavigationEvent(state);
+    }
+
     navigateToGenre(genreId, genreName, from, type) {
         const state = {
             type: 'genre',
@@ -237,6 +254,24 @@ export class NavigationManager {
             // Обновляем состояние в browser history
             window.history.replaceState(currentState, '', window.location);
         }
+    }
+
+    navigateToFollowersFollowing(userId, activeTab = 'following') {
+        const state = {
+            type: 'followers_following',
+            userId,
+            activeTab: activeTab || 'following'
+        };
+        
+        const url = new URL(window.location);
+        url.searchParams.set('followers_following', userId);
+        if (activeTab) {
+            url.searchParams.set('tab', activeTab);
+        }
+        window.history.pushState(state, '', url);
+        
+        this._pushState(state);
+        this._dispatchNavigationEvent(state);
     }
 
     pushModal(element) {

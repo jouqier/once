@@ -4,12 +4,15 @@ import '@material/web/button/filled-tonal-button.js';
 import { TG, haptic } from '../config/telegram.js';
 import { userDataStore } from '../services/user-data-store.js';
 import { API_CONFIG } from '../config/api.js';
+import { supabaseProfileService } from '../services/supabase-profile-service.js';
+import { navigationManager } from '../config/navigation.js';
 
 export class SearchScreen extends HTMLElement {
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
         this._searchResults = [];
+        this._userSearchResults = []; // Результаты поиска пользователей
         this._recentSearches = userDataStore.getRecentSearches();
         this._activeTab = 'movies';
     }
@@ -68,11 +71,19 @@ export class SearchScreen extends HTMLElement {
                 const query = input.value.trim();
                 if (query.length >= 2 && query !== lastQuery) {
                     lastQuery = query;
-                    const results = await TMDBService.searchMulti(query);
-                    this._searchResults = results.results;
+                    // Параллельно ищем фильмы/сериалы/персон и пользователей
+                    const [tmdbResults, userResults] = await Promise.all([
+                        TMDBService.searchMulti(query),
+                        supabaseProfileService.isEnabled() 
+                            ? supabaseProfileService.searchUsers(query)
+                            : Promise.resolve([])
+                    ]);
+                    this._searchResults = tmdbResults.results;
+                    this._userSearchResults = userResults || [];
                     this.renderResults();
                 } else {
                     this._searchResults = [];
+                    this._userSearchResults = [];
                     this.renderResults();
                 }
             }, 300);
@@ -105,6 +116,15 @@ export class SearchScreen extends HTMLElement {
             if (resultItem) {
                 haptic.light();
                 const id = resultItem.dataset.id;
+                const type = resultItem.dataset.type;
+                
+                // Если это пользователь, переходим к его профилю
+                if (type === 'user') {
+                    navigationManager.navigateToUserProfile(id);
+                    return;
+                }
+                
+                // Иначе ищем в результатах TMDB
                 const selectedItem = this._searchResults.find(item => item.id.toString() === id);
                 if (selectedItem) {
                     this._saveRecentSearch(selectedItem);
@@ -204,16 +224,19 @@ export class SearchScreen extends HTMLElement {
         const movies = this._searchResults.filter(item => item.media_type === 'movie');
         const tvShows = this._searchResults.filter(item => item.media_type === 'tv');
         const people = this._searchResults.filter(item => item.media_type === 'person');
+        const users = this._userSearchResults || [];
 
         // Показываем табы только если есть результаты
-        if (movies.length > 0 || tvShows.length > 0 || people.length > 0) {
+        if (movies.length > 0 || tvShows.length > 0 || people.length > 0 || users.length > 0) {
             // Если в текущем активном табе нет результатов, переключаемся на таб с результатами
             if (this._activeTab === 'movies' && movies.length === 0) {
-                this._activeTab = tvShows.length > 0 ? 'tv' : 'people';
+                this._activeTab = tvShows.length > 0 ? 'tv' : (people.length > 0 ? 'people' : 'users');
             } else if (this._activeTab === 'tv' && tvShows.length === 0) {
-                this._activeTab = movies.length > 0 ? 'movies' : 'people';
+                this._activeTab = movies.length > 0 ? 'movies' : (people.length > 0 ? 'people' : 'users');
             } else if (this._activeTab === 'people' && people.length === 0) {
-                this._activeTab = movies.length > 0 ? 'movies' : 'tv';
+                this._activeTab = movies.length > 0 ? 'movies' : (tvShows.length > 0 ? 'tv' : 'users');
+            } else if (this._activeTab === 'users' && users.length === 0) {
+                this._activeTab = movies.length > 0 ? 'movies' : (tvShows.length > 0 ? 'tv' : 'people');
             }
 
             // Собираем только табы с результатами
@@ -239,6 +262,13 @@ export class SearchScreen extends HTMLElement {
                     </md-filled-tonal-button>
                 `);
             }
+            if (users.length > 0) {
+                tabs.push(`
+                    <md-filled-tonal-button class="tab ${this._activeTab === 'users' ? 'active' : ''}" data-type="users">
+                        Пользователи ${users.length}
+                    </md-filled-tonal-button>
+                `);
+            }
 
             // Показываем табы, даже если остался только один (чтобы верстка не скакала)
             tabsContainer.style.display = 'flex';
@@ -252,10 +282,39 @@ export class SearchScreen extends HTMLElement {
         }
 
         // Отображаем соответствующие результаты
-        const items = this._activeTab === 'movies' ? movies : (this._activeTab === 'tv' ? tvShows : people);
+        let items;
+        if (this._activeTab === 'users') {
+            items = users;
+        } else {
+            items = this._activeTab === 'movies' ? movies : (this._activeTab === 'tv' ? tvShows : people);
+        }
+        
         resultsContainer.innerHTML = `
             <div class="results-list">
                 ${items.map(item => {
+                    if (this._activeTab === 'users') {
+                        // Рендеринг пользователя
+                        const userName = item.first_name || item.username || 'Пользователь';
+                        const userInitial = userName.charAt(0).toUpperCase();
+                        const avatarUrl = item.avatar_url;
+                        
+                        return `
+                            <div class="result-item" 
+                                 data-id="${item.user_id}"
+                                 data-type="user">
+                                <div class="result-poster user-avatar" style="border-radius: 50%; overflow: hidden; background: linear-gradient(45deg, #7C3AED, #EC4899);">
+                                    ${avatarUrl 
+                                        ? `<img src="${avatarUrl}" alt="${userName}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                                           <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 24px;">${userInitial}</div>`
+                                        : `<div style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 24px;">${userInitial}</div>`
+                                    }
+                                </div>
+                                <p class="result-title">${userName}${item.username ? ` (@${item.username})` : ''}</p>
+                            </div>
+                        `;
+                    }
+                    
+                    // Рендеринг фильма/сериала/персоны
                     const isPerson = item.media_type === 'person';
                     const imageUrl = isPerson 
                         ? `${API_CONFIG.IMAGE_BASE_URL}${item.profile_path}`

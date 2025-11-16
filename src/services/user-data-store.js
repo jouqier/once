@@ -1,6 +1,7 @@
 import { dataMigrationService } from './data-migration.js';
 import { StorageAdapter } from './storage-adapter.js';
 import { cloudStorageMigration } from './cloud-storage-migration.js';
+import { dataSyncService } from './data-sync-service.js';
 
 class UserDataStore {
     constructor() {
@@ -377,6 +378,9 @@ class UserDataStore {
                 
                 // Отправляем событие об изменении списка
                 this._dispatchListChangedEvent(type, 'added', movie);
+                
+                // Синхронизация с Supabase (в фоне, с дебаунсингом)
+                dataSyncService.syncWithDebounce();
             }
         } catch (error) {
             console.error(`Ошибка добавления фильма в ${type}:`, error);
@@ -401,6 +405,9 @@ class UserDataStore {
                 
                 // Отправляем событие об изменении списка
                 this._dispatchListChangedEvent(type, 'removed', { id: movieId });
+                
+                // Синхронизация с Supabase (в фоне, с дебаунсингом)
+                dataSyncService.syncWithDebounce();
             }
         } catch (error) {
             console.error(`Ошибка удаления фильма из ${type}:`, error);
@@ -442,6 +449,9 @@ class UserDataStore {
                 
                 // Отправляем событие об изменении списка
                 this._dispatchListChangedEvent(type, 'added', show);
+                
+                // Синхронизация с Supabase (в фоне, с дебаунсингом)
+                dataSyncService.syncWithDebounce();
             }
         } catch (error) {
             console.error(`Ошибка добавления сериала в ${type}:`, error);
@@ -460,6 +470,9 @@ class UserDataStore {
                 
                 // Отправляем событие об изменении списка
                 this._dispatchListChangedEvent(type, 'removed', { id: showId });
+                
+                // Синхронизация с Supabase (в фоне, с дебаунсингом)
+                dataSyncService.syncWithDebounce();
             }
         } catch (error) {
             console.error(`Ошибка удаления сериала из ${type}:`, error);
@@ -508,6 +521,9 @@ class UserDataStore {
             }
 
             this._adapter.setSeasonEpisodes(tvId, seasonNumber, episodes);
+            
+            // Синхронизация прогресса с Supabase (в фоне, с дебаунсингом)
+            dataSyncService.syncWithDebounce();
         } catch (error) {
             console.error('Ошибка установки статуса эпизода:', error);
             this._handleStorageError(error);
@@ -536,6 +552,9 @@ class UserDataStore {
                 // Для фильмов и других типов (tv больше не поддерживается)
                 this._adapter.setMovieReview(id, review);
             }
+            
+            // Синхронизация отзывов с Supabase (в фоне, с дебаунсингом)
+            dataSyncService.syncWithDebounce();
         } catch (error) {
             console.error('Ошибка сохранения отзыва:', error);
             this._handleStorageError(error);
@@ -597,6 +616,9 @@ class UserDataStore {
                 // Для фильмов и других типов (tv больше не поддерживается)
                 this._adapter.removeMovieReview(id);
             }
+            
+            // Синхронизация отзывов с Supabase (в фоне, с дебаунсингом)
+            dataSyncService.syncWithDebounce();
         } catch (error) {
             console.error('Ошибка удаления отзыва:', error);
             this._handleStorageError(error);

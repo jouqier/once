@@ -31,9 +31,13 @@ export class MovieCardDetails extends HTMLElement {
             <movie-recommendations></movie-recommendations>
         `;
 
-        document.addEventListener('review-removed', () => {
-            const reviewElement = this.shadowRoot.querySelector('movie-review');
-            reviewElement.style.display = 'none';
+        document.addEventListener('review-removed', (event) => {
+            // Не скрываем компонент автоматически - он сам управляет отображением
+            // на основе наличия отзывов (своих и подписок)
+            if (this._movie && event.detail.movieId === this._movie.id) {
+                const reviewElement = this.shadowRoot.querySelector('movie-review');
+                // Компонент сам обновит отображение через _mergeReviews()
+            }
         });
 
         document.addEventListener('review-submitted', (event) => {
@@ -85,14 +89,16 @@ export class MovieCardDetails extends HTMLElement {
         this.shadowRoot.querySelector('movie-info').info = info;
 
         const reviewElement = this.shadowRoot.querySelector('movie-review');
+        // ВСЕГДА устанавливаем movie, чтобы загружались отзывы подписок
+        // (даже если у пользователя нет своего отзыва)
+        reviewElement.movie = this._movie;
+        
         const existingReview = userMoviesService.getReview(this._movie.media_type || 'movie', this._movie.id);
         if (existingReview) {
-            reviewElement.movie = this._movie;
             reviewElement.review = existingReview;
-            reviewElement.style.display = 'flex';
-        } else {
-            reviewElement.style.display = 'none';
         }
+        
+        // Отображение компонента управляется внутри card-review на основе наличия отзывов
 
         if (this._movie.credits) {
             this.shadowRoot.querySelector('movie-cast').cast = this._movie.credits.cast;

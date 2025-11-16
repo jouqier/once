@@ -1,5 +1,6 @@
 import { userDataStore } from './user-data-store.js';
 import TMDBService from './tmdb.js';
+import { supabaseProfileService } from './supabase-profile-service.js';
 
 export class UserMoviesService {
     constructor() {
@@ -294,6 +295,66 @@ export class UserMoviesService {
             console.error('Error getting batch show progress:', error);
             return [];
         }
+    }
+    
+    // ========== МЕТОДЫ ДЛЯ РАБОТЫ С ПУБЛИЧНЫМИ ДАННЫМИ ==========
+    
+    /**
+     * Получить публичный отзыв пользователя на фильм
+     */
+    async getPublicMovieReview(userId, movieId) {
+        return await supabaseProfileService.getUserMovieReview(userId, movieId);
+    }
+    
+    /**
+     * Получить публичный отзыв пользователя на сезон
+     */
+    async getPublicSeasonReview(userId, tvId, seasonNumber) {
+        return await supabaseProfileService.getUserSeasonReview(userId, tvId, seasonNumber);
+    }
+    
+    /**
+     * Получить отзывы подписок на фильм (только тех, на кого подписан)
+     */
+    async getFollowingReviewsForMovie(movieId) {
+        return await supabaseProfileService.getFollowingReviewsForMovie(movieId);
+    }
+    
+    /**
+     * Получить отзывы подписок на все сезоны сериала
+     */
+    async getFollowingReviewsForAllSeasons(tvId) {
+        return await supabaseProfileService.getFollowingReviewsForAllSeasons(tvId);
+    }
+    
+    /**
+     * ВАЖНО: Методы для детальной карточки всегда возвращают свои данные
+     * Контекст просмотра не влияет на детальную карточку
+     */
+    
+    /**
+     * Получить рейтинг для детальной карточки (всегда свой!)
+     */
+    getRatingForDetails(movieId) {
+        // ВСЕГДА свой рейтинг для детальной карточки
+        const review = this.getReview('movie', movieId);
+        return review?.rating || null;
+    }
+    
+    /**
+     * Получить отзыв для детальной карточки (всегда свой!)
+     */
+    getReviewForDetails(type, id, seasonNumber = null) {
+        // ВСЕГДА свой отзыв для детальной карточки
+        return this.getReview(type, id, seasonNumber);
+    }
+    
+    /**
+     * Получить прогресс для детальной карточки (всегда свой!)
+     */
+    async getProgressForDetails(tvId) {
+        // ВСЕГДА свой прогресс для детальной карточки
+        return await this.getShowProgress(tvId);
     }
 }
 

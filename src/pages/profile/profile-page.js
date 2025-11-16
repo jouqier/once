@@ -4,6 +4,9 @@ import { userMoviesService } from '../../services/user-movies.js';
 import { userFollowingService } from '../../services/user-following.js';
 import { i18n } from '../../services/i18n.js';
 import { navigationManager } from '../../config/navigation.js';
+import { viewContextService } from '../../services/view-context-service.js';
+import { supabaseProfileService } from '../../services/supabase-profile-service.js';
+import TMDBService from '../../services/tmdb.js';
 import './profile-avatar.js';
 import './profile-stats.js';
 import './profile-page.js';
@@ -11,13 +14,16 @@ import '../../components/media-poster.js';
 
 export class ProfileScreen extends HTMLElement {
     static get observedAttributes() {
-        return ['active-tab', 'tabs-scroll-position'];
+        return ['active-tab', 'tabs-scroll-position', 'viewing-user-id'];
     }
 
     constructor() {
         super();
         this.attachShadow({ mode: 'open' });
         this._userData = null;
+        this._viewingUserId = null; // ID пользователя, профиль которого просматриваем
+        this._isViewingOtherProfile = false;
+        this._isFollowing = false; // Статус подписки на пользователя
         this._activeTab = 'want';
         this._initialized = false;
         this._stats = {
@@ -42,8 +48,12 @@ export class ProfileScreen extends HTMLElement {
             reviewSubmitted: this._handleReviewSubmitted.bind(this),
             seasonReviewSubmitted: this._handleSeasonReviewSubmitted.bind(this),
             episodeStatusChanged: this._handleEpisodeStatusChanged.bind(this),
-            followingListChanged: this._handleFollowingListChanged.bind(this)
+            followingListChanged: this._handleFollowingListChanged.bind(this),
+            userFollowsChanged: this._handleUserFollowsChanged.bind(this)
         };
+        
+        // Дебаунсинг для сохранения состояния профиля
+        this._saveProfileStateDebounceTimer = null;
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -60,6 +70,15 @@ export class ProfileScreen extends HTMLElement {
             if (this._initialized) {
                 this._restoreTabsScrollPosition();
             }
+        } else if (name === 'viewing-user-id') {
+            this._viewingUserId = newValue;
+            this._isViewingOtherProfile = !!newValue && newValue !== (TG?.initDataUnsafe?.user?.id || sessionStorage.getItem('user_id'));
+            // Сбрасываем статус подписки при смене пользователя
+            this._isFollowing = false;
+            // Если компонент уже инициализирован, перезагружаем данные
+            if (this._initialized) {
+                this._loadProfileData();
+            }
         }
     }
 
@@ -67,6 +86,22 @@ export class ProfileScreen extends HTMLElement {
         if (this._initialized) return;
         
         this._initialized = true;
+        
+        // Проверяем, просматриваем ли чужой профиль
+        const viewingUserIdAttr = this.getAttribute('viewing-user-id');
+        if (viewingUserIdAttr) {
+            this._viewingUserId = viewingUserIdAttr;
+            const currentUserId = TG?.initDataUnsafe?.user?.id || sessionStorage.getItem('user_id');
+            this._isViewingOtherProfile = viewingUserIdAttr !== currentUserId;
+            
+            // Устанавливаем контекст просмотра
+            if (this._isViewingOtherProfile) {
+                viewContextService.setViewingContext(viewingUserIdAttr, this._activeTab);
+            }
+        } else {
+            // Очищаем контекст просмотра для своего профиля
+            viewContextService.clearViewingContext();
+        }
         
         // Восстанавливаем состояние из атрибутов (переданных из навигации)
         const activeTabAttr = this.getAttribute('active-tab');
@@ -79,14 +114,88 @@ export class ProfileScreen extends HTMLElement {
         document.addEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
         document.addEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
         document.addEventListener('following-list-changed', this._boundHandlers.followingListChanged);
+        document.addEventListener('user-follows-changed', this._boundHandlers.userFollowsChanged);
         
-        // Запрашиваем обновленные данные пользователя
-        document.dispatchEvent(new CustomEvent('tg-user-data-updated'));
-        
-        this._userData = TG?.initDataUnsafe?.user || null;
-        await this.loadStats();
+        // Загружаем данные профиля
+        await this._loadProfileData();
         this.render();
         this._setupEventListeners();
+    }
+    
+    /**
+     * Загрузить данные профиля (свой или чужой)
+     */
+    async _loadProfileData() {
+        if (this._isViewingOtherProfile && this._viewingUserId) {
+            // Загружаем данные чужого профиля из Supabase
+            await this._loadOtherUserProfile(this._viewingUserId);
+        } else {
+            // Загружаем данные своего профиля
+            document.dispatchEvent(new CustomEvent('tg-user-data-updated'));
+            this._userData = TG?.initDataUnsafe?.user || null;
+            await this.loadStats();
+        }
+    }
+    
+    /**
+     * Загрузить данные чужого профиля
+     */
+    async _loadOtherUserProfile(userId) {
+        try {
+            // Получаем профиль из Supabase
+            const profile = await supabaseProfileService.getUserProfile(userId);
+            if (!profile) {
+                console.warn('Профиль не найден');
+                return;
+            }
+            
+            // Формируем данные пользователя для отображения
+            this._userData = {
+                id: profile.user_id,
+                username: profile.username,
+                first_name: profile.first_name,
+                last_name: profile.last_name,
+                photo_url: profile.avatar_url
+            };
+            
+            // Проверяем статус подписки
+            this._isFollowing = await supabaseProfileService.isFollowing(userId);
+            
+            // Загружаем статистику
+            await this._loadOtherUserStats(userId);
+        } catch (error) {
+            console.error('Ошибка загрузки чужого профиля:', error);
+        }
+    }
+    
+    /**
+     * Загрузить статистику чужого профиля
+     */
+    async _loadOtherUserStats(userId) {
+        try {
+            const [wantMovies, watchedMovies, wantTV, watchingTV, watchedTV] = await Promise.all([
+                supabaseProfileService.getUserMovies(userId, 'want'),
+                supabaseProfileService.getUserMovies(userId, 'watched'),
+                supabaseProfileService.getUserTVShows(userId, 'want'),
+                supabaseProfileService.getUserTVShows(userId, 'watching'),
+                supabaseProfileService.getUserTVShows(userId, 'watched')
+            ]);
+            
+            // Получаем подписки (для отображения в табе)
+            const following = await supabaseProfileService.getFollowing(userId);
+            const followers = await supabaseProfileService.getFollowers(userId);
+            
+            this._stats = {
+                place: 0, // Пока не реализовано
+                following: following.length,
+                followers: followers.length,
+                want: wantMovies.length,
+                watched: watchedMovies.length,
+                tvShows: wantTV.length + watchingTV.length + watchedTV.length
+            };
+        } catch (error) {
+            console.error('Ошибка загрузки статистики чужого профиля:', error);
+        }
     }
 
     disconnectedCallback() {
@@ -95,6 +204,13 @@ export class ProfileScreen extends HTMLElement {
         document.removeEventListener('season-review-submitted', this._boundHandlers.seasonReviewSubmitted);
         document.removeEventListener('episode-status-changed', this._boundHandlers.episodeStatusChanged);
         document.removeEventListener('following-list-changed', this._boundHandlers.followingListChanged);
+        document.removeEventListener('user-follows-changed', this._boundHandlers.userFollowsChanged);
+        
+        // Очищаем таймер дебаунсинга при отключении компонента
+        if (this._saveProfileStateDebounceTimer) {
+            clearTimeout(this._saveProfileStateDebounceTimer);
+            this._saveProfileStateDebounceTimer = null;
+        }
     }
 
     async _handleReviewSubmitted(event) {
@@ -136,6 +252,27 @@ export class ProfileScreen extends HTMLElement {
         // Если мы на табе "Following", обновляем контент
         if (this._activeTab === 'following') {
             await this._initializeContent();
+        }
+    }
+
+    async _handleUserFollowsChanged(event) {
+        // Обновляем статистику подписок/подписчиков на пользователей
+        await this.loadStats();
+        
+        // Обновляем компонент profile-stats
+        const profileStats = this.shadowRoot.querySelector('profile-stats');
+        if (profileStats) {
+            profileStats.setAttribute('following', this._stats.following);
+            profileStats.setAttribute('followers', this._stats.followers);
+        }
+        
+        // Обновляем счетчик в табе following (если это подписки на пользователей)
+        const followingTab = this.shadowRoot.querySelector('.tab[data-tab="following"]');
+        if (followingTab) {
+            const count = followingTab.querySelector('.tab-count');
+            if (count) {
+                count.textContent = this._stats.following;
+            }
         }
     }
 
@@ -186,14 +323,29 @@ export class ProfileScreen extends HTMLElement {
         // Объединяем все ID сериалов и удаляем дубликаты
         const allTVShowIds = [...new Set([...tvWant, ...tvWatching, ...tvWatched])];
 
-        // Получаем количество подписок на персон
-        const followingCount = userFollowingService.getFollowingCount();
+        // Получаем количество подписок на пользователей (не персон)
+        const userId = TG?.initDataUnsafe?.user?.id || sessionStorage.getItem('user_id');
+        let followingCount = 0;
+        let followersCount = 0;
+        
+        if (userId) {
+            try {
+                const [following, followers] = await Promise.all([
+                    supabaseProfileService.getFollowing(userId),
+                    supabaseProfileService.getFollowers(userId)
+                ]);
+                followingCount = following.length;
+                followersCount = followers.length;
+            } catch (error) {
+                console.error('Ошибка загрузки статистики подписок:', error);
+            }
+        }
 
         // Обновляем статистику
         this._stats = {
             place: 481516,
             following: followingCount,
-            followers: 42,
+            followers: followersCount,
             want: moviesWant.length,
             watched: moviesWatched.length,
             tvShows: allTVShowIds.length
@@ -201,6 +353,15 @@ export class ProfileScreen extends HTMLElement {
     }
 
     _setupEventListeners() {
+        // Обработчик для кнопки подписки
+        const followButton = this.shadowRoot.querySelector('.follow-button');
+        if (followButton) {
+            followButton.addEventListener('click', () => {
+                haptic.light();
+                this._handleFollowClick();
+            });
+        }
+        
         // Обработка кликов по табам
         const tabs = this.shadowRoot.querySelectorAll('.tab');
         tabs.forEach(tab => {
@@ -218,11 +379,19 @@ export class ProfileScreen extends HTMLElement {
             });
         });
         
-        // Сохраняем позицию скролла табов при прокрутке
+        // Сохраняем позицию скролла табов при прокрутке (с дебаунсингом)
         const tabsListWrapper = this.shadowRoot.querySelector('.tabs-list-wrapper');
         if (tabsListWrapper) {
             tabsListWrapper.addEventListener('scroll', () => {
-                this._saveProfileState();
+                // Очищаем предыдущий таймер
+                if (this._saveProfileStateDebounceTimer) {
+                    clearTimeout(this._saveProfileStateDebounceTimer);
+                }
+                // Устанавливаем новый таймер (200мс - достаточно для плавного скролла)
+                this._saveProfileStateDebounceTimer = setTimeout(() => {
+                    this._saveProfileState();
+                    this._saveProfileStateDebounceTimer = null;
+                }, 200);
             });
         }
 
@@ -254,6 +423,10 @@ export class ProfileScreen extends HTMLElement {
                 const id = item.dataset.id;
                 const type = item.dataset.type;
                 
+                // Очищаем контекст просмотра при переходе к деталям
+                // (чтобы детали показывали свои данные)
+                viewContextService.clearViewingContext();
+                
                 // Сохраняем состояние профиля перед переходом
                 this._saveProfileState();
                 
@@ -283,8 +456,9 @@ export class ProfileScreen extends HTMLElement {
             });
         });
 
-        // Находим все элементы персон
+        // Находим все элементы персон и пользователей
         const personItems = this.shadowRoot.querySelectorAll('.person-item');
+        const userItems = this.shadowRoot.querySelectorAll('.user-item');
         
         personItems.forEach(item => {
             item.addEventListener('click', () => {
@@ -305,6 +479,22 @@ export class ProfileScreen extends HTMLElement {
                 }));
             });
         });
+        
+        userItems.forEach(item => {
+            item.addEventListener('click', () => {
+                haptic.light();
+                
+                const userId = item.dataset.userId;
+                
+                if (userId) {
+                    // Сохраняем состояние профиля перед переходом
+                    this._saveProfileState();
+                    
+                    // Переходим к профилю пользователя
+                    navigationManager.navigateToUserProfile(userId);
+                }
+            });
+        });
     }
 
     render() {
@@ -322,12 +512,12 @@ export class ProfileScreen extends HTMLElement {
 
                 .content {
                     display: flex;
-                    /* padding: 8px 0px; */
+                    padding: 8px 0px;
                     flex-direction: column;
                     align-items: flex-start;
                     align-self: stretch;
                     border-radius: 36px;
-                    /* background: var(--md-sys-color-surface); */
+                    background: var(--md-sys-color-surface);
                     overflow: hidden;
                 }   
 
@@ -345,7 +535,8 @@ export class ProfileScreen extends HTMLElement {
                     padding: 16px;
                 }
 
-                .person-item {
+                .person-item,
+                .user-item {
                     display: flex;
                     flex-direction: column;
                     align-items: center;
@@ -355,12 +546,14 @@ export class ProfileScreen extends HTMLElement {
                     will-change: transform;
                 }
 
-                .person-item:active {
+                .person-item:active,
+                .user-item:active {
                     transform: scale(0.95);
                 }
 
                 @media (hover: hover) {
-                    .person-item:hover {
+                    .person-item:hover,
+                    .user-item:hover {
                         transform: scale(1.05);
                     }
                 }
@@ -452,12 +645,12 @@ export class ProfileScreen extends HTMLElement {
                 
                 .tabs-container::before {
                     left: 0;
-                    background: linear-gradient(to right, var(--md-sys-color-scrim), transparent);
+                    background: linear-gradient(to right, var(--md-sys-color-surface), transparent);
                 }
                 
                 .tabs-container::after {
                     right: 0;
-                    background: linear-gradient(to left, var(--md-sys-color-scrim), transparent);
+                    background: linear-gradient(to left, var(--md-sys-color-surface), transparent);
                 }
                 
                 .tabs-list {
@@ -550,15 +743,50 @@ export class ProfileScreen extends HTMLElement {
                     margin-left: 4px;
                     color: var(--md-sys-color-outline);
                 }
+                
+                .follow-button-container {
+                    display: flex;
+                    width: 100%;
+                    padding: 0 16px;
+                    gap: 8px;
+                    margin-top: 8px;
+                }
+
+                .follow-button {
+                    flex: 1;
+                    --md-filled-tonal-button-container-shape: 1000px;
+                    --md-filled-tonal-button-label-text-font: 600 14px sans-serif;
+                    height: 48px;
+                    transition: all 0.3s ease;
+                }
+
+                .follow-button.active {
+                    --md-sys-color-secondary-container: transparent;
+                    --md-sys-color-on-secondary-container: var(--md-sys-color-on-surface);
+                    border: 2px solid var(--md-sys-color-on-surface);
+                }
+
+                .follow-button:not(.active) {
+                    --md-sys-color-secondary-container: var(--md-sys-color-primary-container);
+                    --md-sys-color-on-secondary-container: var(--md-sys-color-on-primary-container);
+                }
             </style>
 
             ${profileHeader}
+            ${this._isViewingOtherProfile ? `
+                <div class="follow-button-container">
+                    <md-filled-tonal-button class="follow-button ${this._isFollowing ? 'active' : ''}">
+                        ${this._isFollowing ? i18n.t('followingButton') : i18n.t('follow')}
+                    </md-filled-tonal-button>
+                </div>
+            ` : ''}
 
-        <!--    <profile-stats
+            <profile-stats
                 place="${this._stats.place}"
                 following="${this._stats.following}"
-                followers="${this._stats.followers}">
-            </profile-stats> -->
+                followers="${this._stats.followers}"
+                user-id="${this._isViewingOtherProfile ? this._viewingUserId : (TG?.initDataUnsafe?.user?.id || sessionStorage.getItem('user_id'))}">
+            </profile-stats>
 
             <div class="content">
                 <div class="tabs-container">
@@ -601,6 +829,13 @@ export class ProfileScreen extends HTMLElement {
         const profileAvatar = this.shadowRoot.querySelector('profile-avatar');
         profileAvatar.userData = this._userData;
 
+        // Обновляем статистику в profile-stats
+        const profileStats = this.shadowRoot.querySelector('profile-stats');
+        if (profileStats) {
+            profileStats.setAttribute('following', this._stats.following);
+            profileStats.setAttribute('followers', this._stats.followers);
+        }
+
         this._initializeContent();
         this._setupEventListeners();
         
@@ -625,17 +860,61 @@ export class ProfileScreen extends HTMLElement {
     async _renderContent() {
         const activeTab = this._activeTab.toLowerCase();
         
-        // Получаем списки фильмов с полными данными
-        const moviesWant = await userMoviesService.getMoviesWithDetails('want') || [];
-        const moviesWatched = await userMoviesService.getMoviesWithDetails('watched') || [];
+        let moviesWant = [];
+        let moviesWatched = [];
+        let tvWant = [];
+        let tvWatching = [];
+        let tvWatched = [];
+        let following = [];
         
-        // Получаем списки сериалов с полными данными
-        const tvWant = await userMoviesService.getTVShowsWithDetails('want') || [];
-        const tvWatching = await userMoviesService.getTVShowsWithDetails('watching') || [];
-        const tvWatched = await userMoviesService.getTVShowsWithDetails('watched') || [];
-        
-        // Получаем список подписанных персон с полными данными
-        const following = await userFollowingService.getFollowingWithDetails() || [];
+        if (this._isViewingOtherProfile && this._viewingUserId) {
+            // Загружаем данные чужого профиля из Supabase
+            const [wantMovieIds, watchedMovieIds, wantTVIds, watchingTVIds, watchedTVIds] = await Promise.all([
+                supabaseProfileService.getUserMovies(this._viewingUserId, 'want'),
+                supabaseProfileService.getUserMovies(this._viewingUserId, 'watched'),
+                supabaseProfileService.getUserTVShows(this._viewingUserId, 'want'),
+                supabaseProfileService.getUserTVShows(this._viewingUserId, 'watching'),
+                supabaseProfileService.getUserTVShows(this._viewingUserId, 'watched')
+            ]);
+            
+            // Загружаем полные данные фильмов и сериалов
+            const moviePromises = [...wantMovieIds, ...watchedMovieIds].map(id => 
+                TMDBService.getMovieDetails(id).catch(() => null)
+            );
+            const tvPromises = [...wantTVIds, ...watchingTVIds, ...watchedTVIds].map(id => 
+                TMDBService.getTVDetails(id).catch(() => null)
+            );
+            
+            const movies = (await Promise.all(moviePromises)).filter(m => m !== null);
+            const tvShows = (await Promise.all(tvPromises)).filter(t => t !== null);
+            
+            moviesWant = movies.filter(m => wantMovieIds.includes(m.id)).map(m => ({ ...m, media_type: 'movie' }));
+            moviesWatched = movies.filter(m => watchedMovieIds.includes(m.id)).map(m => ({ ...m, media_type: 'movie' }));
+            
+            tvWant = tvShows.filter(t => wantTVIds.includes(t.id)).map(t => ({ ...t, media_type: 'tv' }));
+            tvWatching = tvShows.filter(t => watchingTVIds.includes(t.id)).map(t => ({ ...t, media_type: 'tv' }));
+            tvWatched = tvShows.filter(t => watchedTVIds.includes(t.id)).map(t => ({ ...t, media_type: 'tv' }));
+            
+            // Для чужого профиля получаем подписки на пользователей (не персон)
+            const userFollowing = await supabaseProfileService.getFollowing(this._viewingUserId);
+            following = userFollowing.map(f => ({
+                id: f.following_id,
+                user_id: f.following_id, // Добавляем user_id для определения типа
+                name: f.users?.first_name || f.users?.username || 'Unknown',
+                first_name: f.users?.first_name,
+                username: f.users?.username,
+                avatar_url: f.users?.avatar_url || null,
+                profile_path: f.users?.avatar_url || null // Для совместимости с рендерингом
+            }));
+        } else {
+            // Загружаем данные своего профиля
+            moviesWant = await userMoviesService.getMoviesWithDetails('want') || [];
+            moviesWatched = await userMoviesService.getMoviesWithDetails('watched') || [];
+            tvWant = await userMoviesService.getTVShowsWithDetails('want') || [];
+            tvWatching = await userMoviesService.getTVShowsWithDetails('watching') || [];
+            tvWatched = await userMoviesService.getTVShowsWithDetails('watched') || [];
+            following = await userFollowingService.getFollowingWithDetails() || [];
+        }
         
         // Формируем списки для отображения
         const lists = {
@@ -691,13 +970,25 @@ export class ProfileScreen extends HTMLElement {
         let userRating = null;
         let progress = null;
 
-        if (item.media_type === 'tv') {
-            // Для сериалов получаем только прогресс, рейтинг не показываем
-            progress = await userMoviesService.getShowProgress(item.id);
+        if (this._isViewingOtherProfile && this._viewingUserId) {
+            // Для чужого профиля показываем данные владельца профиля
+            if (item.media_type === 'tv') {
+                // Для сериалов получаем прогресс владельца профиля
+                progress = await viewContextService.getProgressForBadge(item.id);
+            } else {
+                // Для фильмов получаем рейтинг владельца профиля
+                userRating = await viewContextService.getRatingForBadge(item.id);
+            }
         } else {
-            // Для фильмов получаем рейтинг
-            const userReview = userMoviesService.getReview('movie', item.id);
-            userRating = userReview?.rating;
+            // Для своего профиля показываем свои данные
+            if (item.media_type === 'tv') {
+                // Для сериалов получаем только прогресс, рейтинг не показываем
+                progress = await userMoviesService.getShowProgress(item.id);
+            } else {
+                // Для фильмов получаем рейтинг
+                const userReview = userMoviesService.getReview('movie', item.id);
+                userRating = userReview?.rating;
+            }
         }
 
         // Убеждаемся, что progress полностью разрешен
@@ -722,29 +1013,39 @@ export class ProfileScreen extends HTMLElement {
     }
 
     _renderFollowingList(persons) {
-        const personItems = persons.map(person => {
-            const initial = person.name?.charAt(0).toUpperCase() || '?';
-            const imageUrl = person.profile_path 
-                ? `${API_CONFIG.IMAGE_BASE_URL}${person.profile_path}`
-                : null;
+        // Проверяем, это персоны или пользователи
+        const isUsers = persons.length > 0 && persons[0].user_id !== undefined;
+        
+        const items = persons.map(item => {
+            const name = item.name || (item.first_name || item.username || 'Unknown');
+            const initial = name.charAt(0).toUpperCase();
+            
+            // Для пользователей используем avatar_url, для персон - profile_path
+            const imageUrl = isUsers 
+                ? (item.avatar_url || null)
+                : (item.profile_path ? `${API_CONFIG.IMAGE_BASE_URL}${item.profile_path}` : null);
+            
+            const itemId = isUsers ? item.id : item.id; // Для пользователей id = user_id
+            const dataAttr = isUsers ? 'data-user-id' : 'data-person-id';
+            const className = isUsers ? 'user-item' : 'person-item';
 
             return `
-                <div class="person-item" data-person-id="${person.id}">
+                <div class="${className}" ${dataAttr}="${itemId}">
                     <div class="person-avatar">
                         ${imageUrl 
-                            ? `<img src="${imageUrl}" alt="${person.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
+                            ? `<img src="${imageUrl}" alt="${name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'">
                                <div class="person-avatar-placeholder" style="display: none;">${initial}</div>`
                             : `<div class="person-avatar-placeholder">${initial}</div>`
                         }
                     </div>
-                    <div class="person-name">${person.name}</div>
+                    <div class="person-name">${name}${isUsers && item.username ? ` (@${item.username})` : ''}</div>
                 </div>
             `;
         }).join('');
 
         return `
             <div class="people-grid">
-                ${personItems}
+                ${items}
             </div>
         `;
     }
@@ -815,6 +1116,36 @@ export class ProfileScreen extends HTMLElement {
         });
         // Обновляем контент
         this._initializeContent();
+    }
+
+    _handleFollowClick() {
+        if (!this._isViewingOtherProfile || !this._viewingUserId) return;
+
+        const userId = this._viewingUserId;
+        
+        if (this._isFollowing) {
+            supabaseProfileService.unfollowUser(userId);
+            this._isFollowing = false;
+        } else {
+            supabaseProfileService.followUser(userId);
+            this._isFollowing = true;
+        }
+
+        // Обновляем кнопку
+        this._updateFollowButton();
+    }
+
+    _updateFollowButton() {
+        const followButton = this.shadowRoot.querySelector('.follow-button');
+        if (followButton) {
+            if (this._isFollowing) {
+                followButton.classList.add('active');
+                followButton.textContent = i18n.t('followingButton');
+            } else {
+                followButton.classList.remove('active');
+                followButton.textContent = i18n.t('follow');
+            }
+        }
     }
 
     _restoreTabsScrollPosition() {
