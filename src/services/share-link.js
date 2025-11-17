@@ -106,9 +106,8 @@ class ShareLinkService {
             // Используем switchInlineQuery для шаринга с превью
             // Бот должен поддерживать inline mode
             if (TG?.switchInlineQuery) {
-                // Передаем название фильма/сериала для поиска в inline mode
-                // Бот должен обработать этот запрос и найти соответствующий контент
-                const query = title;
+                // Формируем текст для inline query
+                const query = `share_${mediaType}_${mediaId}`;
                 TG.switchInlineQuery(query, ['users', 'groups', 'channels']);
                 return;
             }
