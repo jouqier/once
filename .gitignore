@@ -9,17 +9,26 @@ node_modules/
 # Build output
 dist/
 docs/
+bot/
+
+# Vercel
+.vercel/
 
 # IDE
 .idea/
 .vscode/
+.cursorignore
 *.swp
 *.swo
 
 # OS
 .DS_Store
+**/.DS_Store
 Thumbs.db
 
 # Logs
 *.log
 npm-debug.log*
+
+# Development tools
+ngrok.yml
