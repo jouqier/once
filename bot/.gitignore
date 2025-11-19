@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Documentation (не нужна в Git)
+docs/
+README.md
+
+# Environment variables
+.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# PM2
+.pm2/
+.vercel

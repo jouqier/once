@@ -9,7 +9,9 @@ node_modules/
 # Build output
 dist/
 docs/
-bot/
+# bot/ - теперь отслеживается в Git
+# Исключение для bot/docs (документация бота)
+!bot/docs/
 
 # Vercel
 .vercel/
