@@ -2,15 +2,22 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/webhook.js",
+      "src": "api/story-upload.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/story-image.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
-      "src": "/api/webhook",
-      "dest": "api/webhook.js"
+      "src": "/api/story-upload",
+      "dest": "api/story-upload.js"
+    },
+    {
+      "src": "/api/story-image",
+      "dest": "api/story-image.js"
     }
   ]
 }
-

@@ -618,7 +618,7 @@ export class ReviewDialog extends HTMLElement {
 
                     console.log('✅ Story image generated:', storyImage);
 
-                    if (!storyImage || !storyImage.includes('api.telegram.org')) {
+                    if (!storyImage || !storyImage.startsWith('https://')) {
                         console.error('❌ Invalid image URL:', storyImage);
                         throw new Error('Invalid image URL');
                     }

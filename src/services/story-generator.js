@@ -349,12 +349,8 @@ export class StoryGenerator {
     }
 
     async _exportToJpeg(metadata = {}) {
-        return new Promise(resolve => {
-            this.canvas.toBlob(async blob => {
-                const url = await UploadService.uploadImage(blob, metadata);
-                resolve(url);
-            }, 'image/jpeg', 0.9);
-        });
+        const dataUrl = this.canvas.toDataURL('image/jpeg', 0.9);
+        return UploadService.uploadImage(dataUrl, metadata);
     }
 
     async _loadImage(url) {

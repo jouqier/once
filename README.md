@@ -61,7 +61,7 @@ npm install
 
 ```env
 VITE_TMDB_API_KEY=ваш_ключ_tmdb
-VITE_BOT_TOKEN=токен_вашего_бота
+VITE_STORY_API_URL=https://your-bot-project.vercel.app
 VITE_BOT_USERNAME=имя_вашего_бота
 ```
 
@@ -286,7 +286,7 @@ export const API_CONFIG = {
 
 ```javascript
 export const BOT_CONFIG = {
-    BOT_TOKEN: process.env.VITE_BOT_TOKEN || 'YOUR_BOT_TOKEN',
+    STORY_API_URL: import.meta.env.VITE_STORY_API_URL,
     BOT_USERNAME: process.env.VITE_BOT_USERNAME || 'YOUR_BOT_USERNAME',
     SYNC_INTERVAL: 2000,
     RETRY_ATTEMPTS: 3
@@ -294,7 +294,7 @@ export const BOT_CONFIG = {
 ```
 
 **Параметры:**
-- `BOT_TOKEN` - Токен вашего Telegram бота (от @BotFather)
+- `STORY_API_URL` - URL сервера сторис (проект `bot/` на Vercel). Токен бота хранится только там, во фронтенд его класть нельзя
 - `BOT_USERNAME` - Имя пользователя бота
 - `SYNC_INTERVAL` - Интервал синхронизации (мс)
 - `RETRY_ATTEMPTS` - Количество попыток при ошибке
@@ -308,7 +308,7 @@ export const BOT_CONFIG = {
 VITE_TMDB_API_KEY=your_tmdb_api_key_here
 
 # Telegram Bot
-VITE_BOT_TOKEN=your_bot_token_here
+VITE_STORY_API_URL=https://your-bot-project.vercel.app
 VITE_BOT_USERNAME=your_bot_username_here
 ```
 
@@ -660,7 +660,7 @@ git push -u origin main
    - Перейдите в Settings → Secrets and variables → Actions
    - Добавьте следующие секреты:
      - `VITE_TMDB_API_KEY`
-     - `VITE_BOT_TOKEN`
+     - `VITE_BOT_USERNAME`
      - `VITE_BOT_USERNAME`
 
 3. **Включите GitHub Pages**:
