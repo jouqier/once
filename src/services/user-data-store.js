@@ -278,9 +278,9 @@ class UserDataStore {
                         allEpisodes[tvId] = {};
                     }
                     Object.entries(tvData).forEach(([season, episodes]) => {
-                        // Форматируем эпизоды в компактный формат
+                        // Старые ключи tv_ep_* уже в компактном формате v1: сначала разворачиваем, потом пишем в v2
                         try {
-                            allEpisodes[tvId][season] = this._adapter._formatEpisodes(episodes);
+                            allEpisodes[tvId][season] = this._adapter._formatEpisodes(this._adapter._parseEpisodes(episodes));
                         } catch (error) {
                             console.warn(`Ошибка форматирования эпизодов ${tvId}_${season}:`, error);
                             // Сохраняем как есть, если форматирование не удалось

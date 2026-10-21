@@ -1,6 +1,7 @@
 import TMDBService from './tmdb.js';
 import { userDataStore } from './user-data-store.js';
 import { supabaseProfileService } from './supabase-profile-service.js';
+import { countEpisodes } from './episodes-format.js';
 
 class SupabaseMigration {
     constructor() {
@@ -170,15 +171,7 @@ class SupabaseMigration {
                 // Подсчитать количество просмотренных эпизодов
                 let watchedCount = 0;
                 Object.values(tvData).forEach(episodes => {
-                    if (Array.isArray(episodes)) {
-                        // Если это диапазон [1, 30], берем второй элемент
-                        if (episodes.length === 2 && typeof episodes[0] === 'number' && typeof episodes[1] === 'number') {
-                            watchedCount += episodes[1];
-                        } else {
-                            // Иначе считаем длину массива
-                            watchedCount += episodes.length;
-                        }
-                    }
+                    watchedCount += countEpisodes(episodes);
                 });
                 
                 if (watchedCount > 0) {

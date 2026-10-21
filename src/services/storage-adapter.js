@@ -13,12 +13,13 @@
  * - tv_watched - массив ID сериалов
  * - tv_season_reviews - все отзывы на сезоны (объект {"tvId_season": review})
  *   Если не влезает → tv_season_reviews_g{index}
- * - tv_episodes - все эпизоды всех сериалов (объект {tvId: {season: episodes[]}})
+ * - tv_episodes - все эпизоды всех сериалов (объект {tvId: {season: "1-3,5"}}, см. episodes-format.js)
  *   Если не влезает → tv_episodes_g{index}
  * - tv_episodes_meta - метаданные для эпизодов (groups)
  */
 
 import { CloudStorageAdapter } from './cloud-storage-adapter.js';
+import { formatEpisodes, parseEpisodes } from './episodes-format.js';
 
 const MAX_VALUE_SIZE = 4096; // Лимит CloudStorage
 const GROUP_SIZE_LIMIT = 3500; // Запас для группировки
@@ -669,44 +670,17 @@ class StorageAdapter {
     // ========== ЭПИЗОДЫ ==========
 
     /**
-     * Форматировать эпизоды в компактный формат (диапазон или массив)
+     * Форматировать эпизоды в компактный формат (см. episodes-format.js)
      */
     _formatEpisodes(episodes) {
-        if (!Array.isArray(episodes) || episodes.length === 0) {
-            return [];
-        }
-        
-        // Сортируем эпизоды
-        const sorted = [...episodes].sort((a, b) => a - b);
-        
-        // Если все эпизоды просмотрены подряд (начинается с 1 и заканчивается на длину)
-        if (sorted[0] === 1 && sorted[sorted.length - 1] === sorted.length) {
-            // Используем диапазон: [1, 30]
-            return [1, sorted.length];
-        }
-        
-        // Иначе массив: [1, 2, 5, 7, ...]
-        return sorted;
+        return formatEpisodes(episodes);
     }
 
     /**
-     * Распарсить эпизоды из компактного формата
+     * Распарсить эпизоды из компактного формата (новые строки и старые массивы)
      */
     _parseEpisodes(data) {
-        if (!Array.isArray(data)) {
-            return [];
-        }
-        
-        // Если это диапазон: [1, 30] → [1,2,3,...,30]
-        if (data.length === 2 && typeof data[0] === 'number' && typeof data[1] === 'number') {
-            const [start, end] = data;
-            if (start === 1 && end >= start) {
-                return Array.from({ length: end }, (_, i) => i + 1);
-            }
-        }
-        
-        // Иначе массив: [1, 2, 5, 7]
-        return data;
+        return parseEpisodes(data);
     }
 
     /**
