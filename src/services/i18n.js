@@ -86,6 +86,10 @@ export class I18nService {
                 maybeNotFilmedYet: 'Возможно, еще не снято',
                 recent: 'Недавние',
                 people: 'Люди',
+                surpriseMe: 'Удиви меня',
+                surpriseOpen: 'Открыть',
+                surpriseSpinAgain: 'Ещё раз',
+                surpriseEmpty: 'Не получилось ничего подобрать. Попробуйте позже',
 
                 // Story Viewer
                 letsGetStarted: 'Начнем',
@@ -192,6 +196,10 @@ export class I18nService {
                 maybeNotFilmedYet: 'Maybe hasn\'t been filmed yet',
                 recent: 'Recent',
                 people: 'People',
+                surpriseMe: 'Surprise me',
+                surpriseOpen: 'Open',
+                surpriseSpinAgain: 'Spin again',
+                surpriseEmpty: 'Couldn\'t find anything right now. Try again later',
 
                 // Story Viewer
                 letsGetStarted: 'Let\'s Get Started',

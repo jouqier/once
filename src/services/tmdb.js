@@ -584,6 +584,21 @@ class TMDBService {
         }
     }
 
+    // Получить словарь жанров { id: name } для фильмов или сериалов
+    static async getGenreMap(type = 'movie') {
+        this._genreMaps = this._genreMaps || {};
+        const key = `${type}_${API_CONFIG.LANGUAGE}`;
+        if (!this._genreMaps[key]) {
+            this._genreMaps[key] = this.makeRequest(`/genre/${type}/list`)
+                .then(data => Object.fromEntries((data.genres || []).map(g => [g.id, g.name])))
+                .catch(err => {
+                    delete this._genreMaps[key];
+                    throw err;
+                });
+        }
+        return this._genreMaps[key];
+    }
+
     // Вспомогательная функция для получения случайных элементов из массива
     static _getRandomItems(array, count) {
         if (array.length <= count) {

@@ -4,6 +4,7 @@ import '@material/web/button/filled-tonal-button.js';
 import { TG, haptic } from '../config/telegram.js';
 import { userDataStore } from '../services/user-data-store.js';
 import { API_CONFIG } from '../config/api.js';
+import '../components/surprise-dialog.js';
 
 export class SearchScreen extends HTMLElement {
     constructor() {
@@ -30,6 +31,31 @@ export class SearchScreen extends HTMLElement {
             const input = this.shadowRoot.querySelector('input');
             input.focus();
         }, 100);
+
+        this._observeTabBar();
+    }
+
+    disconnectedCallback() {
+        this._tabBarObserver?.disconnect();
+    }
+
+    // Кнопка «Surprise me» держится на 16px выше таббара
+    _observeTabBar() {
+        const tabBar = document.querySelector('tab-bar');
+        if (!tabBar) return;
+
+        const update = () => {
+            this.style.setProperty('--tab-bar-height', `${tabBar.offsetHeight}px`);
+        };
+        update();
+        this._tabBarObserver = new ResizeObserver(update);
+        this._tabBarObserver.observe(tabBar);
+    }
+
+    _openSurpriseDialog() {
+        haptic.light();
+        this.shadowRoot.querySelector('input').blur();
+        document.body.appendChild(document.createElement('surprise-dialog'));
     }
 
     async loadRecentMovies() {
@@ -49,12 +75,16 @@ export class SearchScreen extends HTMLElement {
         const input = this.shadowRoot.querySelector('input');
         const clearButton = this.shadowRoot.querySelector('.clear-button');
         const recentSection = this.shadowRoot.querySelector('.recent-section');
+        const surpriseButton = this.shadowRoot.querySelector('.surprise-button');
         let debounceTimer;
         let lastQuery = '';
+
+        surpriseButton.addEventListener('click', () => this._openSurpriseDialog());
 
         // Обработка ввода в поиск
         input.addEventListener('input', () => {
             clearButton.style.display = input.value ? 'block' : 'none';
+            surpriseButton.hidden = !!input.value;
             
             // Скрываем секцию с recent и empty state при вводе
             if (input.value.trim()) {
@@ -83,6 +113,7 @@ export class SearchScreen extends HTMLElement {
             haptic.light();
             input.value = '';
             clearButton.style.display = 'none';
+            surpriseButton.hidden = false;
             this._searchResults = [];
             this.renderResults();
         });
@@ -509,6 +540,34 @@ export class SearchScreen extends HTMLElement {
                     line-height: 16px;
                     margin-bottom: 24px;
                 }
+
+                .surprise-button {
+                    position: fixed;
+                    left: 16px;
+                    right: 16px;
+                    bottom: calc(var(--tab-bar-height, 0px) + 16px);
+                    max-width: 608px;
+                    margin: 0 auto;
+                    height: 48px;
+                    border: none;
+                    border-radius: 1000px;
+                    background: #006AE6;
+                    color: #FFFFFF;
+                    font-size: 16px;
+                    font-weight: 600;
+                    line-height: 24px;
+                    cursor: pointer;
+                    z-index: 999;
+                    transition: transform 0.2s;
+                }
+
+                .surprise-button:active {
+                    transform: scale(0.97);
+                }
+
+                .surprise-button[hidden] {
+                    display: none;
+                }
             </style>
 
             <div class="search-container">
@@ -537,6 +596,8 @@ export class SearchScreen extends HTMLElement {
             </div>
 
             <div class="search-results"></div>
+
+            <button class="surprise-button">${i18n.t('surpriseMe')}</button>
         `;
 
         this.renderRecentMovies();
