@@ -11,6 +11,7 @@
  * - tv_want - массив ID сериалов
  * - tv_watching - массив ID сериалов
  * - tv_watched - массив ID сериалов
+ * - tv_order - массив ID сериалов в порядке первого добавления в любой из списков
  * - tv_season_reviews - все отзывы на сезоны (объект {"tvId_season": review})
  *   Если не влезает → tv_season_reviews_g{index}
  * - tv_episodes - все эпизоды всех сериалов (объект {tvId: {season: "1-3,5"}}, см. episodes-format.js)
@@ -514,6 +515,22 @@ class StorageAdapter {
     setTVShowsList(type, ids) {
         const key = this._getKey(`tv_${type}`);
         this._setToCache(key, ids);
+        return true;
+    }
+
+    /**
+     * Получить порядок добавления сериалов (синхронно, использует кеш)
+     */
+    getTVShowsOrder() {
+        const value = this._getFromCache(this._getKey('tv_order'));
+        return Array.isArray(value) ? value : [];
+    }
+
+    /**
+     * Сохранить порядок добавления сериалов (синхронно, обновляет кеш и синхронизирует в фоне)
+     */
+    setTVShowsOrder(ids) {
+        this._setToCache(this._getKey('tv_order'), ids);
         return true;
     }
 

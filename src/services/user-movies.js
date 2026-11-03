@@ -1,5 +1,5 @@
 import { userDataStore } from './user-data-store.js';
-import TMDBService from './tmdb.js';
+import tmdbCache from './tmdb-cache.js';
 
 export class UserMoviesService {
     constructor() {
@@ -139,13 +139,48 @@ export class UserMoviesService {
         return this._store.getTVShows('watched');
     }
 
+    // ID фильмов списка, последние добавленные первыми
+    getMoviesByRecent(type) {
+        return [...this._store.getMovies(type)].reverse();
+    }
+
+    // ID всех сериалов из want/watching/watched, последние добавленные первыми.
+    // Сериалы, добавленные до появления tv_order, идут после них в прежнем порядке
+    getTVShowsByRecent() {
+        const all = [...new Set([
+            ...this._store.getTVShows('want'),
+            ...this._store.getTVShows('watching'),
+            ...this._store.getTVShows('watched')
+        ])];
+        const rank = new Map(this._store.getTVShowsOrder().map((id, index) => [id, index]));
+
+        const known = all
+            .filter(id => rank.has(id))
+            .sort((a, b) => rank.get(b) - rank.get(a));
+        const legacy = all.filter(id => !rank.has(id)).reverse();
+
+        return [...known, ...legacy];
+    }
+
+    // Детали одного фильма или сериала, null при ошибке
+    async getMediaDetails(type, id) {
+        try {
+            const details = type === 'tv'
+                ? await tmdbCache.getTVDetails(id)
+                : await tmdbCache.getMovieDetails(id);
+            return details ? { ...details, media_type: type, type } : null;
+        } catch (error) {
+            return null;
+        }
+    }
+
     // Получение полных данных фильмов по ID (для рекомендаций)
     async getMoviesWithDetails(type) {
         const ids = this._store.getMovies(type);
         if (ids.length === 0) return [];
         
         const movies = await Promise.all(
-            ids.map(id => TMDBService.getMovieDetails(id).catch(() => null))
+            ids.map(id => tmdbCache.getMovieDetails(id).catch(() => null))
         );
         return movies.filter(m => m !== null).map(m => ({ ...m, media_type: 'movie', type: 'movie' }));
     }
@@ -156,7 +191,7 @@ export class UserMoviesService {
         if (ids.length === 0) return [];
         
         const shows = await Promise.all(
-            ids.map(id => TMDBService.getTVDetails(id).catch(() => null))
+            ids.map(id => tmdbCache.getTVDetails(id).catch(() => null))
         );
         return shows.filter(s => s !== null).map(s => ({ ...s, media_type: 'tv', type: 'tv' }));
     }
@@ -217,44 +252,49 @@ export class UserMoviesService {
 
     async getShowProgress(tvId) {
         try {
-            const details = await TMDBService.getTVDetails(tvId);
-            if (!details || !details.seasons) return null;
-
-            // Считаем общее количество эпизодов во всех сезонах
-            const totalEpisodes = details.seasons.reduce((total, season) => {
-                if (season.season_number === 0) return total;
-                return total + season.episode_count;
-            }, 0);
-
-            // Получаем количество просмотренных эпизодов
-            const allEpisodes = this._store.getAllEpisodes(tvId);
-            let watchedCount = 0;
-
-            if (allEpisodes) {
-                Object.entries(allEpisodes).forEach(([seasonNumber, episodes]) => {
-                    if (seasonNumber === '0') return;
-                    episodes.forEach(episodeNumber => {
-                        if (this.isEpisodeWatched(tvId, parseInt(seasonNumber), episodeNumber)) {
-                            watchedCount++;
-                        }
-                    });
-                });
-            }
-
-            return {
-                watchedEpisodes: watchedCount,
-                totalEpisodes: totalEpisodes
-            };
+            const details = await tmdbCache.getTVDetails(tvId);
+            return this.getShowProgressFromDetails(tvId, details);
         } catch (error) {
             console.error('Error getting show progress:', error);
             return null;
         }
     }
 
+    // Прогресс по уже загруженным деталям, без повторного запроса
+    getShowProgressFromDetails(tvId, details) {
+        if (!details || !details.seasons) return null;
+
+        // Считаем общее количество эпизодов во всех сезонах
+        const totalEpisodes = details.seasons.reduce((total, season) => {
+            if (season.season_number === 0) return total;
+            return total + season.episode_count;
+        }, 0);
+
+        // Получаем количество просмотренных эпизодов
+        const allEpisodes = this._store.getAllEpisodes(tvId);
+        let watchedCount = 0;
+
+        if (allEpisodes) {
+            Object.entries(allEpisodes).forEach(([seasonNumber, episodes]) => {
+                if (seasonNumber === '0') return;
+                episodes.forEach(episodeNumber => {
+                    if (this.isEpisodeWatched(tvId, parseInt(seasonNumber), episodeNumber)) {
+                        watchedCount++;
+                    }
+                });
+            });
+        }
+
+        return {
+            watchedEpisodes: watchedCount,
+            totalEpisodes: totalEpisodes
+        };
+    }
+
     async getBatchShowProgress(showIds) {
         try {
             // Получаем детали всех сериалов параллельно
-            const detailsPromises = showIds.map(id => TMDBService.getTVDetails(id));
+            const detailsPromises = showIds.map(id => tmdbCache.getTVDetails(id));
             const showDetails = await Promise.all(detailsPromises);
 
             // Обрабатываем каждый сериал

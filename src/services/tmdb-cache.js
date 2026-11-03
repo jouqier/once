@@ -5,8 +5,39 @@
 
 import TMDBService from './tmdb.js';
 import { cacheStrategy, TTL, CACHE_KEYS } from './cache-strategy.js';
+import { API_CONFIG } from '../config/api.js';
 
 class TMDBCacheService {
+    constructor() {
+        // Запросы в полёте: параллельные вызовы для одного ключа делят один fetch
+        this._inflight = new Map();
+    }
+
+    /**
+     * Детали с persistent-кешем. Язык входит в ключ, чтобы не показывать названия на старом языке
+     */
+    _getCachedDetails(baseKey, ttl, fetcher) {
+        const cacheKey = `${baseKey}_${API_CONFIG.LANGUAGE}`;
+        const cached = cacheStrategy.get(cacheKey, { persistent: true, ttl });
+        if (cached) {
+            return Promise.resolve(cached);
+        }
+
+        if (this._inflight.has(cacheKey)) {
+            return this._inflight.get(cacheKey);
+        }
+
+        const request = fetcher()
+            .then(data => {
+                cacheStrategy.set(cacheKey, data, { persistent: true });
+                return data;
+            })
+            .finally(() => this._inflight.delete(cacheKey));
+
+        this._inflight.set(cacheKey, request);
+        return request;
+    }
+
     /**
      * Получить trending фильмы с кешированием (в sessionStorage)
      */
@@ -62,19 +93,11 @@ class TMDBCacheService {
      * Получить детали фильма с кешированием
      */
     async getMovieDetails(movieId) {
-        const cacheKey = CACHE_KEYS.movieDetails(movieId);
-        const cached = cacheStrategy.get(cacheKey, {
-            persistent: true,
-            ttl: TTL.MOVIE_DETAILS
-        });
-        
-        if (cached) {
-            return cached;
-        }
-
-        const data = await TMDBService.getMovieDetails(movieId);
-        cacheStrategy.set(cacheKey, data, { persistent: true });
-        return data;
+        return this._getCachedDetails(
+            CACHE_KEYS.movieDetails(movieId),
+            TTL.MOVIE_DETAILS,
+            () => TMDBService.getMovieDetails(movieId)
+        );
     }
 
     /**
@@ -132,19 +155,11 @@ class TMDBCacheService {
      * Получить детали сериала с кешированием
      */
     async getTVDetails(tvId) {
-        const cacheKey = CACHE_KEYS.tvDetails(tvId);
-        const cached = cacheStrategy.get(cacheKey, {
-            persistent: true,
-            ttl: TTL.TV_DETAILS
-        });
-        
-        if (cached) {
-            return cached;
-        }
-
-        const data = await TMDBService.getTVDetails(tvId);
-        cacheStrategy.set(cacheKey, data, { persistent: true });
-        return data;
+        return this._getCachedDetails(
+            CACHE_KEYS.tvDetails(tvId),
+            TTL.TV_DETAILS,
+            () => TMDBService.getTVDetails(tvId)
+        );
     }
 
     /**

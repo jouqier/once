@@ -47,6 +47,9 @@ export class ProfileScreen extends HTMLElement {
         
         // Дебаунсинг для сохранения состояния профиля
         this._saveProfileStateDebounceTimer = null;
+
+        // Растёт при каждой смене вкладки, чтобы поздние ответы не перерисовали новую вкладку
+        this._contentToken = 0;
     }
 
     attributeChangedCallback(name, oldValue, newValue) {
@@ -87,9 +90,8 @@ export class ProfileScreen extends HTMLElement {
         document.dispatchEvent(new CustomEvent('tg-user-data-updated'));
         
         this._userData = TG?.initDataUnsafe?.user || null;
-        await this.loadStats();
+        this.loadStats();
         this.render();
-        this._setupEventListeners();
     }
 
     disconnectedCallback() {
@@ -144,7 +146,7 @@ export class ProfileScreen extends HTMLElement {
 
         // Если мы на табе "Following", обновляем контент
         if (this._activeTab === 'following') {
-            await this._initializeContent();
+            this._initializeContent();
         }
     }
 
@@ -182,30 +184,15 @@ export class ProfileScreen extends HTMLElement {
         });
     }
 
-    async loadStats() {
-        // Получаем списки фильмов (только ID для подсчета)
-        const moviesWant = userMoviesService.getWantList() || [];
-        const moviesWatched = userMoviesService.getWatchedList() || [];
-
-        // Получаем списки сериалов (только ID для подсчета)
-        const tvWant = userMoviesService.getTVShowWantList() || [];
-        const tvWatching = userMoviesService.getTVShowWatchingList() || [];
-        const tvWatched = userMoviesService.getTVShowWatchedList() || [];
-
-        // Объединяем все ID сериалов и удаляем дубликаты
-        const allTVShowIds = [...new Set([...tvWant, ...tvWatching, ...tvWatched])];
-
-        // Получаем количество подписок на персон
-        const followingCount = userFollowingService.getFollowingCount();
-
-        // Обновляем статистику
+    loadStats() {
+        // Счётчики считаем по ID из локального хранилища, без запросов к TMDB
         this._stats = {
             place: 481516,
-            following: followingCount,
+            following: userFollowingService.getFollowingCount(),
             followers: 42,
-            want: moviesWant.length,
-            watched: moviesWatched.length,
-            tvShows: allTVShowIds.length
+            want: userMoviesService.getWantList().length,
+            watched: userMoviesService.getWatchedList().length,
+            tvShows: userMoviesService.getTVShowsByRecent().length
         };
     }
 
@@ -243,7 +230,7 @@ export class ProfileScreen extends HTMLElement {
             });
         }
 
-        // Делегирование событий только для кнопок действий
+        // Делегирование: элементы вкладки перерисовываются, слушатель на shadowRoot остаётся
         this.shadowRoot.addEventListener('click', (e) => {
             const actionButton = e.target.closest('.action-button');
             if (actionButton) {
@@ -253,74 +240,37 @@ export class ProfileScreen extends HTMLElement {
                     bubbles: true,
                     composed: true
                 }));
+                return;
             }
-        });
 
-        this._setupMovieItemListeners();
-    }
-
-    // Добавляем новый метод для установки слушателей на элементы фильмов
-    _setupMovieItemListeners() {
-        // Находим все элементы с постерами
-        const movieItems = this.shadowRoot.querySelectorAll('.movie-item');
-        
-        movieItems.forEach(item => {
-            item.addEventListener('click', () => {
+            const movieItem = e.target.closest('.movie-item');
+            if (movieItem) {
                 haptic.light();
-                
-                const id = item.dataset.id;
-                const type = item.dataset.type;
-                
                 // Сохраняем состояние профиля перед переходом
                 this._saveProfileState();
-                
-                // Диспатчим событие для навигации
                 this.dispatchEvent(new CustomEvent('movie-selected', {
-                    detail: { 
-                        movieId: id, 
-                        type: type 
+                    detail: {
+                        movieId: movieItem.dataset.id,
+                        type: movieItem.dataset.type
                     },
                     bubbles: true,
                     composed: true
                 }));
-            });
+                return;
+            }
 
-            // Добавляем стили для интерактивности
-            item.style.cursor = 'pointer';
-            item.addEventListener('mousedown', () => {
-                item.style.transform = 'scale(0.95)';
-            });
-            
-            item.addEventListener('mouseup', () => {
-                item.style.transform = 'scale(1)';
-            });
-            
-            item.addEventListener('mouseleave', () => {
-                item.style.transform = 'scale(1)';
-            });
-        });
-
-        // Находим все элементы персон
-        const personItems = this.shadowRoot.querySelectorAll('.person-item');
-        
-        personItems.forEach(item => {
-            item.addEventListener('click', () => {
+            const personItem = e.target.closest('.person-item');
+            if (personItem) {
                 haptic.light();
-                
-                const personId = item.dataset.personId;
-                
-                // Сохраняем состояние профиля перед переходом
                 this._saveProfileState();
-                
-                // Диспатчим событие для навигации к персоне
                 this.dispatchEvent(new CustomEvent('person-selected', {
-                    detail: { 
-                        personId: personId
+                    detail: {
+                        personId: personItem.dataset.personId
                     },
                     bubbles: true,
                     composed: true
                 }));
-            });
+            }
         });
     }
 
@@ -550,6 +500,27 @@ export class ProfileScreen extends HTMLElement {
                     transform: scale(0.95);
                 }
 
+                .movie-item.skeleton,
+                .person-avatar.skeleton {
+                    background: linear-gradient(
+                        90deg,
+                        var(--md-sys-color-surface-container-low) 25%,
+                        var(--md-sys-color-surface-container) 50%,
+                        var(--md-sys-color-surface-container-low) 75%
+                    );
+                    background-size: 200% 100%;
+                    animation: shimmer 1.5s infinite;
+                }
+
+                .movie-item.skeleton {
+                    border-radius: 8px;
+                }
+
+                @keyframes shimmer {
+                    0% { background-position: 200% 0; }
+                    100% { background-position: -200% 0; }
+                }
+
                 @media (hover: hover) {
                     .movie-item:hover {
                         transform: scale(1.02);
@@ -609,9 +580,7 @@ export class ProfileScreen extends HTMLElement {
                         </div>
                     </div>
                 </div>
-                <div class="tab-content">
-                    ${this._renderContent()}
-                </div>
+                <div class="tab-content"></div>
             </div>
         `;
 
@@ -630,111 +599,106 @@ export class ProfileScreen extends HTMLElement {
         });
     }
 
-    async _initializeContent() {
+    _initializeContent() {
         const contentContainer = this.shadowRoot.querySelector('.tab-content');
-        if (contentContainer) {
-            const content = await this._renderContent();
-            contentContainer.innerHTML = content;
-            this._setupMovieItemListeners(); // Добавляем установку слушателей после рендера контента
-        }
-    }
+        if (!contentContainer) return;
 
-    async _renderContent() {
+        const token = ++this._contentToken;
         const activeTab = this._activeTab.toLowerCase();
-        
-        // Получаем списки фильмов с полными данными
-        const moviesWant = await userMoviesService.getMoviesWithDetails('want') || [];
-        const moviesWatched = await userMoviesService.getMoviesWithDetails('watched') || [];
-        
-        // Получаем списки сериалов с полными данными
-        const tvWant = await userMoviesService.getTVShowsWithDetails('want') || [];
-        const tvWatching = await userMoviesService.getTVShowsWithDetails('watching') || [];
-        const tvWatched = await userMoviesService.getTVShowsWithDetails('watched') || [];
-        
-        // Получаем список подписанных персон с полными данными
-        const following = await userFollowingService.getFollowingWithDetails() || [];
-        
-        // Формируем списки для отображения
-        const lists = {
-            want: moviesWant,
-            watched: moviesWatched,
-            tvshows: [...tvWant, ...tvWatching, ...tvWatched]
-                .filter((item, index, self) => 
-                    index === self.findIndex((t) => t.id === item.id)
-                ),
-            following: following
-        };
 
-        // Обновляем статистику
-        const newStats = {
-            ...this._stats,
-            want: lists.want.length,
-            watched: lists.watched.length,
-            tvShows: lists.tvshows.length,
-            following: lists.following.length
-        };
+        this.loadStats();
+        this._updateStats(this._stats);
 
-        // Обновляем счетчики если изменились
-        if (JSON.stringify(this._stats) !== JSON.stringify(newStats)) {
-            this._updateStats(newStats);
-        }
-
-        const currentList = lists[activeTab];
-        if (!currentList || currentList.length === 0) {
-            return this._renderEmptyState(activeTab);
-        }
-
-        // Для персон используем свой рендеринг
         if (activeTab === 'following') {
-            return this._renderFollowingList(currentList);
+            this._renderFollowingContent(contentContainer, token);
+            return;
         }
 
-        // Сортируем список от новых к старым (обращаем порядок)
-        const sortedList = [...currentList].reverse();
+        const items = this._getTabItems(activeTab);
+        if (items.length === 0) {
+            contentContainer.innerHTML = this._renderEmptyState(activeTab);
+            return;
+        }
 
-        // Рендерим все элементы асинхронно
-        const renderedItems = await Promise.all(
-            sortedList.map(item => this._renderMediaItem(item))
-        );
-
-        return `
+        // Сетка с ячейками сразу: вкладка переключается мгновенно, обложки появляются по мере загрузки
+        contentContainer.innerHTML = `
             <div class="movies-grid">
-                ${renderedItems.join('')}
+                ${items.map(({ id, type }) => `
+                    <div class="movie-item skeleton" data-id="${id}" data-type="${type}"></div>
+                `).join('')}
             </div>
         `;
+
+        items.forEach(item => this._fillMediaItem(item, token));
     }
 
-    async _renderMediaItem(item) {
+    // ID для вкладки в порядке «последние добавленные сверху»
+    _getTabItems(activeTab) {
+        if (activeTab === 'tvshows') {
+            return userMoviesService.getTVShowsByRecent().map(id => ({ id, type: 'tv' }));
+        }
+        return userMoviesService.getMoviesByRecent(activeTab).map(id => ({ id, type: 'movie' }));
+    }
+
+    async _fillMediaItem({ id, type }, token) {
+        const details = await userMoviesService.getMediaDetails(type, id);
+        if (token !== this._contentToken) return;
+
+        const cell = this.shadowRoot.querySelector(`.movie-item[data-id="${id}"][data-type="${type}"]`);
+        if (!cell) return;
+
+        if (!details) {
+            cell.remove();
+            return;
+        }
+
+        cell.classList.remove('skeleton');
+        cell.innerHTML = this._renderMediaPoster(details);
+    }
+
+    async _renderFollowingContent(contentContainer, token) {
+        const count = userFollowingService.getFollowingCount();
+        if (count === 0) {
+            contentContainer.innerHTML = this._renderEmptyState('following');
+            return;
+        }
+
+        contentContainer.innerHTML = `
+            <div class="people-grid">
+                ${'<div class="person-item"><div class="person-avatar skeleton"></div></div>'.repeat(count)}
+            </div>
+        `;
+
+        const following = await userFollowingService.getFollowingWithDetails() || [];
+        if (token !== this._contentToken) return;
+
+        contentContainer.innerHTML = following.length > 0
+            ? this._renderFollowingList(following)
+            : this._renderEmptyState('following');
+    }
+
+    _renderMediaPoster(item) {
         let userRating = null;
         let progress = null;
 
         if (item.media_type === 'tv') {
-            // Для сериалов получаем только прогресс, рейтинг не показываем
-            progress = await userMoviesService.getShowProgress(item.id);
+            // Для сериалов показываем только прогресс, рейтинг не показываем
+            progress = userMoviesService.getShowProgressFromDetails(item.id, item);
         } else {
-            // Для фильмов получаем рейтинг
             const userReview = userMoviesService.getReview('movie', item.id);
             userRating = userReview?.rating;
         }
 
-        // Убеждаемся, что progress полностью разрешен
-        const watchedEpisodes = progress?.watchedEpisodes || 0;
-        const totalEpisodes = progress?.totalEpisodes || 0;
-
         return `
-            <div class="movie-item" 
-                 data-id="${item.id}" 
-                 data-type="${item.media_type}">
-                <media-poster
-                    src="${API_CONFIG.IMAGE_BASE_URL}${item.poster_path}"
-                    alt="${item.title || item.name}"
-                    ${progress ? `
-                        watched-episodes="${watchedEpisodes}"
-                        total-episodes="${totalEpisodes}"
-                    ` : ''}
-                    ${userRating ? `user-rating="${userRating}"` : ''}
-                ></media-poster>
-            </div>
+            <media-poster
+                src="${API_CONFIG.IMAGE_BASE_URL}${item.poster_path}"
+                alt="${item.title || item.name}"
+                ${progress ? `
+                    watched-episodes="${progress.watchedEpisodes || 0}"
+                    total-episodes="${progress.totalEpisodes || 0}"
+                ` : ''}
+                ${userRating ? `user-rating="${userRating}"` : ''}
+            ></media-poster>
         `;
     }
 

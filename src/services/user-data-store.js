@@ -439,6 +439,7 @@ class UserDataStore {
             if (!list.includes(showId)) {
                 list.push(showId);
                 this._adapter.setTVShowsList(type, list);
+                this._rememberTVShowOrder(showId);
                 
                 // Отправляем событие об изменении списка
                 this._dispatchListChangedEvent(type, 'added', show);
@@ -457,6 +458,7 @@ class UserDataStore {
             if (hadShow) {
                 const newList = list.filter(id => id !== showId);
                 this._adapter.setTVShowsList(type, newList);
+                this._forgetTVShowOrderLater(showId);
                 
                 // Отправляем событие об изменении списка
                 this._dispatchListChangedEvent(type, 'removed', { id: showId });
@@ -465,6 +467,44 @@ class UserDataStore {
             console.error(`Ошибка удаления сериала из ${type}:`, error);
             this._handleStorageError(error);
         }
+    }
+
+    getTVShowsOrder() {
+        try {
+            return this._adapter.getTVShowsOrder();
+        } catch (error) {
+            console.error('Ошибка получения порядка сериалов:', error);
+            return [];
+        }
+    }
+
+    _isTVShowInAnyList(showId) {
+        return ['want', 'watching', 'watched']
+            .some(type => this._adapter.getTVShowsList(type).includes(showId));
+    }
+
+    // Запоминаем момент первого добавления. Перенос между списками (remove + add) порядок не меняет
+    _rememberTVShowOrder(showId) {
+        const order = this._adapter.getTVShowsOrder();
+        if (!order.includes(showId)) {
+            this._adapter.setTVShowsOrder([...order, showId]);
+        }
+    }
+
+    // Перенос между списками идёт синхронно (remove, затем add), поэтому проверяем после него:
+    // из порядка убираем только сериал, которого не осталось ни в одном списке
+    _forgetTVShowOrderLater(showId) {
+        queueMicrotask(() => {
+            try {
+                if (this._isTVShowInAnyList(showId)) return;
+                const order = this._adapter.getTVShowsOrder();
+                if (order.includes(showId)) {
+                    this._adapter.setTVShowsOrder(order.filter(id => id !== showId));
+                }
+            } catch (error) {
+                console.error('Ошибка обновления порядка сериалов:', error);
+            }
+        });
     }
 
     _dispatchListChangedEvent(listType, action, movie) {
