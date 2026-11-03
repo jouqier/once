@@ -310,6 +310,39 @@ function waitForTelegramAnalyticsSDK() {
     });
 }
 
+/**
+ * Инициализация Google Analytics и Telegram Analytics SDK.
+ * Вызывается без await: скрипты аналитики грузятся асинхронно
+ * и могут ждать до 5–10 секунд.
+ */
+async function initAnalytics() {
+    try {
+        // Инициализируем Google Analytics
+        await analytics.init();
+        analytics.trackAppStart();
+        analytics.trackSessionDuration();
+    } catch (error) {
+        console.error('Ошибка инициализации Google Analytics:', error);
+    }
+
+    try {
+        // Инициализируем Telegram Analytics SDK
+        // Ждем загрузки SDK (так как скрипт загружается асинхронно)
+        await waitForTelegramAnalyticsSDK();
+        if (TELEGRAM_ANALYTICS_CONFIG.TOKEN) {
+            await telegramAnalytics.init(
+                TELEGRAM_ANALYTICS_CONFIG.TOKEN,
+                TELEGRAM_ANALYTICS_CONFIG.APP_NAME
+            );
+            telegramAnalytics.trackAppStart();
+        } else {
+            console.warn('⚠️ Telegram Analytics токен не настроен. Получите токен через @DataChief_bot и добавьте VITE_TELEGRAM_ANALYTICS_TOKEN в .env');
+        }
+    } catch (error) {
+        console.error('Ошибка инициализации Telegram Analytics:', error);
+    }
+}
+
 function mockTelegramData() {
     if (!window.Telegram) {
         window.Telegram = {
@@ -359,24 +392,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         // Мигрируем старые данные подписок из localStorage в CloudStorage
         await migrateFollowingData();
         
-        // Инициализируем Google Analytics
-        await analytics.init();
-        analytics.trackAppStart();
-        analytics.trackSessionDuration();
-        
-        // Инициализируем Telegram Analytics SDK
-        // Ждем загрузки SDK (так как скрипт загружается асинхронно)
-        await waitForTelegramAnalyticsSDK();
-        if (TELEGRAM_ANALYTICS_CONFIG.TOKEN) {
-            await telegramAnalytics.init(
-                TELEGRAM_ANALYTICS_CONFIG.TOKEN,
-                TELEGRAM_ANALYTICS_CONFIG.APP_NAME
-            );
-            telegramAnalytics.trackAppStart();
-        } else {
-            console.warn('⚠️ Telegram Analytics токен не настроен. Получите токен через @DataChief_bot и добавьте VITE_TELEGRAM_ANALYTICS_TOKEN в .env');
-        }
-        
+        // Аналитика инициализируется в фоне, чтобы не задерживать первый экран
+        initAnalytics();
+
         // Мониторинг размера хранилища
         try {
             const userId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'guest';
