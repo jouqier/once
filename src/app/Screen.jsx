@@ -4,10 +4,10 @@ import { API_CONFIG } from '../config/api.js';
 import { LegacyScreen } from './LegacyScreen.jsx';
 import { DiscoverScreen } from './screens/discover.jsx';
 import { SearchScreen } from './screens/search.jsx';
+import { GenreScreen } from './screens/genre.jsx';
 
 const TAB_TAGS = {
     profile: 'profile-screen',
-    genre: 'genre-screen',
     person: 'person-screen',
 };
 
@@ -100,7 +100,7 @@ function ScreenContent({ state }) {
         case 'person':
             return <LegacyScreen tag="person-screen" attrs={{ 'active-tab': state.activeTab || undefined }} />;
         case 'genre':
-            return <LegacyScreen tag="genre-screen" />;
+            return <GenreScreen state={state} />;
         default:
             return null;
     }
