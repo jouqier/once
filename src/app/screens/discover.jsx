@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import TMDBCacheService from "../../services/tmdb-cache.js"
 import { userMoviesService } from "../../services/user-movies.js"
 import { i18n } from "../../services/i18n.js"
+import { useMediaProgress } from "@/hooks/use-media-progress"
 import { useUserList } from "@/hooks/use-user-list"
+import { selectMedia } from "@/lib/select-media"
 import { cn } from "@/lib/utils"
 import { MediaPoster } from "@/components/media-poster"
 import { PosterSkeleton } from "@/components/poster-skeleton"
@@ -81,16 +83,6 @@ const KINDS = {
 
 const EMPTY = { trending: [], trailers: [], recommended: [] }
 
-function selectMedia(item, type) {
-  document.dispatchEvent(
-    new CustomEvent("movie-selected", {
-      detail: { movieId: String(item.id), type },
-      bubbles: true,
-      composed: true,
-    })
-  )
-}
-
 function Section({ label, title, primary, children }) {
   return (
     <div className="flex flex-col items-start self-stretch">
@@ -149,8 +141,8 @@ export function DiscoverScreen({ kind }) {
   const isTv = kind === "tv"
 
   const [lists, setLists] = useState(EMPTY)
-  const [progress, setProgress] = useState({})
-  const [, rerender] = useReducer((n) => n + 1, 0)
+  // Оценки и прогресс читаются при рендере, поэтому события отзывов просто перерисовывают экран
+  const { progress, progressRef, mergeProgress } = useMediaProgress({ episodes: isTv })
 
   // Списки пользователя нужны как триггер пересчёта рекомендаций (movie-list-changed, смена пользователя)
   const want = useUserList(kind, "want")
@@ -213,15 +205,7 @@ export function DiscoverScreen({ kind }) {
     }
   }, [want, watched, watching, config, loadRecommendations])
 
-  // Оценки и прогресс читаются при рендере, поэтому события отзывов просто перерисовывают экран
-  useEffect(() => {
-    const handleReview = () => rerender()
-    document.addEventListener("review-submitted", handleReview)
-    return () => document.removeEventListener("review-submitted", handleReview)
-  }, [])
-
-  // Прогресс сериалов: подгружаем для карточек, которых ещё нет, и обновляем по событиям эпизодов и отзывов
-  const progressRef = useRef({})
+  // Прогресс сериалов: подгружаем для карточек, которых ещё нет. Обновление по событиям эпизодов и отзывов делает useMediaProgress
   const listedShows = isTv ? [lists.trending, lists.popular, lists.topRated, lists.recommended] : []
   useEffect(() => {
     if (!isTv) return
@@ -238,8 +222,7 @@ export function DiscoverScreen({ kind }) {
         items.forEach((item) => {
           if (item) next[item.showId] = item
         })
-        progressRef.current = { ...progressRef.current, ...next }
-        setProgress((prev) => ({ ...prev, ...next }))
+        mergeProgress(next)
       })
       .catch((error) => {
         ids.forEach((id) => delete progressRef.current[id])
@@ -247,25 +230,6 @@ export function DiscoverScreen({ kind }) {
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTv, lists])
-
-  useEffect(() => {
-    if (!isTv) return
-    let disposed = false
-    const handleEpisodes = async (event) => {
-      const tvId = event.detail.tvId
-      const next = await userMoviesService.getShowProgress(tvId)
-      if (disposed || !next) return
-      progressRef.current = { ...progressRef.current, [tvId]: next }
-      setProgress((prev) => ({ ...prev, [tvId]: next }))
-    }
-    document.addEventListener("season-review-submitted", handleEpisodes)
-    document.addEventListener("episode-status-changed", handleEpisodes)
-    return () => {
-      disposed = true
-      document.removeEventListener("season-review-submitted", handleEpisodes)
-      document.removeEventListener("episode-status-changed", handleEpisodes)
-    }
-  }, [isTv])
 
   const ratingOf = isTv ? undefined : (item) => userMoviesService.getReview("movie", item.id)?.rating
   const progressOf = isTv ? (item) => progress[item.id] : undefined

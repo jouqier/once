@@ -1,6 +1,8 @@
-import { useEffect, useReducer, useState } from "react"
+import { useEffect, useState } from "react"
 import TMDBService from "../../services/tmdb.js"
 import { userMoviesService } from "../../services/user-movies.js"
+import { useMediaProgress } from "@/hooks/use-media-progress"
+import { selectMedia } from "@/lib/select-media"
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MediaPoster } from "@/components/media-poster"
@@ -10,29 +12,20 @@ const PAGES = [1, 2, 3]
 const MAX_ITEMS = 42
 const SKELETON_COUNT = 6
 
-function selectMedia(item, type) {
-  document.dispatchEvent(
-    new CustomEvent("movie-selected", {
-      detail: { movieId: String(item.id), type },
-      bubbles: true,
-      composed: true,
-    })
-  )
-}
-
 export function GenreScreen({ state }) {
   const { genreId, genreName, from } = state
   const mediaType = state.mediaType || "movie"
   const isTv = mediaType === "tv"
 
   const [items, setItems] = useState(null)
-  const [progress, setProgress] = useState({})
-  const [, rerender] = useReducer((n) => n + 1, 0)
+  // Оценки фильмов читаются при рендере, поэтому событие отзыва просто перерисовывает экран.
+  // Прогресс сериалов обновляется по событиям сезонов и эпизодов
+  const { progress, resetProgress } = useMediaProgress({ ratings: !isTv, episodes: isTv })
 
   useEffect(() => {
     let cancelled = false
     setItems(null)
-    setProgress({})
+    resetProgress()
 
     async function load() {
       try {
@@ -62,7 +55,7 @@ export function GenreScreen({ state }) {
           })
         }
         if (cancelled) return
-        setProgress(next)
+        resetProgress(next)
         setItems(list)
       } catch (error) {
         console.error("Error loading genre:", error)
@@ -74,35 +67,7 @@ export function GenreScreen({ state }) {
     return () => {
       cancelled = true
     }
-  }, [genreId, from, isTv])
-
-  // Оценки фильмов читаются при рендере, поэтому событие отзыва просто перерисовывает экран
-  useEffect(() => {
-    const handleReview = () => {
-      if (!isTv) rerender()
-    }
-    document.addEventListener("review-submitted", handleReview)
-    return () => document.removeEventListener("review-submitted", handleReview)
-  }, [isTv])
-
-  // Прогресс сериалов обновляется по событиям сезонов и эпизодов
-  useEffect(() => {
-    if (!isTv) return
-    let disposed = false
-    const handleEpisodes = async (event) => {
-      const tvId = event.detail.tvId
-      const next = await userMoviesService.getShowProgress(tvId)
-      if (disposed || !next) return
-      setProgress((prev) => ({ ...prev, [tvId]: next }))
-    }
-    document.addEventListener("season-review-submitted", handleEpisodes)
-    document.addEventListener("episode-status-changed", handleEpisodes)
-    return () => {
-      disposed = true
-      document.removeEventListener("season-review-submitted", handleEpisodes)
-      document.removeEventListener("episode-status-changed", handleEpisodes)
-    }
-  }, [isTv])
+  }, [genreId, from, isTv, resetProgress])
 
   return (
     <div className="flex flex-col gap-2 leading-[normal]">
