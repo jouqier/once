@@ -10,6 +10,7 @@ const loadedImages = new Set()
 
 // Пропсы: item (запись TMDB), type ('movie' | 'tv'), onSelect(item, type).
 // Прогресс и оценка приходят снаружи, как атрибуты watched-episodes, total-episodes, user-rating.
+// interactive={false}: постер без нажатия (большой постер на экране деталей, как <media-poster> в v1).
 export function MediaPoster({
   item,
   type,
@@ -17,6 +18,7 @@ export function MediaPoster({
   watchedEpisodes,
   totalEpisodes,
   userRating,
+  interactive = true,
   className,
 }) {
   const haptic = useHaptic()
@@ -45,12 +47,14 @@ export function MediaPoster({
     )
   }
 
+  const Root = interactive ? "button" : "div"
+
   return (
-    <button
-      type="button"
-      onClick={handleClick}
+    <Root
+      {...(interactive && { type: "button", onClick: handleClick })}
       className={cn(
-        "relative block size-full cursor-pointer overflow-hidden rounded-[8px] bg-card p-0 text-foreground",
+        "relative block size-full overflow-hidden rounded-[8px] bg-card p-0 text-foreground",
+        interactive && "cursor-pointer",
         className
       )}
     >
@@ -77,6 +81,6 @@ export function MediaPoster({
       )}
       <EpisodesBadge watchedEpisodes={watchedEpisodes} totalEpisodes={totalEpisodes} />
       {!isTVShow && <RatingBadge userRating={userRating} />}
-    </button>
+    </Root>
   )
 }

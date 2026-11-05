@@ -2,15 +2,8 @@ import { TG, initTelegram } from '../config/telegram.js';
 import { navigationManager } from '../config/navigation.js';
 import '@material/web/button/filled-tonal-button.js';
 import '@material/web/checkbox/checkbox.js';
-import '../pages/movies/movie-card.js';
-import '../components/card-info.js';
-import '../components/card-poster.js';
-import '../components/card-cast.js';
-import '../components/card-recomendation.js';
-import '../components/show-card-seasons.js';
 import '../components/story-viewer.js';
 import '../services/data-repair-utility.js'; // Утилита для диагностики данных (window.dataRepair)
-import '../pages/tvshows/show-card.js';
 import { cacheMigration } from '../services/cache-migration.js';
 import '../utils/storage-cleanup.js'; // Утилита для очистки хранилища (window.StorageCleanup)
 import { analytics } from '../services/analytics.js'; // Google Analytics

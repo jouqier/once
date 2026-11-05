@@ -1,7 +1,5 @@
-import { useEffect, useLayoutEffect, useState } from 'react';
-import TMDBService from '../services/tmdb.js';
-import { API_CONFIG } from '../config/api.js';
-import { LegacyScreen } from './LegacyScreen.jsx';
+import { useLayoutEffect } from 'react';
+import { DetailsScreen } from './screens/details.jsx';
 import { DiscoverScreen } from './screens/discover.jsx';
 import { SearchScreen } from './screens/search.jsx';
 import { GenreScreen } from './screens/genre.jsx';
@@ -35,49 +33,6 @@ function TabScreen({ state }) {
 
     console.error('Unknown screen:', state.name);
     return null;
-}
-
-function DetailsScreen({ state }) {
-    const { mediaId } = state;
-    const mediaType = state.mediaType === undefined ? 'movie' : state.mediaType;
-    const [movie, setMovie] = useState(null);
-
-    useEffect(() => {
-        let cancelled = false;
-
-        TMDBService.getFullMovieInfo(mediaId, mediaType)
-            .then((data) => {
-                if (cancelled) return;
-                const movieData = { ...data, media_type: mediaType };
-                if (movieData.backdrop_path) {
-                    document.documentElement.style.setProperty(
-                        '--movie-backdrop',
-                        `url(${API_CONFIG.IMAGE_BASE_URL.replace('/w500', '/original')}${movieData.backdrop_path})`
-                    );
-                }
-                setMovie(movieData);
-            })
-            .catch((error) => {
-                console.error('Ошибка при показе деталей:', error);
-            });
-
-        return () => {
-            cancelled = true;
-        };
-    }, [mediaId, mediaType]);
-
-    useLayoutEffect(() => {
-        if (movie) window.scrollTo(0, 0);
-    }, [movie]);
-
-    if (!movie) return null;
-
-    return (
-        <LegacyScreen
-            tag={mediaType === 'movie' ? 'movie-card-details' : 'tv-show-card-details'}
-            props={{ movie }}
-        />
-    );
 }
 
 function ScreenContent({ state }) {

@@ -47,13 +47,17 @@ main {
  * наследуются в их shadow DOM. Здесь возвращаются значения v1. Тег убирается
  * из списка, когда элемент заменяют на React.
  */
-movie-card-details,
-tv-show-card-details,
 story-viewer,
 review-dialog,
-context-menu {
+movie-review,
+tv-seasons {
   line-height: normal;
   color: initial;
+}
+
+/* У <movie-review> отступ задан в :host, а preflight его обнуляет */
+movie-review {
+  padding: 8px 0;
 }
 
 .corner-bottom {
