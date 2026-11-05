@@ -47,8 +47,7 @@ main {
  * наследуются в их shadow DOM. Здесь возвращаются значения v1. Тег убирается
  * из списка, когда элемент заменяют на React.
  */
-story-viewer,
-review-dialog {
+story-viewer {
   line-height: normal;
   color: initial;
 }
