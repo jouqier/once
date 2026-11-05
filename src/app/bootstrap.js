@@ -1,7 +1,5 @@
 import { TG, initTelegram } from '../config/telegram.js';
 import { navigationManager } from '../config/navigation.js';
-import '@material/web/button/filled-tonal-button.js';
-import '../components/story-viewer.js';
 import '../services/data-repair-utility.js'; // Утилита для диагностики данных (window.dataRepair)
 import { cacheMigration } from '../services/cache-migration.js';
 import '../utils/storage-cleanup.js'; // Утилита для очистки хранилища (window.StorageCleanup)
@@ -10,11 +8,6 @@ import { telegramAnalytics } from '../services/telegram-analytics.js'; // Telegr
 import { TELEGRAM_ANALYTICS_CONFIG } from '../config/bot.js';
 import { userDataStore } from '../services/user-data-store.js';
 import { userFollowingService } from '../services/user-following.js';
-
-import story2 from '../../public/assets/stories/story2.jpg';
-import story3 from '../../public/assets/stories/story3.jpg';
-import story4 from '../../public/assets/stories/story4.jpg';
-import story5 from '../../public/assets/stories/story5.jpg';
 
 // Обработчик выбора фильма/сериала
 document.addEventListener('movie-selected', async (event) => {
@@ -200,30 +193,9 @@ function mockTelegramData() {
     }
 }
 
-// Сторис при первом запуске. Остаются императивными до задачи 11.
-function showWelcomeStories() {
-    const storyViewer = document.createElement('story-viewer');
-    storyViewer.stories = [
-        story2,
-        story3,
-        story4,
-        story5
-    ];
-    storyViewer.slideDuration = 5000;
-    storyViewer.actionButton = {
-        callback: () => {
-            storyViewer.remove();
-            // Отмечаем, что приложение уже запускалось
-            localStorage.setItem('app_launched', 'true');
-            // Инициализируем основной экран после закрытия сторис
-            navigationManager.navigateToTab('movies');
-        }
-    };
-    document.body.appendChild(storyViewer);
-}
-
 /**
  * Инициализация приложения. Экраны не рисует: их рисует React по событиям навигации.
+ * Возвращает true, если нужно показать приветственные сторис (первый запуск).
  */
 export async function bootstrap() {
     try {
@@ -308,22 +280,23 @@ export async function bootstrap() {
             console.log('Deep link detected:', { mediaId, mediaType });
             localStorage.setItem('app_launched', 'true'); // Пропускаем сторис
             navigationManager.navigateToDetails(mediaId, mediaType);
-            return;
+            return false;
         }
 
         // Проверяем, первый ли это запуск
         const isFirstLaunch = !localStorage.getItem('app_launched');
 
         if (isFirstLaunch) {
-            // Показываем приветственные сторис только при первом запуске
-            showWelcomeStories();
-        } else {
-            // Если не первый запуск, сразу показываем основной экран
-            navigationManager.navigateToTab('movies');
+            // Приветственные сторис только при первом запуске: их рисует React (App)
+            return true;
         }
+        // Если не первый запуск, сразу показываем основной экран
+        navigationManager.navigateToTab('movies');
+        return false;
     } catch (error) {
         console.error('Ошибка инициализации приложения:', error);
         // Если произошла ошибка, все равно показываем основной экран
         navigationManager.navigateToTab('movies');
+        return false;
     }
 }

@@ -8,10 +8,10 @@ import { App } from './App.jsx';
 
 // Как в v1, инициализация стартует по DOMContentLoaded и заканчивается до первого рендера React
 window.addEventListener('DOMContentLoaded', async () => {
-    await bootstrap();
+    const showWelcomeStories = await bootstrap();
     createRoot(document.getElementById('root')).render(
         <StrictMode>
-            <App />
+            <App showWelcomeStories={showWelcomeStories} />
         </StrictMode>
     );
 });
