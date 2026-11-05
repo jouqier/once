@@ -48,8 +48,7 @@ main {
  * из списка, когда элемент заменяют на React.
  */
 story-viewer,
-review-dialog,
-tv-seasons {
+review-dialog {
   line-height: normal;
   color: initial;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useState } from "react"
 import TMDBService from "../../services/tmdb.js"
 import { API_CONFIG } from "../../config/api.js"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -7,25 +7,7 @@ import { DetailsInfo } from "@/features/details/info"
 import { DetailsCast } from "@/features/details/cast"
 import { DetailsRecommendations } from "@/features/details/recommendations"
 import { DetailsReview } from "@/features/details/review"
-// Старый блок сезонов до порта. Он создаёт <review-dialog>, но не импортирует его:
-// в v1 его регистрировал movie-card-buttons.js
-import "../../components/show-card-seasons.js"
-import "../../components/review-dialog.js"
-
-// <tv-seasons> из show-card-seasons.js с теми же свойствами, что ставил show-card.js
-function LegacySeasons({ show }) {
-  const ref = useRef(null)
-
-  useLayoutEffect(() => {
-    const element = ref.current
-    element.tvShow = show
-    element.tvId = show.id
-    element.seasons = show.seasons
-    element.style.display = "flex"
-  }, [show])
-
-  return <tv-seasons ref={ref} />
-}
+import { DetailsSeasons } from "@/features/details/seasons"
 
 function DetailsSkeleton() {
   return (
@@ -99,7 +81,7 @@ export function DetailsScreen({ state }) {
       <DetailsPoster media={isTv || media.poster_path ? media : null} />
       {/* <DetailsStats />: в v1 movie-stats закомментирован */}
       <DetailsInfo media={media} />
-      {isTv && <LegacySeasons show={media} />}
+      {isTv && <DetailsSeasons show={media} />}
       <DetailsReview media={media} />
       {media.credits && <DetailsCast cast={media.credits.cast} />}
       {media.recommendations && (

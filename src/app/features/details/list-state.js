@@ -19,7 +19,7 @@ export function useListState(media) {
   )
 }
 
-// Автоматические переходы по событиям блока сезонов (<tv-seasons>), как в v1
+// Автоматические переходы по событиям блока сезонов (DetailsSeasons), как в v1
 export function useSeasonTransitions(tvShow) {
   useEffect(() => {
     const id = tvShow.id

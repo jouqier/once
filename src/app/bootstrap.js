@@ -1,7 +1,6 @@
 import { TG, initTelegram } from '../config/telegram.js';
 import { navigationManager } from '../config/navigation.js';
 import '@material/web/button/filled-tonal-button.js';
-import '@material/web/checkbox/checkbox.js';
 import '../components/story-viewer.js';
 import '../services/data-repair-utility.js'; // Утилита для диагностики данных (window.dataRepair)
 import { cacheMigration } from '../services/cache-migration.js';
