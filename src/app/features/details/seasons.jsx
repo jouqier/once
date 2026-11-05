@@ -2,6 +2,7 @@ import { memo, useCallback, useEffect, useReducer, useState } from "react"
 import { userMoviesService } from "../../../services/user-movies.js"
 import { i18n } from "../../../services/i18n.js"
 import { useHaptic } from "@/hooks/use-telegram"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollRow } from "@/components/scroll-row"
@@ -56,6 +57,17 @@ function CheckMark() {
   )
 }
 
+// md-checkbox v1: в покое отмеченное поле #E0E2ED с тёмной галочкой (--md-checkbox-selected-*),
+// при наведении, фокусе и нажатии заливка M3 primary с on-primary и рамка on-surface, как в @material/web
+const CHECKBOX = cn(
+  "m-[15px] size-[18px] border-2 border-white/50 bg-transparent after:-inset-[15px] dark:bg-transparent",
+  "hover:border-foreground focus-visible:border-foreground active:border-foreground",
+  "data-[state=checked]:border-[#E0E2ED] data-[state=checked]:bg-[#E0E2ED] data-[state=checked]:text-background dark:data-[state=checked]:bg-[#E0E2ED]",
+  "dark:data-[state=checked]:hover:border-(--md-sys-color-primary) dark:data-[state=checked]:hover:bg-(--md-sys-color-primary) dark:data-[state=checked]:hover:text-(--md-sys-color-on-primary)",
+  "dark:data-[state=checked]:focus-visible:border-(--md-sys-color-primary) dark:data-[state=checked]:focus-visible:bg-(--md-sys-color-primary) dark:data-[state=checked]:focus-visible:text-(--md-sys-color-on-primary)",
+  "dark:data-[state=checked]:active:border-(--md-sys-color-primary) dark:data-[state=checked]:active:bg-(--md-sys-color-primary) dark:data-[state=checked]:active:text-(--md-sys-color-on-primary)"
+)
+
 // Строка эпизода. memo: при отметке одного эпизода перерисовывается только его строка
 const EpisodeRow = memo(function EpisodeRow({ seasonNumber, episode, watched, onToggle }) {
   const date = new Date(episode.air_date).toLocaleDateString(i18n.getLocale() === "ru" ? "ru-RU" : "en-US")
@@ -77,7 +89,7 @@ const EpisodeRow = memo(function EpisodeRow({ seasonNumber, episode, watched, on
           checked={watched}
           onCheckedChange={(checked) => onToggle(seasonNumber, episode.episode_number, checked === true)}
           aria-label={episode.name}
-          className="m-[15px] size-[18px] border-2 border-white/50 bg-transparent after:-inset-[15px] data-[state=checked]:border-(--md-sys-color-primary) data-[state=checked]:bg-(--md-sys-color-primary) data-[state=checked]:text-(--md-sys-color-on-primary) dark:bg-transparent dark:data-[state=checked]:bg-(--md-sys-color-primary)"
+          className={CHECKBOX}
         >
           <CheckMark />
         </Checkbox>
