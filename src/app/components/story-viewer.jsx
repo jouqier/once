@@ -56,12 +56,8 @@ export function StoryViewer({ stories, slideDuration = 5000, onFinish }) {
     return () => clearTimeout(timer)
   }, [index, stories.length, slideDuration])
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      navigatingRef.current = false
-    }, NAVIGATION_LOCK_MS)
-    return () => clearTimeout(timer)
-  }, [index])
+  const lockTimerRef = useRef(null)
+  useEffect(() => () => clearTimeout(lockTimerRef.current), [])
 
   const handleAction = useCallback(() => {
     haptic.medium()
@@ -80,6 +76,9 @@ export function StoryViewer({ stories, slideDuration = 5000, onFinish }) {
   const handleNavigate = (direction) => {
     if (navigatingRef.current) return
     navigatingRef.current = true
+    lockTimerRef.current = setTimeout(() => {
+      navigatingRef.current = false
+    }, NAVIGATION_LOCK_MS)
     if (direction === "prev" && index > 0) {
       haptic.light()
       setIndex(index - 1)
