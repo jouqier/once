@@ -1,7 +1,9 @@
 import { cn } from "@/lib/utils"
 
 // Горизонтальный ряд карточек с затемнением по краям, как в v1 (movies-scroll-container).
-export function ScrollRow({ className, children }) {
+// innerScrolls: как у .movies-scroll в v1 скроллится сам padded-ряд, поэтому правый отступ попадает в область прокрутки.
+// У трейлеров в v1 скроллился только внешний блок (innerScrolls={false}).
+export function ScrollRow({ className, innerScrolls = true, children }) {
   return (
     <div
       className={cn(
@@ -11,7 +13,13 @@ export function ScrollRow({ className, children }) {
       )}
     >
       <div className="w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className={cn("flex flex-nowrap items-start gap-2 px-4", className)}>{children}</div>
+        <div
+          className={cn(
+            "flex flex-nowrap items-start gap-2 px-4",
+            innerScrolls && "overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            className
+          )}
+        >{children}</div>
       </div>
     </div>
   )

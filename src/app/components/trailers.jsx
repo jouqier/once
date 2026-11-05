@@ -49,7 +49,7 @@ export function Trailers({ trailers }) {
   const hasTrailers = sorted.length > 0
 
   return (
-    <ScrollRow>
+    <ScrollRow innerScrolls={false}>
       {hasTrailers
         ? sorted.map((movie) => {
             const key = movie.trailer.key
