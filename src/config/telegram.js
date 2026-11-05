@@ -5,8 +5,8 @@ export const TG = window.Telegram?.WebApp;
 
 // Проверяем поддержку функций в текущей версии
 const FEATURES_SUPPORTED = {
-    haptic: TG?.version >= '6.1',
-    backButton: TG?.version >= '6.1'
+    haptic: TG?.isVersionAtLeast?.('6.1') ?? false,
+    backButton: TG?.isVersionAtLeast?.('6.1') ?? false
 };
 
 export const initTelegram = () => {
