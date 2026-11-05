@@ -34,7 +34,7 @@ function RatingStars({ rating }) {
         <span
           key={index}
           // Пустые звёзды в цвет M3 outline: muted-foreground почти не отличается от заполненных
-          className={index < rating ? "text-foreground" : "text-(--md-sys-color-outline)"}
+          className={index < rating ? "text-foreground" : "text-outline"}
         >
           {index < 9 ? "★ " : "★"}
         </span>

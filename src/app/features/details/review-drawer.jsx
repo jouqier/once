@@ -238,7 +238,7 @@ export function ReviewDrawer({ open, onOpenChange, media, review, seasonNumber, 
                       "flex size-12 shrink-0 cursor-pointer items-center justify-center rounded-full bg-secondary text-base font-semibold text-foreground transition-all duration-200",
                       active && !ratingTouched && "bg-primary text-primary-foreground",
                       // M3 primary / on-primary: семантического токена для них нет
-                      active && ratingTouched && "bg-(--md-sys-color-primary) text-(--md-sys-color-on-primary)"
+                      active && ratingTouched && "bg-brand text-brand-foreground"
                     )}
                   >
                     {value}
@@ -260,7 +260,7 @@ export function ReviewDrawer({ open, onOpenChange, media, review, seasonNumber, 
                   "h-8! w-13! border-2 border-muted-foreground data-[state=checked]:border-transparent data-[state=checked]:bg-primary data-[state=unchecked]:bg-secondary dark:data-[state=unchecked]:bg-secondary",
                   // Ручка 24px в обоих состояниях (v1 --md-switch-handle-height/width: 24px), 4px от края дорожки
                   "[&_[data-slot=switch-thumb]]:size-6! [&_[data-slot=switch-thumb]]:translate-x-0.5! [&_[data-slot=switch-thumb]]:bg-muted-foreground!",
-                  "data-[state=checked]:[&_[data-slot=switch-thumb]]:translate-x-[22px]! data-[state=checked]:[&_[data-slot=switch-thumb]]:bg-(--md-sys-color-primary)!"
+                  "data-[state=checked]:[&_[data-slot=switch-thumb]]:translate-x-[22px]! data-[state=checked]:[&_[data-slot=switch-thumb]]:bg-brand!"
                 )}
               />
             </div>
@@ -281,7 +281,7 @@ export function ReviewDrawer({ open, onOpenChange, media, review, seasonNumber, 
           // Поверх открытого Drawer (его портал тоже z-50 и стоит раньше в body)
           <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-scrim/70 duration-200 animate-in fade-in-0">
             <div className="flex flex-col items-center gap-4">
-              <div className="size-12 animate-spin rounded-full border-4 border-background border-t-(--md-sys-color-primary)" />
+              <div className="size-12 animate-spin rounded-full border-4 border-background border-t-brand" />
               <div className="text-base font-semibold text-background">{loadingText}</div>
             </div>
           </div>,

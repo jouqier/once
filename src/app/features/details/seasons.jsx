@@ -63,9 +63,9 @@ const CHECKBOX = cn(
   "m-[15px] size-[18px] border-2 border-white/50 bg-transparent after:-inset-[15px] dark:bg-transparent",
   "hover:border-foreground focus-visible:border-foreground active:border-foreground",
   "data-[state=checked]:border-[#E0E2ED] data-[state=checked]:bg-[#E0E2ED] data-[state=checked]:text-background dark:data-[state=checked]:bg-[#E0E2ED]",
-  "dark:data-[state=checked]:hover:border-(--md-sys-color-primary) dark:data-[state=checked]:hover:bg-(--md-sys-color-primary) dark:data-[state=checked]:hover:text-(--md-sys-color-on-primary)",
-  "dark:data-[state=checked]:focus-visible:border-(--md-sys-color-primary) dark:data-[state=checked]:focus-visible:bg-(--md-sys-color-primary) dark:data-[state=checked]:focus-visible:text-(--md-sys-color-on-primary)",
-  "dark:data-[state=checked]:active:border-(--md-sys-color-primary) dark:data-[state=checked]:active:bg-(--md-sys-color-primary) dark:data-[state=checked]:active:text-(--md-sys-color-on-primary)"
+  "dark:data-[state=checked]:hover:border-brand dark:data-[state=checked]:hover:bg-brand dark:data-[state=checked]:hover:text-brand-foreground",
+  "dark:data-[state=checked]:focus-visible:border-brand dark:data-[state=checked]:focus-visible:bg-brand dark:data-[state=checked]:focus-visible:text-brand-foreground",
+  "dark:data-[state=checked]:active:border-brand dark:data-[state=checked]:active:bg-brand dark:data-[state=checked]:active:text-brand-foreground"
 )
 
 // Строка эпизода. memo: при отметке одного эпизода перерисовывается только его строка

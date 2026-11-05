@@ -167,11 +167,11 @@ function PosterContent({ media }) {
               haptic.medium()
               window.open(`https://www.youtube.com/watch?v=${trailer.key}`, "_blank")
             }}
-            className="group/play absolute right-2 bottom-2 z-2 flex size-10 cursor-pointer items-center justify-center rounded-full border-0 bg-white/32 transition-all duration-200 hover:scale-110 hover:bg-(--md-sys-color-primary)"
+            className="group/play absolute right-2 bottom-2 z-2 flex size-10 cursor-pointer items-center justify-center rounded-full border-0 bg-white/32 transition-all duration-200 hover:scale-110 hover:bg-brand"
           >
             <svg
               viewBox="0 0 24 24"
-              className="size-6 fill-primary-foreground group-hover/play:fill-(--md-sys-color-on-primary)"
+              className="size-6 fill-primary-foreground group-hover/play:fill-brand-foreground"
               aria-hidden="true"
             >
               <path d="M8 5v14l11-7z" />

@@ -2,7 +2,7 @@
 
 [![Deploy to GitHub Pages](https://github.com/username/repo-name/actions/workflows/deploy.yml/badge.svg)](https://github.com/username/repo-name/actions/workflows/deploy.yml)
 
-Telegram Mini App для просмотра, поиска и управления фильмами и сериалами. Приложение интегрируется с API The Movie Database (TMDB) и предоставляет современный интерфейс на базе Material Design 3.
+Telegram Mini App для просмотра, поиска и управления фильмами и сериалами. Приложение интегрируется с API The Movie Database (TMDB) и предоставляет современный интерфейс на React и shadcn/ui.
 
 > **⚡ Быстрый старт:** См. [QUICK_START.md](./QUICK_START.md) для деплоя за 5 минут  
 > **📖 Миграция с Vercel:** См. [MIGRATION_CHECKLIST.md](./MIGRATION_CHECKLIST.md)
@@ -17,18 +17,18 @@ Telegram Mini App для просмотра, поиска и управлени�
 - **⭐ Рейтинги и отзывы** - Оценивайте просмотренный контент и оставляйте заметки
 - **🎭 Информация о персонах** - Полные данные об актерах и режиссерах
 - **📺 Отслеживание сериалов** - Прогресс по сезонам и эпизодам
-- **🎨 Material Design 3** - Современный UI с поддержкой 6 цветовых тем
+- **🎨 shadcn/ui + Tailwind CSS** - Тёмная тема на семантических токенах (`src/app/styles/globals.css`)
 - **🎯 Рекомендации** - Персонализированные предложения на основе просмотренного
 - **📖 Stories** - Приветственные сторис при первом запуске
 
 ## 🛠 Технологический стек
 
 ### Frontend
-- **Vanilla JavaScript** - Нативный JS с Web Components
-- **Material Web Components 2.2.0** - Material Design 3 компоненты
-- **Material Color Utilities 0.3.0** - Работа с цветовыми схемами
+- **React 19** - Интерфейс на функциональных компонентах и хуках
+- **shadcn/ui (Radix UI, vaul)** - Компоненты в `src/app/components/ui`, все диалоги и меню на `Drawer`
+- **Tailwind CSS 4** - Стили через утилиты и семантические токены
+- **lucide-react** - Иконки
 - **Vite 5.4.11** - Быстрая сборка и dev сервер
-- **html2canvas 1.4.1** - Создание скриншотов
 
 ### API & Интеграция
 - **Telegram WebApp API** - Интеграция с Telegram
@@ -85,41 +85,18 @@ npm run preview
 ```
 my-mini-app/
 ├── src/
-│   ├── components/          # Переиспользуемые UI компоненты
-│   │   ├── action-sheet.js          # Всплывающее меню действий
-│   │   ├── activity-item.js         # Элемент активности
-│   │   ├── bottom-navigation.js     # Нижняя навигация (TabBar)
-│   │   ├── card-cast.js             # Карточка актерского состава
-│   │   ├── card-info.js             # Информационная карточка
-│   │   ├── card-poster.js           # Карточка постера
-│   │   ├── card-recomendation.js    # Карточка рекомендации
-│   │   ├── card-review.js           # Карточка отзыва
-│   │   ├── card-stats.js            # Карточка статистики
-│   │   ├── media-poster.js          # Постер медиа
-│   │   ├── movie-card-buttons.js    # Кнопки карточки фильма
-│   │   ├── movie-trailers.js        # Трейлеры фильмов
-│   │   ├── review-dialog.js         # Диалог оценки
-│   │   ├── show-card-buttons.js     # Кнопки карточки сериала
-│   │   ├── show-card-seasons.js     # Сезоны сериала
-│   │   └── story-viewer.js          # Просмотр сторис
-│   │
-│   ├── pages/                # Страницы приложения
-│   │   ├── movies/
-│   │   │   ├── movie-card.js        # Детальная карточка фильма
-│   │   │   └── movies-page.js       # Главная страница фильмов
-│   │   ├── tvshows/
-│   │   │   ├── show-card.js         # Детальная карточка сериала
-│   │   │   └── shows-page.js        # Главная страница сериалов
-│   │   ├── profile/
-│   │   │   ├── profile-avatar.js    # Аватар профиля
-│   │   │   ├── profile-page.js      # Страница профиля
-│   │   │   └── profile-stats.js     # Статистика профиля
-│   │   ├── genre/
-│   │   │   └── genre-page.js        # Страница жанра
-│   │   ├── person/
-│   │   │   └── person-page.js       # Страница персоны
-│   │   ├── activity-page.js         # Страница активности
-│   │   └── search-page.js           # Страница поиска
+│   ├── app/                  # React-приложение
+│   │   ├── main.jsx                 # Точка входа: bootstrap, затем createRoot
+│   │   ├── bootstrap.js             # Telegram, аналитика, миграции, userDataStore.init()
+│   │   ├── App.jsx                  # Корневой компонент: экран, TabBar, сторис
+│   │   ├── Screen.jsx               # Выбор экрана по состоянию navigationManager
+│   │   ├── screens/                 # Экраны: discover, search, profile, details, genre, person
+│   │   ├── features/details/        # Части экрана деталей (постер, сезоны, отзыв, каст и т.д.)
+│   │   ├── components/              # Общие компоненты (AppDrawer, MediaPoster, TabBar, StoryViewer и т.д.)
+│   │   │   └── ui/                  # shadcn-компоненты (button, drawer, tabs, switch и т.д.)
+│   │   ├── hooks/                   # Хуки-обёртки над сервисами и навигацией
+│   │   ├── lib/                     # Утилиты (cn, выбор медиа)
+│   │   └── styles/globals.css       # Tailwind, токены темы, шрифт Inter, базовые стили
 │   │
 │   ├── services/             # Бизнес-логика и API
 │   │   ├── tmdb.js                  # Сервис работы с TMDB API
@@ -140,18 +117,7 @@ my-mini-app/
 │   │   ├── scroll.js                # Утилиты прокрутки
 │   │   └── swipe.js                 # Утилиты свайпов
 │   │
-│   ├── css/                  # Темы Material Design
-│   │   ├── dark.css                 # Темная тема
-│   │   ├── light.css                # Светлая тема
-│   │   ├── dark-hc.css              # Темная высококонтрастная
-│   │   ├── light-hc.css             # Светлая высококонтрастная
-│   │   ├── dark-mc.css              # Темная среднеконтрастная
-│   │   └── light-mc.css             # Светлая среднеконтрастная
-│   │
 │   ├── index.html            # Главный HTML файл
-│   ├── main.js               # Точка входа приложения
-│   ├── styles.css            # Основные стили
-│   ├── theme.css             # Тема приложения
 │   └── manifest.json         # PWA манифест
 │
 ├── public/                   # Публичные ресурсы
@@ -162,8 +128,9 @@ my-mini-app/
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml        # GitHub Actions workflow для деплоя
+├── components.json           # Настройки shadcn
 ├── package.json              # Зависимости и скрипты
-├── vite.config.js            # Конфигурация Vite
+├── vite.config.mjs           # Конфигурация Vite
 ├── DEPLOYMENT.md             # Инструкции по деплою
 └── README.md                 # Этот файл
 ```
@@ -203,63 +170,44 @@ navigationManager.navigateToPerson(personId);
 navigationManager.navigateToGenre(genreId, genreName, 'movies', 'movie');
 ```
 
-### Web Components
+### React-компоненты
 
-Приложение построено на нативных Web Components. Все компоненты расширяют `HTMLElement` и используют Shadow DOM для инкапсуляции стилей.
+Приложение написано на React 19 (JSX без TypeScript). Инициализация (Telegram, аналитика, миграции, `userDataStore.init()`) выполняется в `src/app/bootstrap.js` до `createRoot`. Источником правды для навигации остаётся `navigationManager`: хук `useNavigation()` подписывается на него, собственного роутера нет. Данные пользователя читаются через хуки `useUserList()` и `useFollowing()`, которые обновляются по событиям `movie-list-changed` и `following-list-changed`.
 
 #### Основные компоненты:
 
 **Навигация:**
-- `<tab-bar>` - Нижняя панель навигации с табами
+- `<TabBar />` - Нижняя панель навигации с табами
+- `<Screen />` - Выбирает экран по `state.type` (`tab`, `details`, `person`, `genre`)
 
-**Страницы:**
-- `<movies-screen>` - Главная страница фильмов
-- `<tv-shows-screen>` - Главная страница сериалов
-- `<search-screen>` - Страница поиска
-- `<profile-screen>` - Профиль пользователя
-- `<activity-screen>` - Лента активности
-- `<genre-screen>` - Список контента по жанру
-- `<person-screen>` - Информация о персоне
+**Экраны (`src/app/screens`):**
+- `DiscoverScreen` - Фильмы и сериалы
+- `SearchScreen` - Поиск
+- `ProfileScreen` - Профиль пользователя
+- `GenreScreen` - Список контента по жанру
+- `PersonScreen` - Информация о персоне
+- `DetailsScreen` - Детальная карточка фильма или сериала
 
-**Карточки:**
-- `<movie-card-details>` - Детальная карточка фильма
-- `<tv-show-card-details>` - Детальная карточка сериала
-- `<media-poster>` - Постер с рейтингом
-- `<card-cast>` - Актерский состав
-- `<card-recomendation>` - Рекомендации
+**Общие компоненты (`src/app/components`):**
+- `MediaPoster` - Постер с рейтингом и прогрессом эпизодов
+- `AppDrawer` - Единственный способ показать диалог, всплывающее окно или контекстное меню
+- `StoryViewer` - Просмотрщик сторис
 
-**Интерактивные элементы:**
-- `<story-viewer>` - Просмотрщик сторис
-- `<review-dialog>` - Диалог оценки контента
-- `<action-sheet>` - Всплывающее меню действий
+#### Пример компонента:
 
-#### Пример создания компонента:
+```jsx
+import { cn } from '@/lib/utils';
 
-```javascript
-class MyComponent extends HTMLElement {
-    constructor() {
-        super();
-        this.attachShadow({ mode: 'open' });
-    }
-
-    connectedCallback() {
-        this.render();
-    }
-
-    render() {
-        this.shadowRoot.innerHTML = `
-            <style>
-                :host {
-                    display: block;
-                }
-            </style>
-            <div>Содержимое</div>
-        `;
-    }
+export function MyComponent({ title, className }) {
+    return (
+        <div className={cn('rounded-[12px] bg-card p-4 text-foreground', className)}>
+            {title}
+        </div>
+    );
 }
-
-customElements.define('my-component', MyComponent);
 ```
+
+Стили пишутся утилитами Tailwind с семантическими токенами (`bg-background`, `text-muted-foreground`, `bg-brand`, `border-outline` и т.д.). Значения токенов лежат в `src/app/styles/globals.css`.
 
 ## ⚙️ Конфигурация
 
@@ -314,19 +262,22 @@ VITE_BOT_USERNAME=your_bot_username_here
 
 > **Примечание**: Файл `.env` уже добавлен в `.gitignore` и не будет коммититься в репозиторий
 
-### Vite конфигурация (vite.config.js)
+### Vite конфигурация (vite.config.mjs)
 
 ```javascript
 export default defineConfig({
     root: 'src',
+    plugins: [react(), tailwindcss(), mkcert()],
+    resolve: {
+        alias: { '@': resolve(__dirname, 'src/app') }
+    },
     build: {
         outDir: '../dist',
-        sourcemap: true,
-        assetsInclude: ['**/*.jpg', '**/*.png']
+        sourcemap: true
     },
     server: {
         port: 3000,
-        host: true
+        host: '0.0.0.0'
     }
 });
 ```
@@ -615,7 +566,7 @@ TG.MainButton.onClick(() => {
 При локальной разработке (вне Telegram) автоматически подключаются моковые данные:
 
 ```javascript
-// В main.js
+// В src/app/bootstrap.js
 if (import.meta.env.DEV) {
     mockTelegramData();
 }
@@ -667,7 +618,7 @@ git push -u origin main
    - Settings → Pages
    - Source → выберите "GitHub Actions"
 
-4. **Обновите base path в `vite.config.js`**:
+4. **Обновите base path в `vite.config.mjs`**:
 ```javascript
 base: process.env.GITHUB_PAGES === 'true' ? '/имя-вашего-репозитория/' : '/',
 ```
@@ -767,113 +718,41 @@ refactor: оптимизация загрузки данных
 
 ### Добавление нового компонента
 
-Пример создания нового Web Component:
+Компоненты лежат в `src/app/components` (общие) или `src/app/features/<экран>` (части одного экрана). shadcn-компоненты добавляются командой `npx shadcn@latest add <name>` и попадают в `src/app/components/ui`.
 
-```javascript
-// src/components/my-component.js
-export class MyComponent extends HTMLElement {
-    constructor() {
-        super();
-        this.attachShadow({ mode: 'open' });
-    }
+```jsx
+// src/app/components/my-component.jsx
+import { cn } from '@/lib/utils';
 
-    connectedCallback() {
-        this.render();
-        this.setupEventListeners();
-    }
-
-    disconnectedCallback() {
-        // Очистка подписок и таймеров
-    }
-
-    render() {
-        this.shadowRoot.innerHTML = `
-            <style>
-                :host {
-                    display: block;
-                    padding: 16px;
-                }
-                
-                .container {
-                    background: var(--md-sys-color-surface);
-                    border-radius: 12px;
-                }
-            </style>
-            
-            <div class="container">
-                <slot></slot>
-            </div>
-        `;
-    }
-
-    setupEventListeners() {
-        this.shadowRoot.querySelector('.container')
-            .addEventListener('click', () => {
-                this.dispatchEvent(new CustomEvent('my-event', {
-                    bubbles: true,
-                    composed: true,
-                    detail: { data: 'some data' }
-                }));
-            });
-    }
+export function MyComponent({ title, onSelect, className }) {
+    return (
+        <button
+            type="button"
+            className={cn('rounded-[12px] bg-card p-4 text-foreground', className)}
+            onClick={onSelect}
+        >
+            {title}
+        </button>
+    );
 }
-
-customElements.define('my-component', MyComponent);
 ```
 
-Затем импортируйте в `main.js`:
+Диалоги и контекстные меню делаются через `AppDrawer`, он сам подключает кнопку «Назад» Telegram и блокировку скролла.
 
-```javascript
-import './components/my-component.js';
-```
+### Добавление нового экрана
 
-### Добавление новой страницы
+1. Создайте файл экрана в `src/app/screens/`:
 
-1. Создайте файл страницы в `src/pages/`:
-
-```javascript
-// src/pages/my-page.js
-export class MyPage extends HTMLElement {
-    constructor() {
-        super();
-        this.attachShadow({ mode: 'open' });
-    }
-
-    async connectedCallback() {
-        await this.loadData();
-        this.render();
-    }
-
-    async loadData() {
-        // Загрузка данных
-    }
-
-    render() {
-        this.shadowRoot.innerHTML = `
-            <style>/* стили */</style>
-            <div>/* контент */</div>
-        `;
-    }
+```jsx
+// src/app/screens/my-screen.jsx
+export function MyScreen({ state }) {
+    return <div className="p-4">Контент</div>;
 }
-
-customElements.define('my-page', MyPage);
 ```
 
-2. Импортируйте в `main.js`:
+2. Подключите его в `src/app/Screen.jsx`: добавьте импорт и ветку в `ScreenContent` (для таба ещё и в `TabScreen`).
 
-```javascript
-import './pages/my-page.js';
-```
-
-3. Добавьте в `showMainScreen()` в `main.js`:
-
-```javascript
-case 'myPage':
-    screen = document.createElement('my-page');
-    break;
-```
-
-4. Опционально добавьте таб в `bottom-navigation.js`
+3. Для нового таба добавьте кнопку в `src/app/components/tab-bar.jsx`.
 
 ## ⚠️ Известные проблемы и решения
 
