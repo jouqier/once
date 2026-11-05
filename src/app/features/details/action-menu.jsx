@@ -15,6 +15,7 @@ export function ActionMenu({ open, onOpenChange, title, options, onAction }) {
     >
       <div className="flex flex-col">
         {options.map((option) => (
+          // dark:hover нужен, чтобы перекрыть dark:hover:bg-muted/50 из варианта ghost
           <Button
             key={option.action}
             type="button"
@@ -23,7 +24,7 @@ export function ActionMenu({ open, onOpenChange, title, options, onAction }) {
               onAction(option.action)
               onOpenChange(false)
             }}
-            className="h-auto w-full rounded-full p-6 text-center text-base/6 font-semibold tracking-[0.15px] whitespace-normal text-foreground transition-colors duration-200 hover:bg-secondary hover:text-foreground"
+            className="h-auto w-full rounded-full p-6 text-center text-base/6 font-semibold tracking-[0.15px] whitespace-normal text-foreground transition-colors duration-200 hover:bg-secondary hover:text-foreground dark:hover:bg-secondary"
           >
             {option.label}
           </Button>

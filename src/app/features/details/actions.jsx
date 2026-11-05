@@ -12,7 +12,9 @@ function dispatch(name, detail) {
   document.dispatchEvent(new CustomEvent(name, { bubbles: true, composed: true, detail }))
 }
 
-const BUTTON = "h-12 flex-1 px-6 text-sm/5 font-medium transition-all duration-300"
+// Как md-filled-tonal-button v1: заливка до края (без прозрачной рамки Button) и без сдвига при нажатии
+const BUTTON =
+  "h-12 flex-1 border-0 bg-clip-border px-6 text-sm/5 font-medium transition-all duration-300 active:not-aria-[haspopup]:translate-y-0"
 const BUTTON_IDLE = "bg-white/32 hover:bg-white/32"
 const BUTTON_OUTLINED = "border-2 border-foreground bg-transparent hover:bg-transparent"
 const BUTTON_FILLED = "bg-primary hover:bg-primary"

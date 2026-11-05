@@ -258,9 +258,9 @@ export function ReviewDrawer({ open, onOpenChange, media, review, seasonNumber, 
                 onCheckedChange={handleShareChange}
                 className={cn(
                   "h-8! w-13! border-2 border-muted-foreground data-[state=checked]:border-transparent data-[state=checked]:bg-primary data-[state=unchecked]:bg-secondary dark:data-[state=unchecked]:bg-secondary",
-                  // Ручка M3: 16px без отметки, 24px с отметкой
-                  "[&_[data-slot=switch-thumb]]:size-4! [&_[data-slot=switch-thumb]]:translate-x-1.5! [&_[data-slot=switch-thumb]]:bg-muted-foreground",
-                  "data-[state=checked]:[&_[data-slot=switch-thumb]]:size-6! data-[state=checked]:[&_[data-slot=switch-thumb]]:translate-x-[22px]! data-[state=checked]:[&_[data-slot=switch-thumb]]:bg-(--md-sys-color-primary)"
+                  // Ручка 24px в обоих состояниях (v1 --md-switch-handle-height/width: 24px), 4px от края дорожки
+                  "[&_[data-slot=switch-thumb]]:size-6! [&_[data-slot=switch-thumb]]:translate-x-0.5! [&_[data-slot=switch-thumb]]:bg-muted-foreground!",
+                  "data-[state=checked]:[&_[data-slot=switch-thumb]]:translate-x-[22px]! data-[state=checked]:[&_[data-slot=switch-thumb]]:bg-(--md-sys-color-primary)!"
                 )}
               />
             </div>
