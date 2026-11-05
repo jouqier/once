@@ -278,7 +278,7 @@ export function ReviewDrawer({ open, onOpenChange, media, review, seasonNumber, 
 
       {loading &&
         createPortal(
-          // Поверх открытого Drawer (его портал тоже z-50 и стоит раньше в body)
+          // z-50 обязателен: оверлей и контент Drawer лежат в body с z-50 (внутри контента fixed ломает transform vaul), при равном z-index этот портал выше, потому что позже в DOM
           <div className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center bg-scrim/70 duration-200 animate-in fade-in-0">
             <div className="flex flex-col items-center gap-4">
               <div className="size-12 animate-spin rounded-full border-4 border-background border-t-brand" />

@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react"
 import TMDBService from "../../services/tmdb.js"
-import { API_CONFIG } from "../../config/api.js"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DetailsPoster } from "@/features/details/poster"
 import { DetailsInfo } from "@/features/details/info"
@@ -47,14 +46,7 @@ export function DetailsScreen({ state }) {
     TMDBService.getFullMovieInfo(mediaId, mediaType)
       .then((data) => {
         if (cancelled) return
-        const movieData = { ...data, media_type: mediaType }
-        if (movieData.backdrop_path) {
-          document.documentElement.style.setProperty(
-            "--movie-backdrop",
-            `url(${API_CONFIG.IMAGE_BASE_URL.replace("/w500", "/original")}${movieData.backdrop_path})`
-          )
-        }
-        setMedia(movieData)
+        setMedia({ ...data, media_type: mediaType })
       })
       .catch((error) => {
         console.error("Ошибка при показе деталей:", error)
@@ -66,6 +58,7 @@ export function DetailsScreen({ state }) {
     }
   }, [mediaId, mediaType])
 
+  // Как в v1. Прокручивается body, поэтому window.scrollTo здесь ничего не делает
   useLayoutEffect(() => {
     if (media) window.scrollTo(0, 0)
   }, [media])

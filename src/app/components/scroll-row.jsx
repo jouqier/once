@@ -7,8 +7,9 @@ const FADES = {
 }
 
 // Горизонтальный ряд карточек с затемнением по краям, как в v1 (movies-scroll-container).
-// innerScrolls: как у .movies-scroll в v1 скроллится сам padded-ряд, поэтому правый отступ попадает в область прокрутки.
-// У трейлеров в v1 скроллился только внешний блок (innerScrolls={false}).
+// innerScrolls: как у .movies-scroll в v1 скроллится сам ряд. Отступ в конце даёт отдельный элемент
+// (gap-2 + w-2 = 16px), а не padding-right: WebKit может не учитывать padding в конце overflow-flex.
+// У трейлеров в v1 скроллился только внешний блок (innerScrolls={false}), отступ в конце добавляют сами ряды.
 // fade: 'scrim' на фоне страницы, 'background' внутри блоков экрана деталей (v1 surface).
 export function ScrollRow({ className, innerScrolls = true, fade = "scrim", children }) {
   return (
@@ -23,11 +24,14 @@ export function ScrollRow({ className, innerScrolls = true, fade = "scrim", chil
       <div className="w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div
           className={cn(
-            "flex flex-nowrap items-start gap-2 px-4",
-            innerScrolls && "overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+            "flex flex-nowrap items-start gap-2",
+            innerScrolls ? "overflow-x-auto pl-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" : "px-4",
             className
           )}
-        >{children}</div>
+        >
+          {children}
+          {innerScrolls && <div aria-hidden="true" className="w-2 shrink-0" />}
+        </div>
       </div>
     </div>
   )

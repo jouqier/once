@@ -205,7 +205,8 @@ export function DiscoverScreen({ kind }) {
     }
   }, [want, watched, watching, config, loadRecommendations])
 
-  // Прогресс сериалов: подгружаем для карточек, которых ещё нет. Обновление по событиям эпизодов и отзывов делает useMediaProgress
+  // Прогресс сериалов: подгружаем для карточек, которых ещё нет. Свежесть после возврата с других экранов
+  // даёт повторное монтирование (progress начинается пустым), события useMediaProgress работают только пока экран открыт
   const listedShows = isTv ? [lists.trending, lists.popular, lists.topRated, lists.recommended] : []
   useEffect(() => {
     if (!isTv) return

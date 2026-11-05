@@ -3,7 +3,7 @@ import { flushSync } from 'react-dom';
 import { navigationManager } from '../../config/navigation.js';
 
 function createSnapshot(state) {
-    return { state, canGoBack: navigationManager.canGoBack() };
+    return { state };
 }
 
 // Один слушатель на уровне модуля: он ставится при импорте, то есть до bootstrap(),
@@ -16,8 +16,9 @@ window.addEventListener('navigation-changed', (event) => {
     // Как в v1 рисуем состояние из события. Оно совпадает с getCurrentState(),
     // кроме popstate в запись, которой уже нет в стеке (браузерное «Назад» после смены таба).
     snapshot = createSnapshot(event.detail?.state ?? navigationManager.getCurrentState());
-    // v1 менял экран синхронно внутри события. Браузер восстанавливает позицию скролла
-    // после popstate, поэтому новый экран должен быть в DOM к этому моменту.
+    // v1 менял экран синхронно внутри события. flushSync сохраняет это: новый экран уже в DOM,
+    // когда navigateTo*/goBack и остальные слушатели navigation-changed продолжают работу.
+    // Скролл здесь ни при чём: прокручивается body, и браузер его позицию не восстанавливает.
     flushSync(() => listeners.forEach((listener) => listener()));
 });
 

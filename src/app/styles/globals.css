@@ -37,7 +37,7 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* The app is dark-only. Values come from src/theme.css (M3 roles). */
+/* The app is dark-only. Values are the v1 Material 3 dark scheme roles (see the M3 → shadcn mapping). */
 :root {
   --background: rgb(16 19 27);
   --foreground: rgb(225 226 236);

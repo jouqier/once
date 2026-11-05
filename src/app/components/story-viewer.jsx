@@ -41,6 +41,13 @@ export function StoryViewer({ stories, slideDuration = 5000, onFinish }) {
   useEffect(() => {
     onFinishRef.current = onFinish
   })
+  // Таймер слайда и тап могут сработать почти одновременно: onFinish вызываем один раз
+  const finishedRef = useRef(false)
+  const finish = useCallback(() => {
+    if (finishedRef.current) return
+    finishedRef.current = true
+    onFinishRef.current()
+  }, [])
 
   const last = index === stories.length - 1
 
@@ -50,11 +57,11 @@ export function StoryViewer({ stories, slideDuration = 5000, onFinish }) {
       if (index < stories.length - 1) {
         setIndex(index + 1)
       } else {
-        onFinishRef.current()
+        finish()
       }
     }, slideDuration)
     return () => clearTimeout(timer)
-  }, [index, stories.length, slideDuration])
+  }, [index, stories.length, slideDuration, finish])
 
   const lockTimerRef = useRef(null)
   useEffect(() => () => clearTimeout(lockTimerRef.current), [])
@@ -62,15 +69,15 @@ export function StoryViewer({ stories, slideDuration = 5000, onFinish }) {
   const handleAction = useCallback(() => {
     haptic.medium()
     if (last) {
-      onFinishRef.current()
+      finish()
     } else {
       setIndex((i) => i + 1)
     }
-  }, [haptic, last])
+  }, [haptic, last, finish])
 
   const handleClose = () => {
     haptic.medium()
-    onFinishRef.current()
+    finish()
   }
 
   const handleNavigate = (direction) => {
@@ -86,7 +93,7 @@ export function StoryViewer({ stories, slideDuration = 5000, onFinish }) {
       haptic.light()
       setIndex(index + 1)
     } else if (direction === "next" && last) {
-      onFinishRef.current()
+      finish()
     }
   }
 
@@ -120,6 +127,7 @@ export function StoryViewer({ stories, slideDuration = 5000, onFinish }) {
 
       <button
         type="button"
+        aria-label={i18n.t("close")}
         className="absolute top-4 left-4 cursor-pointer border-none bg-transparent p-2 text-white"
         onClick={handleClose}
       >

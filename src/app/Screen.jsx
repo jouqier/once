@@ -24,6 +24,8 @@ function TabScreen({ state }) {
     const isDiscover = state.name === 'movies' || state.name === 'tv';
     const isProfile = state.name === 'profile';
 
+    // Перенесено из v1 как есть. Прокручивается body (html overflow: hidden), поэтому
+    // window.scrollTo ничего не делает и новая вкладка открывается на позиции body предыдущей.
     useLayoutEffect(() => {
         if (isProfile || isSearch || isDiscover) window.scrollTo(0, 0);
     }, [isProfile, isSearch, isDiscover]);

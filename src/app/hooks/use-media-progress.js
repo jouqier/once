@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react"
 import { userMoviesService } from "../../services/user-movies.js"
 
-// Держит прогресс сериалов ({ [tvId]: progress }) свежим и перерисовывает экран,
-// когда меняется оценка фильма. Оценки читаются при рендере (userMoviesService.getReview),
-// поэтому для них достаточно rerender.
+// Хранит прогресс сериалов ({ [tvId]: progress }) для экранов со списками.
 //
-// ratings: слушать review-submitted и перерисовывать экран.
+// Между экранами данные свежие не благодаря этим событиям: одновременно смонтирован один экран,
+// и каждый экран заново читает хранилища при монтировании. Слушатели ниже срабатывают только
+// пока экран смонтирован. Сейчас это почти не случается: review-submitted и season-review-submitted
+// отправляют drawer'ы экрана деталей (экраны со списками в это время размонтированы),
+// а episode-status-changed не отправляет никто. Оставлены на случай событий во время показа экрана.
+//
+// ratings: слушать review-submitted и перерисовывать экран (оценки читаются при рендере через getReview).
 // episodes: слушать season-review-submitted и episode-status-changed и подгружать прогресс сериала.
 //
 // Возвращает:
