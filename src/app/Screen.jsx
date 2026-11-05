@@ -2,12 +2,11 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import TMDBService from '../services/tmdb.js';
 import { API_CONFIG } from '../config/api.js';
 import { LegacyScreen } from './LegacyScreen.jsx';
+import { DiscoverScreen } from './screens/discover.jsx';
 import { SearchScreen } from './screens/search.jsx';
 
 const TAB_TAGS = {
     profile: 'profile-screen',
-    movies: 'movies-screen',
-    tv: 'tv-shows-screen',
     genre: 'genre-screen',
     person: 'person-screen',
 };
@@ -28,12 +27,14 @@ function TabScreen({ state }) {
     const tag = TAB_TAGS[state.name];
 
     const isSearch = state.name === 'search';
+    const isDiscover = state.name === 'movies' || state.name === 'tv';
 
     useLayoutEffect(() => {
-        if (tag || isSearch) window.scrollTo(0, 0);
-    }, [tag, isSearch]);
+        if (tag || isSearch || isDiscover) window.scrollTo(0, 0);
+    }, [tag, isSearch, isDiscover]);
 
     if (isSearch) return <SearchScreen />;
+    if (isDiscover) return <DiscoverScreen kind={state.name} />;
 
     if (!tag) {
         console.error('Unknown screen:', state.name);

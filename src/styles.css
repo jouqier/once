@@ -47,8 +47,6 @@ main {
  * наследуются в их shadow DOM. Здесь возвращаются значения v1. Тег убирается
  * из списка, когда элемент заменяют на React.
  */
-movies-screen,
-tv-shows-screen,
 profile-screen,
 genre-screen,
 person-screen,
@@ -59,11 +57,6 @@ review-dialog,
 context-menu {
   line-height: normal;
   color: initial;
-}
-
-movies-screen,
-tv-shows-screen {
-  padding: 8px 0;
 }
 
 .corner-bottom {
