@@ -49,14 +49,12 @@ main {
  */
 movies-screen,
 tv-shows-screen,
-search-screen,
 profile-screen,
 genre-screen,
 person-screen,
 movie-card-details,
 tv-show-card-details,
 story-viewer,
-surprise-dialog,
 review-dialog,
 context-menu {
   line-height: normal;
@@ -66,10 +64,6 @@ context-menu {
 movies-screen,
 tv-shows-screen {
   padding: 8px 0;
-}
-
-search-screen {
-  margin: 0 auto;
 }
 
 .corner-bottom {

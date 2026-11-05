@@ -9,7 +9,6 @@ import '../components/card-cast.js';
 import '../components/card-recomendation.js';
 import '../components/show-card-seasons.js';
 import '../components/story-viewer.js';
-import '../pages/search-page.js';
 import '../pages/movies/movies-page.js';
 import '../pages/tvshows/shows-page.js';
 import '../pages/profile/profile-page.js';
