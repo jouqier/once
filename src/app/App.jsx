@@ -14,7 +14,9 @@ export function App() {
     }, [state]);
 
     return (
-        <div id="app">
+        // isolate держит z-index старых элементов (таб-бар 1000) внутри #app,
+        // поэтому портал Drawer с z-50 оказывается над ними
+        <div id="app" className="isolate">
             <div className="corner-top" />
             <div className="corner-bottom" />
             <main>
