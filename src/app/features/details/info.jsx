@@ -8,7 +8,7 @@ import { ScrollRow } from "@/components/scroll-row"
 
 // Поля, которые v1 передавал в movie-info.info (movie-card.js / show-card.js)
 function infoFor(media) {
-  const genres = media.genres.map((genre) => genre.name)
+  const genres = (media.genres || []).map((genre) => genre.name)
   if (media.media_type === "tv") {
     return {
       title: media.name,

@@ -54,7 +54,7 @@ export function Trailers({ trailers }) {
         ? sorted.map((movie) => {
             const key = movie.trailer.key
             const watched = trailersStore.isWatched(key)
-            const title = movie.title || movie.name
+            const title = movie.title || movie.name || ""
             return (
               <button
                 key={key}

@@ -5,6 +5,7 @@ import { SearchScreen } from './screens/search.jsx';
 import { GenreScreen } from './screens/genre.jsx';
 import { PersonScreen } from './screens/person.jsx';
 import { ProfileScreen } from './screens/profile.jsx';
+import { ErrorBoundary } from './components/error-boundary.jsx';
 
 // В v1 каждое событие навигации пересоздавало экран. Каждое событие несёт новый объект state,
 // поэтому ключ по объекту даёт то же поведение, даже если тег не поменялся.
@@ -52,5 +53,11 @@ function ScreenContent({ state }) {
 
 export function Screen({ state }) {
     if (!state) return null;
-    return <ScreenContent key={keyFor(state)} state={state} />;
+    const key = keyFor(state);
+    // Граница с тем же ключом, что и экран: переход на другой экран сбрасывает ошибку
+    return (
+        <ErrorBoundary key={key}>
+            <ScreenContent state={state} />
+        </ErrorBoundary>
+    );
 }

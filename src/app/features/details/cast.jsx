@@ -38,7 +38,7 @@ function CastPhoto({ person }) {
     <div className="size-18 overflow-hidden rounded-full bg-muted">
       {failed ? (
         <div className="flex size-full items-center justify-center bg-muted text-2xl font-semibold text-foreground">
-          {person.name.charAt(0).toUpperCase()}
+          {(person.name || "").charAt(0).toUpperCase()}
         </div>
       ) : (
         <img
