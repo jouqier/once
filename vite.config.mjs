@@ -1,6 +1,11 @@
 import { defineConfig, loadEnv } from 'vite';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import mkcert from 'vite-plugin-mkcert';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig(({ mode }) => {
     // Загружаем env из корня проекта, а не из src/
@@ -10,7 +15,10 @@ export default defineConfig(({ mode }) => {
         base: process.env.GITHUB_PAGES === 'true' ? '/once/' : '/',
         root: 'src',
         envDir: '../',  // Указываем Vite искать .env в корне проекта
-        plugins: [mkcert()],
+        plugins: [react(), tailwindcss(), mkcert()],
+        resolve: {
+            alias: { '@': resolve(__dirname, 'src/app') }
+        },
         build: {
             outDir: '../dist',
             emptyOutDir: true,

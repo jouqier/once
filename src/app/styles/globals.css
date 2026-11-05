@@ -1,0 +1,66 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-scrim: var(--scrim);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* The app is dark-only. Values come from src/theme.css (M3 roles). */
+:root {
+  --background: rgb(16 19 27);
+  --foreground: rgb(225 226 236);
+  --card: rgb(29 31 39);
+  --card-foreground: var(--foreground);
+  --popover: rgb(39 42 50);
+  --popover-foreground: var(--foreground);
+  --primary: rgb(0 106 230);
+  --primary-foreground: rgb(242 244 255);
+  --secondary: rgb(50 53 61);
+  --secondary-foreground: var(--foreground);
+  --muted: rgb(39 42 50);
+  --muted-foreground: rgb(194 198 214);
+  --accent: rgb(48 72 121);
+  --accent-foreground: rgb(160 184 240);
+  --destructive: rgb(255 180 171);
+  --border: rgb(66 71 84);
+  --input: rgb(66 71 84);
+  --ring: rgb(174 198 255);
+  --scrim: rgb(0 0 0);
+  --radius: 1rem;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
