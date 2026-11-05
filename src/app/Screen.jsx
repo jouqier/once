@@ -6,10 +6,7 @@ import { DiscoverScreen } from './screens/discover.jsx';
 import { SearchScreen } from './screens/search.jsx';
 import { GenreScreen } from './screens/genre.jsx';
 import { PersonScreen } from './screens/person.jsx';
-
-const TAB_TAGS = {
-    profile: 'profile-screen',
-};
+import { ProfileScreen } from './screens/profile.jsx';
 
 // В v1 каждое событие навигации пересоздавало экран. Каждое событие несёт новый объект state,
 // поэтому ключ по объекту даёт то же поведение, даже если тег не поменялся.
@@ -24,28 +21,20 @@ function keyFor(state) {
 }
 
 function TabScreen({ state }) {
-    const tag = TAB_TAGS[state.name];
-
     const isSearch = state.name === 'search';
     const isDiscover = state.name === 'movies' || state.name === 'tv';
+    const isProfile = state.name === 'profile';
 
     useLayoutEffect(() => {
-        if (tag || isSearch || isDiscover) window.scrollTo(0, 0);
-    }, [tag, isSearch, isDiscover]);
+        if (isProfile || isSearch || isDiscover) window.scrollTo(0, 0);
+    }, [isProfile, isSearch, isDiscover]);
 
     if (isSearch) return <SearchScreen />;
     if (isDiscover) return <DiscoverScreen kind={state.name} />;
+    if (isProfile) return <ProfileScreen state={state} />;
 
-    if (!tag) {
-        console.error('Unknown screen:', state.name);
-        return null;
-    }
-
-    const attrs = state.name === 'profile'
-        ? { 'active-tab': state.activeTab || undefined, 'tabs-scroll-position': state.tabsScrollPosition }
-        : undefined;
-
-    return <LegacyScreen tag={tag} attrs={attrs} />;
+    console.error('Unknown screen:', state.name);
+    return null;
 }
 
 function DetailsScreen({ state }) {

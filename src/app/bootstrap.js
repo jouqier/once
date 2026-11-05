@@ -9,7 +9,6 @@ import '../components/card-cast.js';
 import '../components/card-recomendation.js';
 import '../components/show-card-seasons.js';
 import '../components/story-viewer.js';
-import '../pages/profile/profile-page.js';
 import '../services/data-repair-utility.js'; // Утилита для диагностики данных (window.dataRepair)
 import '../pages/tvshows/show-card.js';
 import { cacheMigration } from '../services/cache-migration.js';
@@ -45,7 +44,7 @@ document.addEventListener('movie-selected', async (event) => {
     }
 });
 
-// Обработчик переключения табов для старых экранов (profile-page шлёт tab-changed).
+// Обработчик tab-changed: его шлёт кнопка пустой вкладки профиля (screens/profile.jsx).
 // Нижняя панель TabBar вызывает navigateToTab напрямую.
 document.addEventListener('tab-changed', (event) => {
     const { tab } = event.detail;

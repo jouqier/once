@@ -47,7 +47,6 @@ main {
  * наследуются в их shadow DOM. Здесь возвращаются значения v1. Тег убирается
  * из списка, когда элемент заменяют на React.
  */
-profile-screen,
 movie-card-details,
 tv-show-card-details,
 story-viewer,
