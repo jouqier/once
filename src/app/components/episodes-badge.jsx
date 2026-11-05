@@ -15,7 +15,7 @@ export function EpisodesBadge({ watchedEpisodes, totalEpisodes }) {
   return (
     <Badge
       variant="secondary"
-      className="absolute top-1 right-1 z-1 h-auto gap-0.5 rounded-sm bg-card px-1.25 py-0.5 text-[11px] leading-4 font-semibold text-foreground"
+      className="absolute top-1 right-1 z-1 h-auto gap-0.5 rounded-[4px] bg-card px-1.25 py-0.5 text-[11px] leading-4 font-semibold text-foreground"
     >
       <svg viewBox="0 0 12 12" className="size-3!" aria-hidden="true">
         <circle cx="6" cy="6" r={RADIUS} fill="none" stroke="currentColor" strokeWidth="2" opacity="0.2" />

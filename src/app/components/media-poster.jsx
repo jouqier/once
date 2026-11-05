@@ -50,7 +50,7 @@ export function MediaPoster({
       type="button"
       onClick={handleClick}
       className={cn(
-        "relative block size-full cursor-pointer overflow-hidden rounded-lg bg-card p-0 text-foreground",
+        "relative block size-full cursor-pointer overflow-hidden rounded-[8px] bg-card p-0 text-foreground",
         className
       )}
     >
