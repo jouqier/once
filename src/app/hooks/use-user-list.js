@@ -61,8 +61,10 @@ const listStore = createStore('movie-list-changed', (kind, type) =>
     userDataStore
 );
 
+// follow() дописывает id в тот же массив, что лежит в кэше адаптера (unshift), поэтому
+// без копии снимок после подписки остался бы тем же объектом и React не перерисовал бы экран
 const followingStore = createStore('following-list-changed', () =>
-    userFollowingService.getFollowingList(),
+    [...userFollowingService.getFollowingList()],
     userFollowingService
 );
 

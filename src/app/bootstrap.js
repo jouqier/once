@@ -12,7 +12,6 @@ import '../components/story-viewer.js';
 import '../pages/profile/profile-page.js';
 import '../services/data-repair-utility.js'; // Утилита для диагностики данных (window.dataRepair)
 import '../pages/tvshows/show-card.js';
-import '../pages/person/person-page.js';
 import { cacheMigration } from '../services/cache-migration.js';
 import '../utils/storage-cleanup.js'; // Утилита для очистки хранилища (window.StorageCleanup)
 import { analytics } from '../services/analytics.js'; // Google Analytics

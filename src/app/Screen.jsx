@@ -5,10 +5,10 @@ import { LegacyScreen } from './LegacyScreen.jsx';
 import { DiscoverScreen } from './screens/discover.jsx';
 import { SearchScreen } from './screens/search.jsx';
 import { GenreScreen } from './screens/genre.jsx';
+import { PersonScreen } from './screens/person.jsx';
 
 const TAB_TAGS = {
     profile: 'profile-screen',
-    person: 'person-screen',
 };
 
 // В v1 каждое событие навигации пересоздавало экран. Каждое событие несёт новый объект state,
@@ -98,7 +98,7 @@ function ScreenContent({ state }) {
         case 'details':
             return <DetailsScreen state={state} />;
         case 'person':
-            return <LegacyScreen tag="person-screen" attrs={{ 'active-tab': state.activeTab || undefined }} />;
+            return <PersonScreen state={state} />;
         case 'genre':
             return <GenreScreen state={state} />;
         default:
