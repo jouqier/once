@@ -10,7 +10,6 @@ import '../components/card-recomendation.js';
 import '../components/show-card-seasons.js';
 import '../components/story-viewer.js';
 import '../pages/search-page.js';
-import '../components/bottom-navigation.js';
 import '../pages/movies/movies-page.js';
 import '../pages/tvshows/shows-page.js';
 import '../pages/profile/profile-page.js';
@@ -51,7 +50,8 @@ document.addEventListener('movie-selected', async (event) => {
     }
 });
 
-// Обработчик переключения табов. Активный таб в <tab-bar> выставляет App по состоянию навигации.
+// Обработчик переключения табов для старых экранов (profile-page шлёт tab-changed).
+// Нижняя панель TabBar вызывает navigateToTab напрямую.
 document.addEventListener('tab-changed', (event) => {
     const { tab } = event.detail;
 

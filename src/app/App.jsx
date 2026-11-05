@@ -1,20 +1,12 @@
-import { useEffect, useRef } from 'react';
-import { navigationManager } from '../config/navigation.js';
 import { useNavigation } from './hooks/use-navigation.js';
 import { Screen } from './Screen.jsx';
+import { TabBar } from './components/tab-bar.jsx';
 
 export function App() {
     const { state } = useNavigation();
-    const tabBarRef = useRef(null);
-
-    // В v1 активный таб в <tab-bar> выставлял обработчик tab-changed в main.js.
-    // Теперь он берётся из навигации: currentTab меняется только при переходе на таб.
-    useEffect(() => {
-        tabBarRef.current?.setActiveTab(navigationManager.currentTab);
-    }, [state]);
 
     return (
-        // isolate держит z-index старых элементов (таб-бар 1000) внутри #app,
+        // isolate держит z-index старых элементов внутри #app,
         // поэтому портал Drawer с z-50 оказывается над ними
         <div id="app" className="isolate">
             <div className="corner-top" />
@@ -24,7 +16,7 @@ export function App() {
                     <Screen state={state} />
                 </div>
             </main>
-            <tab-bar ref={tabBarRef} />
+            <TabBar />
         </div>
     );
 }

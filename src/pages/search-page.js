@@ -31,25 +31,6 @@ export class SearchScreen extends HTMLElement {
             const input = this.shadowRoot.querySelector('input');
             input.focus();
         }, 100);
-
-        this._observeTabBar();
-    }
-
-    disconnectedCallback() {
-        this._tabBarObserver?.disconnect();
-    }
-
-    // Кнопка «Surprise me» держится на 16px выше таббара
-    _observeTabBar() {
-        const tabBar = document.querySelector('tab-bar');
-        if (!tabBar) return;
-
-        const update = () => {
-            this.style.setProperty('--tab-bar-height', `${tabBar.offsetHeight}px`);
-        };
-        update();
-        this._tabBarObserver = new ResizeObserver(update);
-        this._tabBarObserver.observe(tabBar);
     }
 
     _openSurpriseDialog() {
