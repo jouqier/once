@@ -17,13 +17,16 @@ export function AppDrawer({
     title,
     description,
     hideTitle = false,
+    dismissible = true,
     className,
     children,
 }) {
     useModal(open, onOpenChange);
 
+    // dismissible={false} запрещает закрытие свайпом и нажатием на оверлей,
+    // закрыть окно можно только через open (в том числе кнопкой «Назад» из useModal)
     return (
-        <Drawer open={open} onOpenChange={onOpenChange} noBodyStyles>
+        <Drawer open={open} onOpenChange={onOpenChange} dismissible={dismissible} noBodyStyles>
             {/* Без описания Radix ждёт явный aria-describedby={undefined} */}
             <DrawerContent {...(!description && { 'aria-describedby': undefined })}>
                 <DrawerHeader className={cn(hideTitle && 'sr-only')}>
