@@ -1,0 +1,107 @@
+import { useEffect, useLayoutEffect, useState } from 'react';
+import TMDBService from '../services/tmdb.js';
+import { API_CONFIG } from '../config/api.js';
+import { LegacyScreen } from './LegacyScreen.jsx';
+
+const TAB_TAGS = {
+    profile: 'profile-screen',
+    movies: 'movies-screen',
+    tv: 'tv-shows-screen',
+    search: 'search-screen',
+    genre: 'genre-screen',
+    person: 'person-screen',
+};
+
+// В v1 каждое событие навигации пересоздавало экран. Каждое событие несёт новый объект state,
+// поэтому ключ по объекту даёт то же поведение, даже если тег не поменялся.
+const screenKeys = new WeakMap();
+let nextScreenKey = 0;
+
+function keyFor(state) {
+    if (!screenKeys.has(state)) {
+        screenKeys.set(state, ++nextScreenKey);
+    }
+    return screenKeys.get(state);
+}
+
+function TabScreen({ state }) {
+    const tag = TAB_TAGS[state.name];
+
+    useLayoutEffect(() => {
+        if (tag) window.scrollTo(0, 0);
+    }, [tag]);
+
+    if (!tag) {
+        console.error('Unknown screen:', state.name);
+        return null;
+    }
+
+    const attrs = state.name === 'profile'
+        ? { 'active-tab': state.activeTab || undefined, 'tabs-scroll-position': state.tabsScrollPosition }
+        : undefined;
+
+    return <LegacyScreen tag={tag} attrs={attrs} />;
+}
+
+function DetailsScreen({ state }) {
+    const { mediaId } = state;
+    const mediaType = state.mediaType === undefined ? 'movie' : state.mediaType;
+    const [movie, setMovie] = useState(null);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        TMDBService.getFullMovieInfo(mediaId, mediaType)
+            .then((data) => {
+                if (cancelled) return;
+                const movieData = { ...data, media_type: mediaType };
+                if (movieData.backdrop_path) {
+                    document.documentElement.style.setProperty(
+                        '--movie-backdrop',
+                        `url(${API_CONFIG.IMAGE_BASE_URL.replace('/w500', '/original')}${movieData.backdrop_path})`
+                    );
+                }
+                setMovie(movieData);
+            })
+            .catch((error) => {
+                console.error('Ошибка при показе деталей:', error);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [mediaId, mediaType]);
+
+    useLayoutEffect(() => {
+        if (movie) window.scrollTo(0, 0);
+    }, [movie]);
+
+    if (!movie) return null;
+
+    return (
+        <LegacyScreen
+            tag={mediaType === 'movie' ? 'movie-card-details' : 'tv-show-card-details'}
+            props={{ movie }}
+        />
+    );
+}
+
+function ScreenContent({ state }) {
+    switch (state.type) {
+        case 'tab':
+            return <TabScreen state={state} />;
+        case 'details':
+            return <DetailsScreen state={state} />;
+        case 'person':
+            return <LegacyScreen tag="person-screen" attrs={{ 'active-tab': state.activeTab || undefined }} />;
+        case 'genre':
+            return <LegacyScreen tag="genre-screen" />;
+        default:
+            return null;
+    }
+}
+
+export function Screen({ state }) {
+    if (!state) return null;
+    return <ScreenContent key={keyFor(state)} state={state} />;
+}

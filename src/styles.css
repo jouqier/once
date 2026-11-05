@@ -40,10 +40,37 @@ main {
   /*\padding-bottom: calc(64px + env(safe-area-inset-bottom)); */
 }
 
-#movies-container {
-  flex: 1;
-  position: relative;
-  z-index: 1;
+/*
+ * Tailwind preflight из src/app/styles/globals.css действует на светлый DOM:
+ * обнуляет padding и margin у старых элементов верхнего уровня (правило документа
+ * сильнее их :host) и задаёт html/body line-height 1.5 и цвет текста, которые
+ * наследуются в их shadow DOM. Здесь возвращаются значения v1. Тег убирается
+ * из списка, когда элемент заменяют на React.
+ */
+movies-screen,
+tv-shows-screen,
+search-screen,
+profile-screen,
+genre-screen,
+person-screen,
+movie-card-details,
+tv-show-card-details,
+tab-bar,
+story-viewer,
+surprise-dialog,
+review-dialog,
+context-menu {
+  line-height: normal;
+  color: initial;
+}
+
+movies-screen,
+tv-shows-screen {
+  padding: 8px 0;
+}
+
+search-screen {
+  margin: 0 auto;
 }
 
 .corner-bottom {
