@@ -49,15 +49,9 @@ main {
  */
 story-viewer,
 review-dialog,
-movie-review,
 tv-seasons {
   line-height: normal;
   color: initial;
-}
-
-/* У <movie-review> отступ задан в :host, а preflight его обнуляет */
-movie-review {
-  padding: 8px 0;
 }
 
 .corner-bottom {

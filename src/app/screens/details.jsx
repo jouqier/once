@@ -1,82 +1,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import TMDBService from "../../services/tmdb.js"
 import { API_CONFIG } from "../../config/api.js"
-import { userMoviesService } from "../../services/user-movies.js"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DetailsPoster } from "@/features/details/poster"
 import { DetailsInfo } from "@/features/details/info"
 import { DetailsCast } from "@/features/details/cast"
 import { DetailsRecommendations } from "@/features/details/recommendations"
-// Старые блоки отзывов и сезонов до задачи 10b. Оба создают <review-dialog>, но не импортируют его:
+import { DetailsReview } from "@/features/details/review"
+// Старый блок сезонов до порта. Он создаёт <review-dialog>, но не импортирует его:
 // в v1 его регистрировал movie-card-buttons.js
-import "../../components/card-review.js"
 import "../../components/show-card-seasons.js"
 import "../../components/review-dialog.js"
-
-// <movie-review> из card-review.js. Свойства и реакции на события те же, что ставили
-// movie-card.js и show-card.js в v1.
-function LegacyReview({ media }) {
-  const ref = useRef(null)
-  const isTv = media.media_type === "tv"
-
-  useLayoutEffect(() => {
-    const element = ref.current
-    if (isTv) {
-      element.movie = { ...media, media_type: "tv" }
-    } else {
-      const existing = userMoviesService.getReview(media.media_type || "movie", media.id)
-      if (existing) {
-        element.movie = media
-        element.review = existing
-        element.style.display = "flex"
-      } else {
-        element.style.display = "none"
-      }
-    }
-  }, [media, isTv])
-
-  useEffect(() => {
-    const element = ref.current
-
-    const handleRemoved = () => {
-      element.style.display = "none"
-    }
-    const handleSubmitted = (event) => {
-      if (event.detail.movieId !== media.id) return
-      element.movie = media
-      element.review = event.detail.review
-      element.render()
-      element.style.display = "flex"
-    }
-    const handleSeasonSubmitted = (event) => {
-      if (parseInt(event.detail.tvId) !== media.id) return
-      element.movie = media
-      element._loadAllSeasonReviews()
-      element.style.display = "flex"
-    }
-    const handleSeasonsRemoved = (event) => {
-      if (parseInt(event.detail.tvId) !== media.id) return
-      element.style.display = "none"
-      element._reviews = []
-      element.render()
-    }
-
-    document.addEventListener("review-removed", handleRemoved)
-    document.addEventListener("review-submitted", handleSubmitted)
-    if (isTv) {
-      document.addEventListener("season-review-submitted", handleSeasonSubmitted)
-      document.addEventListener("season-reviews-removed", handleSeasonsRemoved)
-    }
-    return () => {
-      document.removeEventListener("review-removed", handleRemoved)
-      document.removeEventListener("review-submitted", handleSubmitted)
-      document.removeEventListener("season-review-submitted", handleSeasonSubmitted)
-      document.removeEventListener("season-reviews-removed", handleSeasonsRemoved)
-    }
-  }, [media, isTv])
-
-  return <movie-review ref={ref} />
-}
 
 // <tv-seasons> из show-card-seasons.js с теми же свойствами, что ставил show-card.js
 function LegacySeasons({ show }) {
@@ -166,7 +100,7 @@ export function DetailsScreen({ state }) {
       {/* <DetailsStats />: в v1 movie-stats закомментирован */}
       <DetailsInfo media={media} />
       {isTv && <LegacySeasons show={media} />}
-      <LegacyReview media={media} />
+      <DetailsReview media={media} />
       {media.credits && <DetailsCast cast={media.credits.cast} />}
       {media.recommendations && (
         <DetailsRecommendations
