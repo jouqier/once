@@ -58,6 +58,16 @@ export class NavigationManager {
         this._navigationStack.push(state);
     }
 
+    // Перед переходом вперёд запоминаем, где был экран, который мы покидаем.
+    // Позиция лежит в history.state, поэтому popstate («Назад») вернёт её вместе с состоянием.
+    // Прокручивается body, а не окно, поэтому читаем body.scrollTop.
+    _saveScrollPosition() {
+        const currentState = this._navigationStack[this._navigationStack.length - 1];
+        if (!currentState) return;
+        currentState.scrollY = document.body.scrollTop;
+        window.history.replaceState(currentState, '', window.location);
+    }
+
     _popState() {
         return this._navigationStack.pop();
     }
@@ -176,6 +186,7 @@ export class NavigationManager {
         const url = new URL(window.location);
         url.searchParams.set('id', mediaId);
         url.searchParams.set('type', mediaType);
+        this._saveScrollPosition();
         window.history.pushState(state, '', url);
         
         this._pushState(state);
@@ -203,6 +214,7 @@ export class NavigationManager {
         if (from) url.searchParams.set('from', from);
         if (type) url.searchParams.set('type', type);
         
+        this._saveScrollPosition();
         window.history.pushState(state, '', url);
         this._pushState(state);
         this._dispatchNavigationEvent(state);
@@ -223,6 +235,7 @@ export class NavigationManager {
         
         const url = new URL(window.location);
         url.searchParams.set('id', personId);
+        this._saveScrollPosition();
         window.history.pushState(state, '', url);
         
         this._pushState(state);

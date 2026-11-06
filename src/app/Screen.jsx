@@ -6,6 +6,7 @@ import { GenreScreen } from './screens/genre.jsx';
 import { PersonScreen } from './screens/person.jsx';
 import { ProfileScreen } from './screens/profile.jsx';
 import { ErrorBoundary } from './components/error-boundary.jsx';
+import { restoreScrollPosition, scrollToTop } from '../utils/scroll.js';
 
 // В v1 каждое событие навигации пересоздавало экран. Каждое событие несёт новый объект state,
 // поэтому ключ по объекту даёт то же поведение, даже если тег не поменялся.
@@ -23,12 +24,6 @@ function TabScreen({ state }) {
     const isSearch = state.name === 'search';
     const isDiscover = state.name === 'movies' || state.name === 'tv';
     const isProfile = state.name === 'profile';
-
-    // Перенесено из v1 как есть. Прокручивается body (html overflow: hidden), поэтому
-    // window.scrollTo ничего не делает и новая вкладка открывается на позиции body предыдущей.
-    useLayoutEffect(() => {
-        if (isProfile || isSearch || isDiscover) window.scrollTo(0, 0);
-    }, [isProfile, isSearch, isDiscover]);
 
     if (isSearch) return <SearchScreen />;
     if (isDiscover) return <DiscoverScreen kind={state.name} />;
@@ -54,8 +49,19 @@ function ScreenContent({ state }) {
 }
 
 export function Screen({ state }) {
+    const key = state ? keyFor(state) : 0;
+
+    // Переход вперёд открывает экран сверху. Без этого body остаётся на позиции прошлого
+    // экрана, и карточка или жанр открываются где-то в середине.
+    // При «Назад» состояние приходит из history со scrollY, который navigationManager
+    // сохранил перед уходом с экрана: возвращаемся туда же.
+    useLayoutEffect(() => {
+        const savedScroll = state?.scrollY;
+        if (savedScroll > 0) return restoreScrollPosition(savedScroll);
+        scrollToTop();
+    }, [key]);
+
     if (!state) return null;
-    const key = keyFor(state);
     // Граница с тем же ключом, что и экран: переход на другой экран сбрасывает ошибку
     return (
         <ErrorBoundary key={key}>

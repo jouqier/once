@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState } from "react"
 import TMDBService from "../../services/tmdb.js"
+import { scrollToTop } from "../../utils/scroll.js"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DetailsPoster } from "@/features/details/poster"
 import { DetailsInfo } from "@/features/details/info"
@@ -58,10 +59,12 @@ export function DetailsScreen({ state }) {
     }
   }, [mediaId, mediaType])
 
-  // Как в v1. Прокручивается body, поэтому window.scrollTo здесь ничего не делает
+  // Как в v1: после загрузки ещё раз наверх, на случай если скелетон успели прокрутить.
+  // При «Назад» (есть scrollY) позицию восстанавливает Screen, здесь её не трогаем
+  const restoringScroll = state.scrollY > 0
   useLayoutEffect(() => {
-    if (media) window.scrollTo(0, 0)
-  }, [media])
+    if (media && !restoringScroll) scrollToTop()
+  }, [media, restoringScroll])
 
   if (media === undefined) return <DetailsSkeleton />
   if (media === null) return null
