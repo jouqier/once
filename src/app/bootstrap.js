@@ -150,9 +150,11 @@ async function initAnalytics() {
 
     try {
         // Инициализируем Telegram Analytics SDK
-        // Ждем загрузки SDK (так как скрипт загружается асинхронно)
-        await waitForTelegramAnalyticsSDK();
+        // Скрипт SDK убран из index.html: tganalytics.xyz не отдаёт тело ответа,
+        // и страница не получала событие load (Telegram бесконечно показывал загрузку).
+        // При появлении токена SDK нужно подключать отсюда, а не тегом в index.html.
         if (TELEGRAM_ANALYTICS_CONFIG.TOKEN) {
+            await waitForTelegramAnalyticsSDK();
             await telegramAnalytics.init(
                 TELEGRAM_ANALYTICS_CONFIG.TOKEN,
                 TELEGRAM_ANALYTICS_CONFIG.APP_NAME
