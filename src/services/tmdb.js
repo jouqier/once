@@ -195,6 +195,33 @@ class TMDBService {
         return this.makeRequest('/tv/on_the_air');
     }
 
+    // Новинки за последние 3 месяца, самые популярные первыми.
+    // Для сериалов берём премьеры (first_air_date), новые сезоны старых шоу сюда не попадают
+    static async getRecentReleases(type = 'movie') {
+        const toDate = (d) =>
+            `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const today = new Date();
+        const from = new Date(today);
+        from.setMonth(from.getMonth() - 3);
+
+        const dateField = type === 'movie' ? 'primary_release_date' : 'first_air_date';
+        const params = {
+            [`${dateField}.gte`]: toDate(from),
+            [`${dateField}.lte`]: toDate(today),
+            sort_by: 'popularity.desc',
+            include_adult: false,
+            // Порог голосов отсекает малоизвестные релизы с пустыми карточками
+            'vote_count.gte': type === 'movie' ? 50 : 10,
+        };
+        if (type === 'tv') {
+            // Без новостей, реалити и ток-шоу: они забивают выдачу по популярности
+            params.without_genres = '10763,10764,10767';
+        }
+
+        const data = await this.makeRequest(`/discover/${type}`, params);
+        return data.results.filter((item) => item.poster_path).slice(0, 15);
+    }
+
     static async getMoviesByGenre(genreId, page = 1) {
         try {
             const response = await fetch(

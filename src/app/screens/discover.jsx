@@ -20,6 +20,7 @@ const KINDS = {
     reloadErrorLog: "Error reloading recommendations:",
     // Порядок секций после «Для вас»
     sections: [
+      { id: "recent", title: "newThisQuarter" },
       { id: "upcoming", title: "upcoming" },
       { id: "popular", title: "mostPopular" },
     ],
@@ -30,8 +31,9 @@ const KINDS = {
       return TMDBCacheService.getPersonalizedRecommendations(want, watched)
     },
     async loadLists(loadRecommendations) {
-      const [trending, upcoming, popular, trailers, recommended] = await Promise.all([
+      const [trending, recent, upcoming, popular, trailers, recommended] = await Promise.all([
         TMDBCacheService.getTrendingMovies(),
+        TMDBCacheService.getRecentReleases("movie"),
         TMDBCacheService.getUpcomingMovies(),
         TMDBCacheService.getPopularMovies(),
         TMDBCacheService.getUpcomingMoviesWithTrailers(),
@@ -39,6 +41,7 @@ const KINDS = {
       ])
       return {
         trending,
+        recent,
         upcoming,
         popular: popular?.results || [],
         trailers,
@@ -52,6 +55,7 @@ const KINDS = {
     errorLog: () => i18n.t("errorLoadingTVShows"),
     reloadErrorLog: "Error reloading TV recommendations:",
     sections: [
+      { id: "recent", title: "newThisQuarter" },
       { id: "popular", title: "mostPopular" },
       { id: "topRated", title: "topRated" },
     ],
@@ -63,8 +67,9 @@ const KINDS = {
       return TMDBCacheService.getPersonalizedTVRecommendations(want, watched, watching)
     },
     async loadLists(loadRecommendations) {
-      const [trending, popular, topRated, trailers, recommended] = await Promise.all([
+      const [trending, recent, popular, topRated, trailers, recommended] = await Promise.all([
         TMDBCacheService.getTrendingTV(),
+        TMDBCacheService.getRecentReleases("tv"),
         TMDBCacheService.getPopularTV(),
         TMDBCacheService.getTopRatedTV(),
         TMDBCacheService.getTrendingTVWithTrailers(),
@@ -72,6 +77,7 @@ const KINDS = {
       ])
       return {
         trending,
+        recent,
         popular: popular?.results || [],
         topRated,
         trailers,
@@ -207,7 +213,7 @@ export function DiscoverScreen({ kind }) {
 
   // Прогресс сериалов: подгружаем для карточек, которых ещё нет. Свежесть после возврата с других экранов
   // даёт повторное монтирование (progress начинается пустым), события useMediaProgress работают только пока экран открыт
-  const listedShows = isTv ? [lists.trending, lists.popular, lists.topRated, lists.recommended] : []
+  const listedShows = isTv ? [lists.trending, lists.recent, lists.popular, lists.topRated, lists.recommended] : []
   useEffect(() => {
     if (!isTv) return
     const ids = [...new Set(listedShows.flatMap((list) => list || []).map((show) => show.id))].filter(

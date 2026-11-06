@@ -152,6 +152,22 @@ class TMDBCacheService {
     }
 
     /**
+     * Получить новинки за 3 месяца с кешированием (в sessionStorage)
+     */
+    async getRecentReleases(type = 'movie') {
+        const key = type === 'movie' ? CACHE_KEYS.MOVIES_RECENT : CACHE_KEYS.TV_RECENT;
+        const cached = cacheStrategy.get(key, { session: true });
+
+        if (cached) {
+            return cached;
+        }
+
+        const data = await TMDBService.getRecentReleases(type);
+        cacheStrategy.set(key, data, { session: true });
+        return data;
+    }
+
+    /**
      * Получить детали сериала с кешированием
      */
     async getTVDetails(tvId) {
