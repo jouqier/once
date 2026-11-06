@@ -250,7 +250,7 @@ export function ReviewDrawer({ open, onOpenChange, media, review, seasonNumber, 
 
           <Separator className="mx-6 my-2 w-auto! self-stretch" />
 
-          <div className="flex flex-col items-center justify-center gap-2 self-stretch px-6 py-2">
+          <div className="flex flex-col items-center justify-center gap-4 self-stretch px-6 py-2">
             <div className="flex min-h-13 items-center justify-between gap-5 self-stretch rounded-[16px] bg-secondary pr-2.5 pl-4 text-sm/5 font-semibold text-foreground">
               <span>{i18n.t("shareReview")}</span>
               <Switch

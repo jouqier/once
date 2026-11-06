@@ -36,7 +36,7 @@ export function AppDrawer({
                 {/* Скролл внутри DrawerContent: vaul не начинает свайп, пока он не в начале */}
                 <div
                     className={cn(
-                        'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]',
+                        'min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4',
                         hideTitle && 'pt-4',
                         className
                     )}
