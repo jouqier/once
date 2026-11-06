@@ -9,7 +9,7 @@
  * 3. Запустите: npm run dev:ngrok
  */
 
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
@@ -41,11 +41,28 @@ function checkNgrok() {
 }
 
 // Запускаем ngrok
-function startNgrok() {
+// Токен в ngrok.yml проекта задан (а не плейсхолдер)?
+function projectConfigHasToken() {
+    if (!fs.existsSync(NGROK_CONFIG_PATH)) return false;
+    const match = fs.readFileSync(NGROK_CONFIG_PATH, 'utf8').match(/^authtoken:\s*(.+)$/m);
+    const token = match ? match[1].trim().replace(/^["']|["']$/g, '') : '';
+    return token.length >= 10 && token !== 'YOUR_NGROK_AUTH_TOKEN';
+}
+
+// Глобальный конфиг ngrok (ngrok config add-authtoken) валиден?
+function globalConfigIsValid() {
+    return spawnSync('ngrok', ['config', 'check'], { stdio: 'ignore' }).status === 0;
+}
+
+function startNgrok(useProjectConfig) {
     console.log('🚀 Запуск ngrok...');
-    
-    // Используем прямую команду http с конфигурационным файлом
-    const ngrok = spawn('ngrok', ['http', '--config', NGROK_CONFIG_PATH, '3000'], {
+
+    // Dev-сервер Vite работает по HTTPS (mkcert), поэтому апстрим указываем с https://.
+    // С голым '3000' ngrok шлёт обычный HTTP, и Vite обрывает соединение.
+    // --config заменяет глобальный конфиг, поэтому передаём его только если в нём есть токен.
+    const args = ['http', 'https://localhost:3000'];
+    if (useProjectConfig) args.splice(1, 0, '--config', NGROK_CONFIG_PATH);
+    const ngrok = spawn('ngrok', args, {
         stdio: ['ignore', 'pipe', 'pipe']
     });
     
@@ -138,25 +155,21 @@ async function main() {
         process.exit(1);
     }
     
-    // Проверяем конфигурацию
-    if (!fs.existsSync(NGROK_CONFIG_PATH)) {
-        console.error(`❌ Файл ngrok.yml не найден: ${NGROK_CONFIG_PATH}`);
-        process.exit(1);
-    }
-    
-    const configContent = fs.readFileSync(NGROK_CONFIG_PATH, 'utf8');
-    
-    // Проверяем, что токен настроен (ищем строку authtoken: с токеном, а не плейсхолдером)
-    const authtokenMatch = configContent.match(/^authtoken:\s*(.+)$/m);
-    if (!authtokenMatch || authtokenMatch[1].trim() === 'YOUR_NGROK_AUTH_TOKEN' || authtokenMatch[1].trim().length < 10) {
-        console.error('❌ Необходимо настроить ngrok токен в ngrok.yml');
+    // Токен берём из ngrok.yml проекта, а если там плейсхолдер, из глобального конфига ngrok
+    const useProjectConfig = projectConfigHasToken();
+    if (useProjectConfig) {
+        console.log('🔑 Токен из ngrok.yml проекта\n');
+    } else if (globalConfigIsValid()) {
+        console.log('🔑 Токен из глобального конфига ngrok\n');
+    } else {
+        console.error('❌ Токен ngrok не найден ни в ngrok.yml проекта, ни в глобальном конфиге');
         console.error('   Получите токен на: https://dashboard.ngrok.com/get-started/your-authtoken');
-        console.error('   Замените YOUR_NGROK_AUTH_TOKEN на ваш токен в строке authtoken:');
+        console.error('   и выполните: ngrok config add-authtoken <токен>');
         process.exit(1);
     }
-    
+
     // Запускаем ngrok
-    const { process: ngrokProcess } = startNgrok();
+    const { process: ngrokProcess } = startNgrok(useProjectConfig);
     
     // Ждем запуска ngrok и получаем URL
     console.log('\n⏳ Ожидание запуска ngrok...');
@@ -180,8 +193,9 @@ async function main() {
     console.log('📝 Важно:');
     console.log('   1. Используйте этот URL для тестирования Mini App в Telegram:');
     console.log(`      ${ngrokUrl}`);
-    console.log('   2. Обновите WEB_APP_URL в BotFather:');
-    console.log(`      /setmenubutton → выберите бота → Web App URL: ${ngrokUrl}`);
+    console.log('   2. Не меняйте кнопку меню продакшен-бота в BotFather: она переключится у всех пользователей.');
+    console.log('      Вместо этого укажите URL в тестовом боте (BotFather → Configure Mini App)');
+    console.log('      или переопределите кнопку только для своего чата через Bot API setChatMenuButton с chat_id.');
     console.log('   3. Для остановки нажмите Ctrl+C\n');
     
     // Запускаем Vite
