@@ -41,7 +41,8 @@ function MovieActions({ movie }) {
         ],
         (action) => {
           if (action === "move-to-watched") {
-            userMoviesService.removeFromWant(movie.id)
+            // Из «Хочу» фильм уходит только при сохранении отзыва (onSubmitted),
+            // иначе «Отмена» оставила бы его без списка
             openReviewDialog()
           } else if (action === "remove-from-want") {
             userMoviesService.removeFromWant(movie.id)
@@ -112,7 +113,11 @@ function MovieActions({ movie }) {
         onOpenChange={(open) => setReview((prev) => ({ ...prev, open }))}
         media={movie}
         review={review.initial}
-        onSubmitted={() => userMoviesService.addToWatched(movie)}
+        onSubmitted={() => {
+          // Для фильма не из «Хочу» (кнопка «Просмотрено», правка отзыва) removeFromWant ничего не делает
+          userMoviesService.removeFromWant(movie.id)
+          userMoviesService.addToWatched(movie)
+        }}
       />
     </div>
   )
