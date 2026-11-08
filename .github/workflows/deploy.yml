@@ -3,8 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches:
-      - main  # или master, в зависимости от вашей основной ветки
-      - feature/telegram-cloudstorage  # Временно для тестирования CloudStorage
+      - main
   workflow_dispatch:  # Позволяет запускать вручную
 
 # Устанавливаем разрешения для GITHUB_TOKEN
